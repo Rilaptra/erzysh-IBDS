@@ -1,13 +1,13 @@
-# Set default behavior to automatically normalize line endings
-* text=auto eol=lf
+# Set default behavior to use CRLF line endings
+* text=auto eol=crlf
 
 # Explicit text files
-*.md text eol=lf
-*.json text eol=lf
-*.js text eol=lf
-*.ts text eol=lf
-*.tsx text eol=lf
-*.css text eol=lf
+*.md text eol=crlf
+*.json text eol=crlf
+*.js text eol=crlf
+*.ts text eol=crlf
+*.tsx text eol=crlf
+*.css text eol=crlf
 
 # Binary files
 *.png binary
