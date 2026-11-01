@@ -10,9 +10,10 @@ Sebelum menulis baris kode pertama pada tahap implementasi, berikut adalah dafta
 
 ### A. Persiapan Runtime & Development Tooling
 
-1. **Bun v1.4.4+ Native Toolchain:**
+1. **Bun v1.4.4+ Native Toolchain & Rust WASM Compiler (Opsi B):**
 
    - Pastikan terinstal `bun >= 1.4.4` (`bun upgrade`) agar fitur native `bun fmt`, `bun check -b`, `Bun.SQL`, `Bun.markdown`, `Bun.Image`, dan `Bun.$` aktif sepenuhnya.
+   - Pastikan terinstal `rustup` dengan target `wasm32-unknown-unknown` (`rustup target add wasm32-unknown-unknown`) dan `wasm-bindgen-cli` / `wasm-pack` untuk mengompilasi `crates/mechanics-3d-wasm/` melalui perintah `bun run wasm:build`.
 
 2. **Git Hooks Native (Tanpa Husky):**
 
@@ -45,14 +46,15 @@ Sebelum menulis baris kode pertama pada tahap implementasi, berikut adalah dafta
 
 ## 🧭 2. Diagram Pemetaan Folder ke Tanggung Jawab Domain
 
-```
+```mermaid
 flowchart TB
-    ROOT["📦 beam-deflection-simulator/ (Root Repository)"]
+    ROOT["📦 Tubes/ (Root Repository)"]
 
-    ROOT --> DOCS["📂 mdfiles/<br/>Arsitektur, Standar SNI, & Blueprint"]
-    ROOT --> SCRIPTS["📂 scripts/<br/>AI Commit Co-Helper, CI/CD, Data Validator, & PWA Icon Gen"]
+    ROOT --> DOCS["📂 mdfiles/<br/>Arsitektur, Mekanika 3D/2D, Standar SNI, & Blueprint"]
+    ROOT --> CRATES["🦀 crates/mechanics-3d-wasm/<br/>Rust WASM: Solver 5 Tumpuan, Euler-Bernoulli, & 3D Extruded Mesh"]
+    ROOT --> SCRIPTS["📂 scripts/<br/>WASM Builder, AI Commit Co-Helper, CI/CD, & PWA Icon Gen"]
     ROOT --> HOOKS["📂 .githooks/ & .github/workflows/<br/>Pre-commit Format/Typecheck & GitHub Actions"]
-    ROOT --> SRC["📂 src/<br/>Kode Sumber Aplikasi Utama"]
+    ROOT --> SRC["📂 src/<br/>TypeScript SNI Engine, Hybrid 3D/2D Canvas, & Next.js App"]
     ROOT --> TESTS["📂 tests/<br/>Unit Test & Benchmark SAP2000"]
 
     SRC --> CFG["📂 config/<br/>Tanggal Hardcode GA4, Gate PWA Desktop/Android, Konstanta SNI"]
@@ -72,7 +74,7 @@ flowchart TB
 Setiap nama _file_ di bawah ini dirancang agar **100% mencerminkan isi modulnya** dan **selaras dengan nama _folder_ induknya**:
 
 ```
-beam-deflection-simulator/
+Tubes/
 ├── .github/
 │   └── workflows/
 │       ├── ci-quality-gate.yml                         # Pipeline GitHub Actions: bun fmt --check, bun check -b, bun test
@@ -86,9 +88,22 @@ beam-deflection-simulator/
 │   ├── dokumentasi_rumus_profil_baja_wf.md             # Rumus geometri penampang IWF & BOX (A, I, S, Z, J, Cw, rts, C)
 │   ├── sni_2847_concrete_design_specification.md       # Dokumentasi optimasi tulangan lentur (As, A's) & sengkang geser beton
 │   ├── sni_1729_steel_design_specification.md          # Dokumentasi rumus LTB, biaxial, torsi, & katalog dimensi IWF/BOX
-│   ├── structural_mechanics_and_deflection_solver_spec.md # Dokumentasi reaksi tumpuan, SFD/BMD, & solver Euler-Bernoulli
+│   ├── structural_mechanics_and_deflection_solver_spec.md # Dokumentasi 5 tumpuan, lendutan negatif, sumbu XYZ, & 3D/2D
+│   ├── cad_bim_cae_export_specification.md             # Spesifikasi ekspor ke AutoCAD, SAP2000, Revit, IDEA StatiCa, & SolidWorks
 │   └── iterate/                                        # Arsip riwayat iterasi dokumen spesifikasi (V2, v3, v4, v4.1)
+├── crates/
+│   └── mechanics-3d-wasm/
+│       ├── Cargo.toml                                  # Konfigurasi crate Rust (crate-type = ["cdylib", "rlib"], wasm-bindgen)
+│       └── src/
+│           ├── lib.rs                                  # Entrypoint ekspor fungsi WASM & alokasi buffer memori linear
+│           ├── supports.rs                             # Solver reaksi 5 jenis tumpuan (Kantilever, Sendi-Rol, Jepit-Jepit, Jepit-Rol, Jepit-Sendi)
+│           ├── diagrams.rs                             # Generator array diskrit SFD (Vu), NFD (Pu), BMD (Mux, Muy), & TFD (Tu)
+│           ├── deflection.rs                           # Integrasi trapesium ganda Euler-Bernoulli O(M) & Interpolator Mode B
+│           ├── extrude_3d.rs                           # Generator 3D Extruded Mesh tanpa distorsi untuk profil IWF, BOX, & Beton Solid
+│           └── rebar_cage_3d.rs                        # Generator 3D Wireframe tulangan memanjang & cincin sengkang beton per spasi s
 ├── scripts/
+│   ├── wasm/
+│   │   └── build-mechanics-wasm.ts                     # Mengompilasi crates/mechanics-3d-wasm ke src/wasm/ via Bun.$
 │   ├── ai/
 │   │   ├── ai-commit-helper.ts                         # Membaca git diff --staged via Bun.$ & membuat commit message via AI
 │   │   ├── ai-pr-summary.ts                            # Membuat deskripsi Pull Request otomatis dari riwayat commit cabang
@@ -129,14 +144,18 @@ beam-deflection-simulator/
 │   │   ├── steel-material-grades.json                  # Daftar mutu baja BJ 34, BJ 37, BJ 41, BJ 50, BJ 55 (fy & fu)
 │   │   ├── concrete-rebar-catalog.json                 # Daftar diameter tulangan polos/ulir & mutu BJTP 24/30, BJTS 40/50/60
 │   │   └── command-registry-catalog.json               # Daftar definisi command diskrit beserta deskripsi untuk function calling AI
+│   ├── wasm/
+│   │   ├── mechanics_3d_wasm_bg.wasm                   # Binary WebAssembly hasil kompilasi Rust untuk solver mekanika & 3D mesh
+│   │   └── mechanics_3d_wasm.js                        # Glue binding TypeScript/JS otomatis dari wasm-bindgen
 │   ├── macros/
 │   │   ├── precompute-steel-catalog.macro.ts           # Bun Macro: menghitung properti IWF/BOX (A, I, S, Z, J, Cw, rts) & sort Zx saat build-time
 │   │   └── build-metadata.macro.ts                     # Bun Macro: menyuntikkan hash commit & timestamp build ke bundle
 │   ├── core/
 │   │   ├── mechanics/
-│   │   │   ├── support-reactions-solver.ts             # Menghitung reaksi tumpuan balok (Sendi-Rol, Jepit, Kantilever)
-│   │   │   ├── internal-force-diagrams-solver.ts       # Menghasilkan array diskrit SFD (Vu), NFD (Pu), BMD (Mux, Muy), TFD (Tu)
-│   │   │   ├── euler-bernoulli-deflection-solver.ts    # Integrasi numerik Float64Array O(M) untuk kurva lendutan sepanjang L
+│   │   │   ├── wasm-mechanics-bridge.ts                # Jembatan TypeScript zero-copy menuju modul Rust WASM (crates/mechanics-3d-wasm)
+│   │   │   ├── support-reactions-solver.ts             # Wrapper TS & fallback analitis untuk 5 jenis tumpuan (8 variasi orientasi)
+│   │   │   ├── internal-force-diagrams-solver.ts       # Wrapper TS pembaca buffer SFD (Vu), NFD (Pu), BMD (Mux, Muy), TFD (Tu)
+│   │   │   ├── euler-bernoulli-deflection-solver.ts    # Wrapper TS pembaca kurva lendutan Float64Array & mesh 3D Float32Array
 │   │   │   └── direct-internal-force-interpolator.ts   # Mengestimasi kurvatur & lendutan langsung dari input Mode B
 │   │   ├── concrete/
 │   │   │   ├── concrete-grade-converter.ts             # Konversi akurat mutu K-xxx ke fc' (MPa), modulus Ec, & faktor β1
@@ -149,6 +168,12 @@ beam-deflection-simulator/
 │   │   │   ├── biaxial-interaction-evaluator.ts        # Persamaan interaksi aksial-lentur biaxial SNI 1729 Pasal H1-1a & H1-1b
 │   │   │   ├── steel-torsion-shear-evaluator.ts        # Evaluasi geser & torsi penampang terbuka (IWF) vs tertutup (BOX)
 │   │   │   └── steel-section-optimizer.ts              # Binary search O(log N) profil IWF/BOX & mutu ekonomis (Mu/ΦMn >= 90%)
+│   │   ├── exporters/
+│   │   │   ├── dxf-autocad-exporter.ts                 # Generator 2D Section & 3D Mesh (.dxf) serta AutoLISP (.lsp) untuk AutoCAD
+│   │   │   ├── s2k-sap2000-exporter.ts                 # Generator model teks (.s2k) lengkap profil, 5 tumpuan, & beban untuk SAP2000
+│   │   │   ├── ifc4-bim-revit-exporter.ts              # Generator BIM (.ifc IFC4 & Revit Type Catalog .txt) untuk Revit & Tekla
+│   │   │   ├── ideastatica-exporter.ts                 # Generator IDEA Open Model (.iom.xml & .saf) untuk IDEA StatiCa
+│   │   │   └── step-solidworks-exporter.ts             # Generator 3D B-Rep Solid (.step/.stp AP214) & Mesh (.stl) untuk SolidWorks
 │   │   └── utils/
 │   │       ├── sap2000-contour-color-mapper.ts         # Interpolasi warna kontur lendutan menggunakan Bun.color
 │   │       ├── url-state-zstd-serializer.ts            # Kompresi konfigurasi balok ke URL via Bun.zstdCompressSync / CompressionStream
@@ -169,10 +194,14 @@ beam-deflection-simulator/
 │   │   │   ├── DesktopWorkstationView.tsx              # Tata letak penuh kanvas interaktif + Floating Windows + Kursor Tangan
 │   │   │   └── AndroidCompanionView.tsx                # Tata letak mobile ringkas khusus Mode B (Gaya Dalam) & Optimasi Penampang
 │   │   ├── canvas/
-│   │   │   ├── BeamDeflectionContourCanvas.tsx         # Kanvas HTML5/WebGL 60 FPS pemetaan warna defleksi & drag beban
-│   │   │   ├── InternalForceDiagramCharts.tsx          # Visualisasi grafik interaktif SFD, NFD, BMD, dan TFD
-│   │   │   ├── ConcreteCrossSectionSvg.tsx             # Gambar teknik potongan melintang beton lengkap dengan tulangan & sengkang
-│   │   │   └── SteelProfileCrossSectionSvg.tsx         # Gambar teknik potongan melintang profil IWF & BOX beserta dimensi
+│   │   │   ├── ErzyshDarkGridBackground.tsx            # Latar belakang #0A0A0A + grid teknik #1F2020 + radial glow (Gambar 1 & 2)
+│   │   │   ├── Beam3DExtrudedViewport.tsx              # Viewport WebGL 3D ekstrusi profil Baja IWF/BOX & Beton (Solid vs Wireframe Sengkang)
+│   │   │   ├── SupportSymbols2DOverlay.tsx             # Overlay 2D tumpuan Sendi, Rol, & Jepit bergaya Gambar 3 (#94A3B8 & #334155)
+│   │   │   ├── MultiModeDiagram2DOverlay.tsx           # Grafik 2D SFD/NFD/BMD/TFD (3 Mode: Bertumpuk di As Balok, Vertikal Bawah, atau Window)
+│   │   │   ├── DeflectionHudAndColorbar.tsx            # Colorbar Legend (0 s/d -Δmax) di kanan & kartu -Δmax di kiri bawah
+│   │   │   ├── CoordinateAxisSwitcher.tsx              # Pengatur orientasi sumbu dinamis (Z-Up, Y-Up, atau Custom XYZ) + 3D Gizmo
+│   │   │   ├── ConcreteCrossSectionSvg.tsx             # Gambar teknik 2D potongan ujung beton lengkap dengan tulangan & sengkang
+│   │   │   └── SteelProfileCrossSectionSvg.tsx         # Gambar teknik 2D potongan melintang profil IWF & BOX beserta dimensi
 │   │   ├── forms/
 │   │   │   ├── MaterialAndLoadModeSelector.tsx         # Toggle pemilihan Beton vs Baja dan Mode A (Eksternal) vs Mode B (Gaya Dalam)
 │   │   │   ├── ExternalLoadInteractiveForm.tsx         # Input bentang L, tumpuan, beban titik P, & beban merata q (Mode A)
@@ -182,7 +211,8 @@ beam-deflection-simulator/
 │   │   ├── results/
 │   │   │   ├── ConcreteOptimizationResultCard.tsx      # Ringkasan dimensi ekonomis (b x h), tulangan tarik/tekan, & sengkang
 │   │   │   ├── SteelOptimizationRankingTable.tsx       # Tabel peringkat profil IWF/BOX & rekomendasi mutu (Mu/ΦMn >= 90%)
-│   │   │   └── DeflectionServiceabilityBadge.tsx       # Indikator lulus/gagal batas lendutan izin (Δmax <= L/batas)
+│   │   │   ├── DeflectionServiceabilityBadge.tsx       # Indikator lulus/gagal batas lendutan izin (|Δmax| <= L/batas)
+│   │   │   └── ProfileAndModelExportModal.tsx          # Panel ekspor profil & balok ke .dxf, .lsp, .s2k, .ifc, .iom.xml, .step, .stl
 │   │   ├── windows/
 │   │   │   ├── DraggableFloatingWindow.tsx             # Komponen jendela mengambang Desktop (mendukung drag mouse & gestur ✌️)
 │   │   │   ├── DynamicHandCursorOverlay.tsx            # Kursor virtual dengan 5 perubahan simbol (✋ ◎, 🤏 ⌖, ✊ ▼, ☝️ ▸, ✌️ ▣)
@@ -227,7 +257,6 @@ beam-deflection-simulator/
 ├── package.json                                        # Daftar skrip kerja & minimal dependencies
 ├── tsconfig.json                                       # Aturan strict TypeScript untuk bun check -b
 └── vercel.json                                         # Konfigurasi deployment Vercel dengan native "bunVersion": "1.x"
-
 ```
 
 ## 📋 4. Matriks Kontrak Tanggung Jawab Setiap Folder & File Inti

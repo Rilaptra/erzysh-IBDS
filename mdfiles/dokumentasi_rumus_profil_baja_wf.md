@@ -117,7 +117,7 @@ Digunakan pada evaluasi LTB balok IWF (**SNI 1729:2020 Persamaan F2-4 & F2-6**) 
   $$J = \frac{2 b t_f^3 + (h - t_f) t_w^3}{3} + 2 \alpha D^4 - 0,420 t_f^4$$
   dengan faktor bentuk $\alpha$ dan diameter lingkaran dalam (_inscribed circle_) $D$:
   $$\alpha = \frac{t_w}{t_f}\left(0,15 + 0,10 \frac{r_c}{t_f}\right), \qquad D = \frac{(t_f + r_c)^2 + t_w\left(r_c + \frac{t_w}{4}\right)}{2 r_c + t_f}$$
-  _(Catatan Implementasi Engine: Gunakan $J\_{\text{std}}$ untuk kompatibilitas konservatif buku teks standar, atau $J$ El-Darwish bila memverifikasi terhadap database profil AISC/SAP2000)._
+  _(Catatan Implementasi Engine: Gunakan $J_{\text{std}}$ untuk kompatibilitas konservatif buku teks standar, atau $J$ El-Darwish bila memverifikasi terhadap database profil AISC/SAP2000)._
 
 ### 3.9. Konstanta Pilin / _Warping_ (_Warping Constant_ — $C_w$)
 
