@@ -250,4 +250,4 @@ Tabel berikut menyajikan 23 profil baja berongga bujur sangkar (SHS) dan persegi
 | BOX 500 x 500 x 16,0               | SHS  | 235,0            | 299,8                    | 115000                | 115000                | 5520                  | 8530                      |
 | BOX 500 x 500 x 22,0               | SHS  | 315,0            | 401,2                    | 149000                | 149000                | 7300                  | 11400                     |
 
-Seluruh nilai konstanta torsi $C$ pada tabel di atas dihitung menggunakan rumusan konservatif Catatan Pengguna Pasal H3.1 yaitu $C = 2(B - t)(H - t)t - 4,5(4 - \pi)t^3$. Apakah ada dokumen di dalam folder **mdfiles** lainnya yang juga ingin kamu tampilkan ulang secara penuh di chat?
+Seluruh nilai konstanta torsi $C$ pada tabel di atas dihitung menggunakan rumusan konservatif Catatan Pengguna Pasal H3.1 yaitu $C = 2(B - t)(H - t)t - 4,5(4 - \pi)t^3$.
