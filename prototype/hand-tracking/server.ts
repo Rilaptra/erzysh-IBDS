@@ -1,5 +1,6 @@
 // FILE 2: server.ts
 // Run with: bun run server.ts
+// Fixes 4:3 Aspect Ratio Camera Alignment & Removes GPU-Heavy CSS Blur Shaders
 
 const buildResult = await Bun.build({
   entrypoints: ["./engine.ts"],
@@ -19,7 +20,7 @@ const htmlShell = /* html */ `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🏗️ Bimanual (2-Hand) Structural Simulator v0.4.2</title>
+  <title>🏗️ Beam Deflection & Multimodal Gesture Prototype v0.4.1 (Eco Mode)</title>
   <style>
     :root {
       --bg: #090d16;
@@ -44,17 +45,21 @@ const htmlShell = /* html */ `<!DOCTYPE html>
       height: 100%;
       z-index: 1;
     }
+    /* Removed backdrop-filter: blur() because it forces 60Hz GPU Gaussian shaders over canvas */
     .floating-win {
       position: absolute;
-      width: 345px;
+      width: 330px;
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 12px;
       z-index: 10;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
     }
-    .floating-win.grabbed-win { border-color: #a855f7; }
+    .floating-win.grabbed-win {
+      border-color: #a855f7;
+    }
+    .hidden-win { display: none !important; }
     .win-header {
       display: flex;
       justify-content: space-between;
@@ -67,14 +72,14 @@ const htmlShell = /* html */ `<!DOCTYPE html>
       cursor: grab;
       color: #38bdf8;
     }
-    .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
+    .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     button {
       background: #1e293b;
       color: var(--text);
       border: 1px solid rgba(148, 163, 184, 0.3);
       border-radius: 6px;
-      padding: 6px 9px;
-      font-size: 11.5px;
+      padding: 6px 10px;
+      font-size: 12px;
       cursor: pointer;
       flex: 1;
     }
@@ -91,11 +96,11 @@ const htmlShell = /* html */ `<!DOCTYPE html>
       border-radius: 8px;
       padding: 8px;
       font-size: 12px;
-      line-height: 1.48;
+      line-height: 1.5;
       margin-top: 6px;
     }
     .metric-box b { color: #38bdf8; }
-    .v-cursor {
+    #virtual-cursor {
       position: fixed;
       top: 0;
       left: 0;
@@ -108,11 +113,11 @@ const htmlShell = /* html */ `<!DOCTYPE html>
       justify-content: center;
       pointer-events: none;
       z-index: 9999;
-      background: rgba(15, 23, 42, 0.78);
+      background: rgba(15, 23, 42, 0.75);
       will-change: transform;
     }
-    .v-cursor span:first-child { font-size: 20px; font-weight: bold; }
-    .v-tag {
+    #cursor-symbol { font-size: 20px; font-weight: bold; }
+    #cursor-tag {
       position: absolute;
       left: 50px;
       white-space: nowrap;
@@ -124,16 +129,17 @@ const htmlShell = /* html */ `<!DOCTYPE html>
     }
     #cmd-toast {
       position: fixed;
-      bottom: 18px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       background: #0f172a;
       border: 1px solid #38bdf8;
       padding: 8px 18px;
       border-radius: 999px;
-      font-size: 12.5px;
+      font-size: 13px;
       z-index: 50;
     }
+    /* Exact 4:3 Aspect Ratio (240x180) with object-fit: fill so landmarks never compress or crop! */
     .cam-preview {
       position: relative;
       width: 240px;
@@ -160,8 +166,8 @@ const htmlShell = /* html */ `<!DOCTYPE html>
     .kbd-help {
       font-size: 11px;
       color: var(--muted);
-      margin-top: 5px;
-      line-height: 1.42;
+      margin-top: 6px;
+      line-height: 1.45;
     }
     .kbd-help code {
       color: #fef08a;
@@ -174,22 +180,15 @@ const htmlShell = /* html */ `<!DOCTYPE html>
 <body>
   <canvas id="sim-canvas"></canvas>
 
-  <!-- Right Hand (Primary) Virtual Cursor -->
-  <div id="virtual-cursor-r" class="v-cursor">
-    <span id="cursor-sym-r">◎</span>
-    <span id="cursor-tag-r" class="v-tag">R · Palm</span>
+  <div id="virtual-cursor">
+    <span id="cursor-symbol">◎</span>
+    <span id="cursor-tag">Open Palm (Pointer)</span>
   </div>
 
-  <!-- Left Hand (Secondary / Bimanual) Virtual Cursor -->
-  <div id="virtual-cursor-l" class="v-cursor" style="display: none;">
-    <span id="cursor-sym-l">▼</span>
-    <span id="cursor-tag-l" class="v-tag">L · Fist</span>
-  </div>
-
-  <!-- Floating Window 1: Structural Design & Bimanual Mechanics -->
-  <div class="floating-win" id="win-config" style="top: 20px; left: 20px;">
+  <!-- Floating Window 1: Structural Design & Optimizer -->
+  <div class="floating-win" id="win-config" style="top: 24px; left: 24px;">
     <div class="win-header">
-      <span>🧱 SNI 2847 / 🔩 SNI 1729 Bimanual Engine</span>
+      <span>🧱 SNI 2847 / 🔩 SNI 1729 Optimizer</span>
       <span>▣ Drag</span>
     </div>
     <div class="row">
@@ -202,27 +201,21 @@ const htmlShell = /* html */ `<!DOCTYPE html>
       <button data-cmd="set.steel.filter.box">Only BOX</button>
     </div>
     <div class="row">
-      <button data-cmd="cycle.support">📐 Tumpuan: SIMPLY-SUPPORTED</button>
-      <button data-cmd="toggle.dual.load">🏋️ Dual Load (P1+P2)</button>
-    </div>
-    <div class="row">
-      <button data-cmd="toggle.diagram.bmd">📈 BMD</button>
-      <button data-cmd="toggle.diagram.sfd">📊 SFD</button>
-      <button data-cmd="toggle.bimanual">🙌 2-Hand Mode</button>
+      <button data-cmd="toggle.diagram.bmd">📈 Toggle BMD</button>
+      <button data-cmd="toggle.diagram.sfd">📊 Toggle SFD</button>
     </div>
     <div class="metric-box">
-      <div><b>Hasil Optimasi Penampang:</b></div>
-      <div id="opt-result" style="color:#fef08a; font-family:monospace; margin:2px 0;">-</div>
-      <div><b>Rasio Kapasitas (DCR):</b> <span id="dcr-val">-</span></div>
+      <div><b>Rekomendasi Penampang O(log N):</b></div>
+      <div id="opt-result" style="color:#fef08a; font-family:monospace; margin:3px 0;">-</div>
+      <div><b>Rasio Kapasitas (Mu / ΦMn):</b> <span id="dcr-val">-</span></div>
       <div><b>Lendutan Maks (Δmax):</b> <span id="defl-val">-</span></div>
-      <div><b>Status Mekanika:</b> <span id="bimanual-note" style="color:#d8b4fe;">-</span></div>
     </div>
   </div>
 
-  <!-- Floating Window 2: 2-Hand Camera & Gesture Guide -->
-  <div class="floating-win" id="win-gesture" style="top: 20px; right: 20px;">
+  <!-- Floating Window 2: Multimodal Hand Tracking & Voice -->
+  <div class="floating-win" id="win-gesture" style="top: 24px; right: 24px;">
     <div class="win-header">
-      <span>🙌 2-Hand Bimanual Tracking (Eco 12-16 FPS)</span>
+      <span>🤚 Multimodal Hand & Voice (Eco Mode)</span>
       <span>▣ Drag</span>
     </div>
     <div class="cam-preview">
@@ -230,22 +223,20 @@ const htmlShell = /* html */ `<!DOCTYPE html>
       <canvas id="hand-skeleton" width="240" height="180"></canvas>
     </div>
     <div class="row">
-      <button id="btn-toggle-cam">📷 Activate 2-Hand Camera (Eco Adaptive)</button>
+      <button id="btn-toggle-cam">📷 Activate Hand Camera (Eco 16 FPS)</button>
+    </div>
+    <div class="row">
+      <button id="btn-voice">🎤 Enable Voice Command</button>
     </div>
     <div class="metric-box">
-      <div><b>Active Hands:</b> <span id="gesture-live-badge">R:[◎ Palm]</span></div>
+      <div><b>Active Gesture:</b> <span id="gesture-live-badge">◎ Open Palm</span></div>
       <div class="kbd-help">
-        <b>5 Kombinasi 2 Tangan (Kamera / Simulator):</b><br/>
-        • <code>✊ L + ✊ R</code> : Dual Load (P1 & P2) + Putar Setir Torsi (Tu)<br/>
-        • <code>🤏 L + 🤏 R</code> : Rentangkan Zona Beban Merata Parsial (qu)<br/>
-        • <code>✊ L + ☝️ R</code> : Tahan Beban P1 (Kiri) + Inspeksi Kurva (Kanan)<br/>
-        • <code>✌️ L + 🤏 R</code> : Ganti Tumpuan (Sendi-Rol / Jepit / Kantilever)<br/>
-        <b>No Webcam?</b> Tekan <code>Space</code> untuk memunculkan Tangan Kiri Virtual (<code>Q/W/E/R/T</code> gestur kiri, <code>A/D/S</code> geser kiri)!
+        <b>Debug Keys:</b> <code>1</code> ✋ Palm · <code>2</code> 🤏 Pinch · <code>3</code> ✊ Fist · <code>4</code> ☝️ Point · <code>5</code> ✌️ Drag
       </div>
     </div>
   </div>
 
-  <div id="cmd-toast">⚡ Bimanual Workstation Ready · Show 2 Hands to Camera or Press [Space] for Virtual Left Hand</div>
+  <div id="cmd-toast">⚡ Eco Workstation Ready · 0% Idle GPU Redraw · Knuckle-Anchored Pinch</div>
 
   <script type="module" src="/engine.js"></script>
 </body>
@@ -267,5 +258,5 @@ const server = Bun.serve({
 });
 
 console.log(
-  `🚀 Bimanual 2-Hand Simulator running at http://localhost:${server.port}`,
+  `🚀 Eco-Mode Multimodal Simulator running at http://localhost:${server.port}`,
 );

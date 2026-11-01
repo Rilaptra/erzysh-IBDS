@@ -46,7 +46,7 @@ Sebelum menulis baris kode pertama pada tahap implementasi, berikut adalah dafta
 
 ## 🧭 2. Diagram Pemetaan Folder ke Tanggung Jawab Domain
 
-```mermaid
+```
 flowchart TB
     ROOT["📦 Tubes/ (Root Repository)"]
 
@@ -85,12 +85,23 @@ Tubes/
 ├── mdfiles/
 │   ├── bun_v1_4_4_architecture_and_context.md          # Konteks arsitektur Bun v1.4.4, Big O, & 20 Pilar Rekayasa
 │   ├── final_project_file_structure_and_preparation.md # Blueprint struktur file final, persiapan, & kontrak modul
-│   ├── dokumentasi_rumus_profil_baja_wf.md             # Rumus geometri penampang IWF & BOX (A, I, S, Z, J, Cw, rts, C)
+│   ├── steel_wf_box_section_geometry_spec.md           # Rumus geometri penampang IWF & BOX (A, I, S, Z, J, Cw, rts, C)
 │   ├── sni_2847_concrete_design_specification.md       # Dokumentasi optimasi tulangan lentur (As, A's) & sengkang geser beton
 │   ├── sni_1729_steel_design_specification.md          # Dokumentasi rumus LTB, biaxial, torsi, & katalog dimensi IWF/BOX
 │   ├── structural_mechanics_and_deflection_solver_spec.md # Dokumentasi 5 tumpuan, lendutan negatif, sumbu XYZ, & 3D/2D
 │   ├── cad_bim_cae_export_specification.md             # Spesifikasi ekspor ke AutoCAD, SAP2000, Revit, IDEA StatiCa, & SolidWorks
-│   └── iterate/                                        # Arsip riwayat iterasi dokumen spesifikasi (V2, v3, v4, v4.1)
+│   ├── ui_ux_visual_layout_and_interaction_spec.md     # Spesifikasi visual kanvas #0A0A0A, balok 3D, tumpuan 2D, & HUD
+│   ├── step_by_step_build_roadmap.md                   # Panduan 7 tahap pembuatan aplikasi & pemetaan konteks AI per step
+│   └── iterate/                                        # Arsip riwayat iterasi dokumen spesifikasi (v2, v3, v4, v4.1)
+├── prototype/
+│   ├── hand-tracking/
+│   │   ├── engine.ts                                   # Prototipe engine deteksi gestur tangan & kursor virtual
+│   │   └── server.ts                                   # Server penguji prototipe hand tracking
+│   └── voice-command/
+│       ├── index.ts                                    # Entrypoint prototipe perintah suara
+│       ├── cli.ts                                      # Antarmuka CLI penguji perintah suara
+│       ├── server.ts                                   # Server penguji prototipe voice command
+│       └── tests/                                      # Kumpulan skrip pengujian live model AI & suara
 ├── crates/
 │   └── mechanics-3d-wasm/
 │       ├── Cargo.toml                                  # Konfigurasi crate Rust (crate-type = ["cdylib", "rlib"], wasm-bindgen)
@@ -105,6 +116,7 @@ Tubes/
 │   ├── wasm/
 │   │   └── build-mechanics-wasm.ts                     # Mengompilasi crates/mechanics-3d-wasm ke src/wasm/ via Bun.$
 │   ├── ai/
+│   │   ├── step-context-bundler.ts                     # CLI pemilih Step [1-7] yang menyalin mdfiles + membuat PROMPT.md di .tmp-step-context/
 │   │   ├── ai-commit-helper.ts                         # Membaca git diff --staged via Bun.$ & membuat commit message via AI
 │   │   ├── ai-pr-summary.ts                            # Membuat deskripsi Pull Request otomatis dari riwayat commit cabang
 │   │   └── ai-code-policy-auditor.ts                   # Memeriksa kepatuhan terhadap aturan "No useless comments"
@@ -257,21 +269,23 @@ Tubes/
 ├── package.json                                        # Daftar skrip kerja & minimal dependencies
 ├── tsconfig.json                                       # Aturan strict TypeScript untuk bun check -b
 └── vercel.json                                         # Konfigurasi deployment Vercel dengan native "bunVersion": "1.x"
+
 ```
 
 ## 📋 4. Matriks Kontrak Tanggung Jawab Setiap Folder & File Inti
 
 ### A. Folder `scripts/` (Automasi DevOps, CI/CD, & AI Co-Helper)
 
-| Path File                               | Fungsi Spesifik                                                                                                                                                                                     | API Native Bun yang Dipakai        |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `scripts/ai/ai-commit-helper.ts`        | Menjalankan `bun fmt --staged` dan `bun check -b`, membaca `git diff --staged`, mengirim perubahan ke LLM API untuk menyusun pesan _Conventional Commit_ yang presisi, lalu melakukan `git commit`. | `Bun.$`, `fetch()`, `console`      |
-| `scripts/ai/ai-pr-summary.ts`           | Membaca daftar _commit_ antara cabang aktif dan `main`, lalu membuat ringkasan _Pull Request_ lengkap dengan bagian perubahan rumus/UI.                                                             | `Bun.$`, `Bun.markdown`, `fetch()` |
-| `scripts/ai/ai-code-policy-auditor.ts`  | Memindai seluruh _file_ `.ts`/`.tsx` di `src/` untuk memastikan tidak ada komentar sampah (_useless comments_) dan seluruh komentar menggunakan Bahasa Inggris sederhana.                           | `Bun.Glob`, `Bun.file().text()`    |
-| `scripts/ci/install-git-hooks.ts`       | Mengatur `git config core.hooksPath .githooks` dan memberikan izin eksekusi (`chmod +x`) pada `.githooks/pre-commit` serta `.githooks/commit-msg`.                                                  | `Bun.$`                            |
-| `scripts/ci/verify-pipeline.ts`         | Menjalankan `bun fmt --check`, `bun check -b`, `bun run data:validate`, dan `bun test --parallel --check` secara berurutan.                                                                         | `Bun.$`, `Bun.nanoseconds()`       |
-| `scripts/data/validate-sni-catalogs.ts` | Memeriksa seluruh entri JSON profil IWF, BOX, dan tulangan agar tidak ada nilai $Z_x, I_x, A, f_y$ yang nol, negatif, atau salah satuan.                                                            | `Bun.file().json()`                |
-| `scripts/pwa/generate-pwa-icons.ts`     | Mengubah satu gambar master menjadi `icon-192x192.png`, `icon-512x512.png`, dan `icon-maskable-512x512.png` untuk manifest PWA.                                                                     | `Bun.Image`, `Bun.write()`         |
+| Path File                               | Fungsi Spesifik                                                                                                                                                                                     | API Native Bun yang Dipakai             |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `scripts/ai/step-context-bundler.ts`    | Menampilkan menu CLI interaktif (Step 1–7) lalu menyalin hanya `mdfiles` yang dibutuhkan tahap tersebut ke `.tmp-step-context/step-0X/` agar hemat _context window_ AI.                             | `Bun.write()`, `console`, `fs/promises` |
+| `scripts/ai/ai-commit-helper.ts`        | Menjalankan `bun fmt --staged` dan `bun check -b`, membaca `git diff --staged`, mengirim perubahan ke LLM API untuk menyusun pesan _Conventional Commit_ yang presisi, lalu melakukan `git commit`. | `Bun.$`, `fetch()`, `console`           |
+| `scripts/ai/ai-pr-summary.ts`           | Membaca daftar _commit_ antara cabang aktif dan `main`, lalu membuat ringkasan _Pull Request_ lengkap dengan bagian perubahan rumus/UI.                                                             | `Bun.$`, `Bun.markdown`, `fetch()`      |
+| `scripts/ai/ai-code-policy-auditor.ts`  | Memindai seluruh _file_ `.ts`/`.tsx` di `src/` untuk memastikan tidak ada komentar sampah (_useless comments_) dan seluruh komentar menggunakan Bahasa Inggris sederhana.                           | `Bun.Glob`, `Bun.file().text()`         |
+| `scripts/ci/install-git-hooks.ts`       | Mengatur `git config core.hooksPath .githooks` dan memberikan izin eksekusi (`chmod +x`) pada `.githooks/pre-commit` serta `.githooks/commit-msg`.                                                  | `Bun.$`                                 |
+| `scripts/ci/verify-pipeline.ts`         | Menjalankan `bun fmt --check`, `bun check -b`, `bun run data:validate`, dan `bun test --parallel --check` secara berurutan.                                                                         | `Bun.$`, `Bun.nanoseconds()`            |
+| `scripts/data/validate-sni-catalogs.ts` | Memeriksa seluruh entri JSON profil IWF, BOX, dan tulangan agar tidak ada nilai $Z_x, I_x, A, f_y$ yang nol, negatif, atau salah satuan.                                                            | `Bun.file().json()`                     |
+| `scripts/pwa/generate-pwa-icons.ts`     | Mengubah satu gambar master menjadi `icon-192x192.png`, `icon-512x512.png`, dan `icon-maskable-512x512.png` untuk manifest PWA.                                                                     | `Bun.Image`, `Bun.write()`              |
 
 ### B. Folder `src/core/` (Pure Mathematical & Structural Engine)
 
