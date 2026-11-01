@@ -1,13 +1,13 @@
-# Set default behavior to use CRLF line endings
-* text=auto eol=crlf
+# Set default behavior to use LF line endings
+* text=auto eol=lf
 
 # Explicit text files
-*.md text eol=crlf
-*.json text eol=crlf
-*.js text eol=crlf
-*.ts text eol=crlf
-*.tsx text eol=crlf
-*.css text eol=crlf
+*.md text eol=lf
+*.json text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
 
 # Binary files
 *.png binary

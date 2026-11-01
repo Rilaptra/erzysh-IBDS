@@ -35,9 +35,9 @@ Sebelum menulis baris kode pertama pada tahap implementasi, berikut adalah dafta
 
 ### C. Persiapan Dataset & Benchmark Teknik Sipil (`src/data/` & `tests/fixtures/`)
 
-1. **Katalog Profil Baja IWF (`steel-iwf-catalog.json`):** Tabel dimensi & properti penampang standar JIS G 3192 / SNI ($H, B, t_w, t_f, r, A, I_x, I_y, Z_x, Z_y, S_x, S_y, r_x, r_y, J, C_w$).
+1. **Katalog Dimensi Primer Baja IWF (`steel-iwf-catalog.json`):** Hanya menyimpan 5 dimensi primer standar JIS G 3192 / SNI ($H, B, t_w, t_f, r$) untuk menghemat ukuran data & _context window_. Seluruh properti turunan ($A, W, I_x, I_y, S_x, S_y, Z_x, Z_y, r_x, r_y, h_o, J, C_w, r_{ts}$) dihitung otomatis saat _compile-time_ oleh Bun Macro menggunakan rumus di `mdfiles/dokumentasi_rumus_profil_baja_wf.md`.
 
-2. **Katalog Profil Baja BOX (`steel-box-catalog.json`):** Tabel dimensi & properti _Hollow Structural Section_ persegi/persegi panjang ($H, B, t, A, I_x, I_y, Z_x, Z_y, J$).
+2. **Katalog Dimensi Primer Baja BOX (`steel-box-catalog.json`):** Menyimpan dimensi primer _Hollow Structural Section_ persegi/persegi panjang standar JIS G 3466 ($H, B, t$), sedangkan properti penampang ($A, W, I_x, I_y, Z_x, Z_y, J, C$) dihitung otomatis saat _compile-time_.
 
 3. **Katalog Baja Tulangan (`concrete-rebar-catalog.json`):** Tabel diameter nominal tulangan polos (BJTP 24/30) dan sirip/ulir (BJTS 40/50/60) beserta luas penampang satu tulangan ($A_{b} = \frac{1}{4}\pi d_b^2$) dan berat per meter.
 
@@ -83,9 +83,11 @@ beam-deflection-simulator/
 ├── mdfiles/
 │   ├── bun_v1_4_4_architecture_and_context.md          # Konteks arsitektur Bun v1.4.4, Big O, & 20 Pilar Rekayasa
 │   ├── final_project_file_structure_and_preparation.md # Blueprint struktur file final, persiapan, & kontrak modul
-│   ├── sni_2847_concrete_design_specification.md       # Dokumentasi rumus lentur, geser, & torsi beton bertulang
-│   ├── sni_1729_steel_design_specification.md          # Dokumentasi rumus LTB, biaxial, & torsi baja IWF/BOX
-│   └── iteration_and_database_roadmap.md               # Catatan evolusi v0.1 -> v0.4 dan rancangan Bun.SQL v0.5
+│   ├── dokumentasi_rumus_profil_baja_wf.md             # Rumus geometri penampang IWF & BOX (A, I, S, Z, J, Cw, rts, C)
+│   ├── sni_2847_concrete_design_specification.md       # Dokumentasi optimasi tulangan lentur (As, A's) & sengkang geser beton
+│   ├── sni_1729_steel_design_specification.md          # Dokumentasi rumus LTB, biaxial, torsi, & katalog dimensi IWF/BOX
+│   ├── structural_mechanics_and_deflection_solver_spec.md # Dokumentasi reaksi tumpuan, SFD/BMD, & solver Euler-Bernoulli
+│   └── iterate/                                        # Arsip riwayat iterasi dokumen spesifikasi (V2, v3, v4, v4.1)
 ├── scripts/
 │   ├── ai/
 │   │   ├── ai-commit-helper.ts                         # Membaca git diff --staged via Bun.$ & membuat commit message via AI
@@ -122,13 +124,13 @@ beam-deflection-simulator/
 │   │   ├── command-registry-types.ts                   # Skema ketat seluruh ID command untuk Voice Control & AI Intent Router
 │   │   └── analytics-telemetry-types.ts                # Tipe payload response visitor counter GA4
 │   ├── data/
-│   │   ├── steel-iwf-catalog.json                      # Tabel profil standar IWF lengkap dengan properti inersia & torsi
-│   │   ├── steel-box-catalog.json                      # Tabel profil standar BOX (Hollow) lengkap dengan properti penampang
+│   │   ├── steel-iwf-catalog.json                      # Dimensi primer profil standar IWF (H, B, tw, tf, r)
+│   │   ├── steel-box-catalog.json                      # Dimensi primer profil standar BOX / Hollow (H, B, t)
 │   │   ├── steel-material-grades.json                  # Daftar mutu baja BJ 34, BJ 37, BJ 41, BJ 50, BJ 55 (fy & fu)
 │   │   ├── concrete-rebar-catalog.json                 # Daftar diameter tulangan polos/ulir & mutu BJTP 24/30, BJTS 40/50/60
-│   │   └── command-registry-catalog.json               # Daftar definisi command дискрит beserta deskripsi untuk function calling AI
+│   │   └── command-registry-catalog.json               # Daftar definisi command diskrit beserta deskripsi untuk function calling AI
 │   ├── macros/
-│   │   ├── precompute-steel-catalog.macro.ts           # Bun Macro: mengurutkan katalog IWF & BOX berdasarkan Zx saat build-time
+│   │   ├── precompute-steel-catalog.macro.ts           # Bun Macro: menghitung properti IWF/BOX (A, I, S, Z, J, Cw, rts) & sort Zx saat build-time
 │   │   └── build-metadata.macro.ts                     # Bun Macro: menyuntikkan hash commit & timestamp build ke bundle
 │   ├── core/
 │   │   ├── mechanics/
@@ -137,11 +139,10 @@ beam-deflection-simulator/
 │   │   │   ├── euler-bernoulli-deflection-solver.ts    # Integrasi numerik Float64Array O(M) untuk kurva lendutan sepanjang L
 │   │   │   └── direct-internal-force-interpolator.ts   # Mengestimasi kurvatur & lendutan langsung dari input Mode B
 │   │   ├── concrete/
-│   │   │   ├── concrete-grade-converter.ts             # Konversi akurat mutu K-xxx ke fc' (MPa) & modulus elastisitas Ec
-│   │   │   ├── whitney-flexural-designer.ts            # Perhitungan blok tegangan Whitney, tulangan tarik As & tekan A's
-│   │   │   ├── shear-stirrup-designer.ts               # Perhitungan kapasitas geser beton Vc & jarak sengkang Vs
-│   │   │   ├── torsion-reinforcement-designer.ts       # Evaluasi torsi ambang Tth, sengkang tertutup At/s, & tulangan memanjang Al
-│   │   │   └── concrete-section-optimizer.ts           # Optimasi iteratif dimensi ekonomis (b x h) & susunan tulangan
+│   │   │   ├── concrete-grade-converter.ts             # Konversi akurat mutu K-xxx ke fc' (MPa), modulus Ec, & faktor β1
+│   │   │   ├── whitney-flexural-designer.ts            # Perhitungan blok tegangan Whitney, jumlah & diameter tulangan tarik As & tekan A's
+│   │   │   ├── shear-stirrup-designer.ts               # Perhitungan kuat geser beton Vc, diameter sengkang, & jarak spasi s
+│   │   │   └── concrete-section-optimizer.ts           # Optimasi iteratif dimensi ekonomis (b x h) & kombinasi tulangan efisien
 │   │   ├── steel/
 │   │   │   ├── section-compactness-classifier.ts       # Klasifikasi sayap & badan (Kompak, Non-Kompak, Langsing) SNI 1729 Bab B4
 │   │   │   ├── lateral-torsional-buckling-solver.ts    # Kapasitas momen nominal Mn berdasarkan panjang tak terkekang Lb (Lp, Lr)
@@ -215,7 +216,7 @@ beam-deflection-simulator/
 │   ├── mechanics/
 │   │   └── euler-bernoulli-deflection.test.ts          # Uji akurasi lendutan & diagram SFD/NFD/BMD/TFD
 │   ├── concrete/
-│   │   └── concrete-sni2847-optimizer.test.ts          # Uji akurasi tulangan tarik/tekan, sengkang geser, & torsi beton
+│   │   └── concrete-sni2847-optimizer.test.ts          # Uji akurasi jumlah & diameter tulangan tarik/tekan serta spasi sengkang geser
 │   ├── steel/
 │   │   └── steel-sni1729-optimizer.test.ts             # Uji akurasi binary search O(log N), LTB, interaksi biaxial, & rasio >= 90%
 │   └── platform/
