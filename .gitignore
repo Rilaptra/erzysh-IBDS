@@ -51,3 +51,5 @@ Thumbs.db
 .turbo/
 .cache/
 .vercel/
+
+.tmp-step-context/
