@@ -1,0 +1,34 @@
+name: CI Quality Gate (Bun v1.4.4)
+
+on:
+  push:
+    branches: [main, flash]
+  pull_request:
+    branches: [main, flash]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun v1.4.4
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check Formatting (bun fmt)
+        run: bun fmt --check
+
+      - name: Native TypeScript Check (bun check -b)
+        run: bun check -b
+
+      - name: Validate SNI Steel & Concrete Catalogs
+        run: bun run data:validate
+
+      - name: Run Parallel Unit Tests
+        run: bun test --parallel --check

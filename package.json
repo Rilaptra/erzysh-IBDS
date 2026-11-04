@@ -1,14 +1,18 @@
 {
   "name": "interactive-beam-simulator",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Interactive 3D Beam Deflection & Structural Design Simulator (SNI 2847:2019 & SNI 1729:2020)",
   "type": "module",
   "scripts": {
     "wasm:build": "bun run scripts/wasm/build-mechanics-wasm.ts",
-    "dev": "bun --bun next dev --turbopack",
-    "build": "bun run wasm:build && bun check -b && bun --bun next build",
+    "dev": "bun run sync-version && bun --bun next dev --turbopack",
+    "build": "bun run sync-version && bun run wasm:build && bun check -b && bun --bun next build",
     "start": "bun --bun next start",
+    "lint": "bun scripts/verify.ts",
+    "lint:full": "bun scripts/verify.ts --build",
+    "sync-version": "bun scripts/sync-version.ts",
+    "commit": "bun scripts/release.ts",
     "typecheck": "bun check -b",
     "format": "bun fmt",
     "format:check": "bun fmt --check",
@@ -24,6 +28,7 @@
   },
   "dependencies": {},
   "devDependencies": {
+    "@rilaptra/tui": "1.0.0",
     "@types/bun": "1.4.4",
     "typescript": "^5.8.2"
   }
