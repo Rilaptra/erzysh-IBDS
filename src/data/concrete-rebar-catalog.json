@@ -1,0 +1,132 @@
+{
+  "grades": [
+    {
+      "grade": "BJTP_24",
+      "name": "BJTP 24",
+      "fy": 240,
+      "fu": 390,
+      "type": "PLAIN",
+      "barDiameters": [6, 8, 10, 12, 16]
+    },
+    {
+      "grade": "BJTP_30",
+      "name": "BJTP 30",
+      "fy": 300,
+      "fu": 450,
+      "type": "PLAIN",
+      "barDiameters": [6, 8, 10, 12, 16]
+    },
+    {
+      "grade": "BJTS_40",
+      "name": "BJTS 40",
+      "fy": 400,
+      "fu": 570,
+      "type": "DEFORMED",
+      "barDiameters": [10, 13, 16, 19, 22, 25, 29, 32, 36]
+    },
+    {
+      "grade": "BJTS_50",
+      "name": "BJTS 50",
+      "fy": 500,
+      "fu": 650,
+      "type": "DEFORMED",
+      "barDiameters": [10, 13, 16, 19, 22, 25, 29, 32, 36]
+    },
+    {
+      "grade": "BJTS_60",
+      "name": "BJTS 60",
+      "fy": 600,
+      "fu": 750,
+      "type": "DEFORMED",
+      "barDiameters": [10, 13, 16, 19, 22, 25, 29, 32, 36]
+    }
+  ],
+  "plainBars": [
+    {
+      "name": "D6",
+      "diameter": 6,
+      "area": 28.2743,
+      "unitWeightKgPerM": 0.22194
+    },
+    {
+      "name": "D8",
+      "diameter": 8,
+      "area": 50.2655,
+      "unitWeightKgPerM": 0.39456
+    },
+    {
+      "name": "D10",
+      "diameter": 10,
+      "area": 78.5398,
+      "unitWeightKgPerM": 0.6165
+    },
+    {
+      "name": "D12",
+      "diameter": 12,
+      "area": 113.0973,
+      "unitWeightKgPerM": 0.88776
+    },
+    {
+      "name": "D16",
+      "diameter": 16,
+      "area": 201.0619,
+      "unitWeightKgPerM": 1.57824
+    }
+  ],
+  "deformedBars": [
+    {
+      "name": "D10",
+      "diameter": 10,
+      "area": 78.5398,
+      "unitWeightKgPerM": 0.6165
+    },
+    {
+      "name": "D13",
+      "diameter": 13,
+      "area": 132.7323,
+      "unitWeightKgPerM": 1.04189
+    },
+    {
+      "name": "D16",
+      "diameter": 16,
+      "area": 201.0619,
+      "unitWeightKgPerM": 1.57824
+    },
+    {
+      "name": "D19",
+      "diameter": 19,
+      "area": 283.5287,
+      "unitWeightKgPerM": 2.22557
+    },
+    {
+      "name": "D22",
+      "diameter": 22,
+      "area": 380.1327,
+      "unitWeightKgPerM": 2.98386
+    },
+    {
+      "name": "D25",
+      "diameter": 25,
+      "area": 490.8739,
+      "unitWeightKgPerM": 3.85313
+    },
+    {
+      "name": "D29",
+      "diameter": 29,
+      "area": 660.5199,
+      "unitWeightKgPerM": 5.18476
+    },
+    {
+      "name": "D32",
+      "diameter": 32,
+      "area": 804.2477,
+      "unitWeightKgPerM": 6.31296
+    },
+    {
+      "name": "D36",
+      "diameter": 36,
+      "area": 1017.876,
+      "unitWeightKgPerM": 7.98984
+    }
+  ]
+}
