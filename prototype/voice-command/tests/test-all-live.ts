@@ -61,9 +61,7 @@ for (const m of models) {
 
       ws.onclose = (e) => {
         clearTimeout(timer);
-        console.log(
-          `❌ [CLOSED] ${m.name} (${m.id}): code=${e.code}, reason="${e.reason}"`,
-        );
+        console.log(`❌ [CLOSED] ${m.name} (${m.id}): code=${e.code}, reason="${e.reason}"`);
         resolve(null);
       };
 

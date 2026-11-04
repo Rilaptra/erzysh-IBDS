@@ -2,8 +2,8 @@
   "name": "gemini-live-test",
   "version": "1.0.0",
   "description": "Simple Bun + TypeScript app for testing Google Gemini Live API and Streaming",
-  "main": "server.ts",
   "type": "module",
+  "main": "server.ts",
   "scripts": {
     "start": "bun run server.ts",
     "dev": "bun --watch server.ts",

@@ -61,13 +61,8 @@ for (const model of modelsToTest) {
 
         ws.onclose = (e) => {
           clearTimeout(timer);
-          if (
-            !e.reason.includes("is not found") &&
-            !e.reason.includes("is not supported")
-          ) {
-            console.log(
-              `[WS RESULT] ver=${ver}, model=${model}: ${e.code} "${e.reason}"`,
-            );
+          if (!e.reason.includes("is not found") && !e.reason.includes("is not supported")) {
+            console.log(`[WS RESULT] ver=${ver}, model=${model}: ${e.code} "${e.reason}"`);
           }
           resolve(null);
         };
@@ -96,9 +91,7 @@ for (const model of [
   try {
     const res = await ai.models.generateContentStream({
       model,
-      contents: [
-        { role: "user", parts: [{ text: "Halo tes satu dua tiga." }] },
-      ],
+      contents: [{ role: "user", parts: [{ text: "Halo tes satu dua tiga." }] }],
     });
     let text = "";
     for await (const chunk of res) {

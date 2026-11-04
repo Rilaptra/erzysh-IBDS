@@ -1,16 +1,12 @@
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
-  console.error(
-    "❌ Error: GEMINI_API_KEY is not set in environment or .env file.",
-  );
+  console.error("❌ Error: GEMINI_API_KEY is not set in environment or .env file.");
   process.exit(1);
 }
 
 console.log("=================================================");
 console.log("🚀 Testing Gemini Live API Models (Bun + TypeScript)");
-console.log(
-  `🔑 Key: ${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`,
-);
+console.log(`🔑 Key: ${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`);
 console.log("=================================================\n");
 
 const liveModels = [
@@ -103,9 +99,7 @@ async function runLiveTests() {
   }
 
   console.log("\n=================================================");
-  console.log(
-    "🎉 All Live Models Tested! Open http://localhost:3000 to interact.",
-  );
+  console.log("🎉 All Live Models Tested! Open http://localhost:3000 to interact.");
   console.log("=================================================");
 }
 

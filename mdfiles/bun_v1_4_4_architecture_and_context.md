@@ -149,9 +149,9 @@ export const toNmm = (moment: KilonewtonMeter): number => moment * 1_000_000;
    File JSON `src/data/steel-iwf-catalog.json` hanya menyimpan **5 parameter dimensi primer** ($H, B, t_w, t_f, r$). Pada saat _build time_, **Bun Macro** menghitung seluruh properti penampang ($A, W, I_x, I_y, S_x, S_y, Z_x, Z_y, r_x, r_y, h_o, J, C_w, r_{ts}$) menggunakan rumus resmi di `mdfiles/dokumentasi_rumus_profil_baja_wf.md` lalu mengurutkannya berdasarkan modulus plastis $Z_x$:
 
 ```typescript
+import { computeIwfSectionProperties } from "../core/steel/iwf-geometric-properties";
 // src/macros/precompute-steel-catalog.macro.ts
 import rawIwfDimensions from "../data/steel-iwf-catalog.json";
-import { computeIwfSectionProperties } from "../core/steel/iwf-geometric-properties";
 
 export function getPrecomputedSortedIwfCatalog() {
   return rawIwfDimensions

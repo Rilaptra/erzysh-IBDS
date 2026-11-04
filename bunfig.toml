@@ -1,0 +1,14 @@
+[install]
+minimumReleaseAge = "3d"
+exact = true
+
+[fmt]
+printWidth = 100
+semi = true
+singleQuote = false
+sortImports = true
+sortTailwindcss = true
+sortPackageJson = true
+
+[test]
+coverage = true

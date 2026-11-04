@@ -70,8 +70,7 @@ const BUILD_STEPS: BuildStepConfig[] = [
   {
     stepNumber: 3,
     slug: "step-03-rust-wasm-mechanics-3d",
-    title:
-      "Rust WASM Mechanics Solver (5 Tumpuan, Lendutan Negatif, & 3D Extruded Mesh)",
+    title: "Rust WASM Mechanics Solver (5 Tumpuan, Lendutan Negatif, & 3D Extruded Mesh)",
     requiredMdFiles: [
       "structural_mechanics_and_deflection_solver_spec.md",
       "bun_v1_4_4_architecture_and_context.md",
@@ -99,8 +98,7 @@ const BUILD_STEPS: BuildStepConfig[] = [
   {
     stepNumber: 4,
     slug: "step-04-sni-concrete-and-steel-optimizers",
-    title:
-      "Engine Optimasi Desain Beton (SNI 2847) & Baja (SNI 1729) di TypeScript",
+    title: "Engine Optimasi Desain Beton (SNI 2847) & Baja (SNI 1729) di TypeScript",
     requiredMdFiles: [
       "sni_2847_concrete_design_specification.md",
       "sni_1729_steel_design_specification.md",
@@ -125,8 +123,7 @@ const BUILD_STEPS: BuildStepConfig[] = [
   {
     stepNumber: 5,
     slug: "step-05-hybrid-3d-2d-viewport-and-ui",
-    title:
-      "Kanvas Hybrid 3D/2D, Tumpuan Gambar 3, 3 Mode Diagram, & Floating Windows",
+    title: "Kanvas Hybrid 3D/2D, Tumpuan Gambar 3, 3 Mode Diagram, & Floating Windows",
     requiredMdFiles: [
       "ui_ux_visual_layout_and_interaction_spec.md",
       "structural_mechanics_and_deflection_solver_spec.md",
@@ -155,8 +152,7 @@ const BUILD_STEPS: BuildStepConfig[] = [
   {
     stepNumber: 6,
     slug: "step-06-cad-bim-cae-exporters",
-    title:
-      "Exporter Multi-Format CAD / BIM / CAE (.dxf, .lsp, .s2k, .ifc, .iom.xml, .step, .stl)",
+    title: "Exporter Multi-Format CAD / BIM / CAE (.dxf, .lsp, .s2k, .ifc, .iom.xml, .step, .stl)",
     requiredMdFiles: [
       "cad_bim_cae_export_specification.md",
       "steel_wf_box_section_geometry_spec.md",
@@ -185,19 +181,13 @@ const BUILD_STEPS: BuildStepConfig[] = [
   {
     stepNumber: 7,
     slug: "step-07-multimodal-ai-ga4-and-pwa",
-    title:
-      "Interaksi Multimodal (MediaPipe Hands, Voice AI), GA4 Flex Counter, & Finalisasi PWA",
+    title: "Interaksi Multimodal (MediaPipe Hands, Voice AI), GA4 Flex Counter, & Finalisasi PWA",
     requiredMdFiles: [
       "ui_ux_visual_layout_and_interaction_spec.md",
       "bun_v1_4_4_architecture_and_context.md",
       "final_project_file_structure_and_preparation.md",
     ],
-    optionalPrototypeDirs: [
-      "hand-tracking",
-      "handTracking",
-      "voice-command",
-      "voiceCommand",
-    ],
+    optionalPrototypeDirs: ["hand-tracking", "handTracking", "voice-command", "voiceCommand"],
     targetDeliverables: [
       "src/hooks/use-mediapipe-hand-tracking.ts, use-web-speech-command.ts, use-visitor-flex-counter.ts",
       "src/components/windows/DynamicHandCursorOverlay.tsx & HandTrackingCameraPreview.tsx",
@@ -217,10 +207,7 @@ const BUILD_STEPS: BuildStepConfig[] = [
   },
 ];
 
-async function resolveMdFileName(
-  mdSourceDir: string,
-  requestedName: string,
-): Promise<string> {
+async function resolveMdFileName(mdSourceDir: string, requestedName: string): Promise<string> {
   if (await exists(join(mdSourceDir, requestedName))) {
     return requestedName;
   }
@@ -233,10 +220,7 @@ async function resolveMdFileName(
   return requestedName;
 }
 
-async function copyDirectoryRecursive(
-  srcDir: string,
-  destDir: string,
-): Promise<void> {
+async function copyDirectoryRecursive(srcDir: string, destDir: string): Promise<void> {
   await mkdir(destDir, { recursive: true });
   const entries = await readdir(srcDir, { withFileTypes: true });
   for (const entry of entries) {
@@ -251,15 +235,10 @@ async function copyDirectoryRecursive(
   }
 }
 
-async function bundleStepContext(
-  stepNum: number,
-  customUserNotes: string,
-): Promise<void> {
+async function bundleStepContext(stepNum: number, customUserNotes: string): Promise<void> {
   const step = BUILD_STEPS.find((s) => s.stepNumber === stepNum);
   if (!step) {
-    console.error(
-      `Nomor step tidak valid: ${stepNum}. Pilih angka 1 s/d ${BUILD_STEPS.length}.`,
-    );
+    console.error(`Nomor step tidak valid: ${stepNum}. Pilih angka 1 s/d ${BUILD_STEPS.length}.`);
     process.exit(1);
   }
 
@@ -280,9 +259,7 @@ async function bundleStepContext(
       await copyFile(srcPath, destPath);
       copiedFiles.push(actualFile);
     } else {
-      console.warn(
-        `⚠️ Peringatan: File ${actualFile} belum ditemukan di ${mdSourceDir}`,
-      );
+      console.warn(`⚠️ Peringatan: File ${actualFile} belum ditemukan di ${mdSourceDir}`);
     }
   }
 
@@ -348,17 +325,13 @@ async function bundleStepContext(
   const promptFilePath = join(targetDir, "PROMPT.md");
   await Bun.write(promptFilePath, promptMdContent);
 
-  console.log(
-    `\n✅ Berhasil menyiapkan paket konteks untuk STEP ${step.stepNumber}!`,
-  );
+  console.log(`\n✅ Berhasil menyiapkan paket konteks untuk STEP ${step.stepNumber}!`);
   console.log(`📂 Folder Tujuan : ${targetDir}`);
   console.log(`📄 File Dicopy   : ${copiedFiles.join(", ")}`);
   if (copiedPrototypes.length > 0) {
     console.log(`🧪 Prototipe     : ${copiedPrototypes.join(", ")}`);
   }
-  console.log(
-    `📝 File Prompt   : ${promptFilePath} (Siap di-copy atau ditambah catatan!)`,
-  );
+  console.log(`📝 File Prompt   : ${promptFilePath} (Siap di-copy atau ditambah catatan!)`);
 }
 
 async function runCli(): Promise<void> {
@@ -370,22 +343,14 @@ async function runCli(): Promise<void> {
     return;
   }
 
-  console.log(
-    "=======================================================================",
-  );
-  console.log(
-    "🏗️  Tubes Step-by-Step AI Context & PROMPT.md Bundler (Bun v1.4.4 CLI)",
-  );
-  console.log(
-    "=======================================================================",
-  );
+  console.log("=======================================================================");
+  console.log("🏗️  Tubes Step-by-Step AI Context & PROMPT.md Bundler (Bun v1.4.4 CLI)");
+  console.log("=======================================================================");
   for (const s of BUILD_STEPS) {
     console.log(`  [${s.stepNumber}] ${s.title}`);
     console.log(`      └─ mdfiles: ${s.requiredMdFiles.join(", ")}`);
   }
-  console.log(
-    "=======================================================================",
-  );
+  console.log("=======================================================================");
   process.stdout.write("Pilih nomor Step yang ingin disiapkan [1-7]: ");
 
   let selectedStep: number | null = null;
@@ -393,9 +358,7 @@ async function runCli(): Promise<void> {
     if (selectedStep === null) {
       selectedStep = Number(line.trim());
       if (!BUILD_STEPS.some((s) => s.stepNumber === selectedStep)) {
-        console.error(
-          "Nomor step tidak valid. Harap masukkan angka 1 sampai 7.",
-        );
+        console.error("Nomor step tidak valid. Harap masukkan angka 1 sampai 7.");
         process.exit(1);
       }
       process.stdout.write(

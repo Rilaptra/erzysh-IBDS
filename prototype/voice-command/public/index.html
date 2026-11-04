@@ -59,9 +59,7 @@
           </div>
 
           <div class="sidebar-section">
-            <label class="section-label" for="modelSelect"
-              >MODEL GEMINI LIVE</label
-            >
+            <label class="section-label" for="modelSelect">MODEL GEMINI LIVE</label>
             <select id="modelSelect" class="form-select">
               <optgroup label="🌟 Gemini Live API (Native Audio & WebSockets)">
                 <option value="gemini-3.8-live" selected>
@@ -86,9 +84,7 @@
           </div>
 
           <div class="sidebar-section">
-            <label class="section-label" for="voiceSelect"
-              >PILIHAN VOICE AUDIO</label
-            >
+            <label class="section-label" for="voiceSelect">PILIHAN VOICE AUDIO</label>
             <select id="voiceSelect" class="form-select">
               <option value="Aoede" selected>Aoede (Default Female)</option>
               <option value="Puck">Puck (Male)</option>
@@ -99,16 +95,10 @@
           </div>
 
           <div class="sidebar-section">
-            <label class="section-label" for="micModeSelect"
-              >METODE INPUT SUARA (MIC)</label
-            >
+            <label class="section-label" for="micModeSelect">METODE INPUT SUARA (MIC)</label>
             <select id="micModeSelect" class="form-select">
-              <option value="stt" selected>
-                🌐 Browser STT (Web Speech API • Teks Langsung)
-              </option>
-              <option value="pcm">
-                🎙️ Raw PCM Stream (Bicara Langsung ke Gemini Live)
-              </option>
+              <option value="stt" selected>🌐 Browser STT (Web Speech API • Teks Langsung)</option>
+              <option value="pcm">🎙️ Raw PCM Stream (Bicara Langsung ke Gemini Live)</option>
             </select>
           </div>
 
@@ -128,19 +118,13 @@
           </div>
 
           <div class="sidebar-section">
-            <label class="section-label"
-              >👏 DETEKSI TEPUK TANGAN (HANDS-FREE)</label
-            >
+            <label class="section-label">👏 DETEKSI TEPUK TANGAN (HANDS-FREE)</label>
             <div class="clap-control-box">
               <label class="checkbox-label" for="clapToggle">
                 <input type="checkbox" id="clapToggle" />
                 <span>Aktifkan Tepuk Tangan 2x</span>
               </label>
-              <div
-                id="clapOptions"
-                class="clap-options"
-                style="display: none; margin-top: 10px"
-              >
+              <div id="clapOptions" class="clap-options" style="display: none; margin-top: 10px">
                 <div
                   style="
                     font-size: 11px;
@@ -155,29 +139,21 @@
                   <span>Filter Akustik: Blokir ketuk meja (< 1.2kHz)</span>
                 </div>
                 <label class="sub-label">Sensitivitas Tepukan:</label>
-                <select
-                  id="clapSensitivitySelect"
-                  class="form-select"
-                  style="margin-top: 4px"
-                >
+                <select id="clapSensitivitySelect" class="form-select" style="margin-top: 4px">
                   <option value="low">Rendah (Harus tepuk keras)</option>
                   <option value="medium" selected>Sedang (Normal)</option>
                   <option value="high">Tinggi (Sensitif)</option>
                 </select>
                 <div class="stat-row" style="margin-top: 8px; font-size: 11px">
                   <span>Status Detektor:</span>
-                  <strong id="clapStatusText" style="color: #58a6ff"
-                    >Nonaktif</strong
-                  >
+                  <strong id="clapStatusText" style="color: #58a6ff">Nonaktif</strong>
                 </div>
               </div>
             </div>
           </div>
 
           <div class="sidebar-section">
-            <label class="section-label" for="systemPrompt"
-              >SYSTEM INSTRUCTION</label
-            >
+            <label class="section-label" for="systemPrompt">SYSTEM INSTRUCTION</label>
             <textarea
               id="systemPrompt"
               class="form-textarea"
@@ -207,9 +183,7 @@ Kamu adalah asisten percakapan cerdas Gemini Live yang ramah, alami, dan berbaha
             </div>
           </div>
 
-          <button id="clearChatBtn" class="secondary-btn">
-            🧹 Bersihkan Percakapan
-          </button>
+          <button id="clearChatBtn" class="secondary-btn">🧹 Bersihkan Percakapan</button>
         </aside>
 
         <!-- Center Chat Area -->
@@ -226,14 +200,10 @@ Kamu adalah asisten percakapan cerdas Gemini Live yang ramah, alami, dan berbaha
               <h2>Gemini Live API Playground</h2>
               <p>
                 Terhubung langsung ke model
-                <strong>Gemini 3.8 Live & Native Audio</strong> melalui
-                WebSocket Bidirectional.
+                <strong>Gemini 3.8 Live & Native Audio</strong> melalui WebSocket Bidirectional.
               </p>
               <div class="quick-tags">
-                <button
-                  class="tag-btn"
-                  data-prompt="Aktifkan window SFD dan BMD"
-                >
+                <button class="tag-btn" data-prompt="Aktifkan window SFD dan BMD">
                   🏗️ Aktifkan Window SFD & BMD
                 </button>
                 <button class="tag-btn" data-prompt="Tutup window SFD dan BMD">
@@ -257,10 +227,7 @@ Kamu adalah asisten percakapan cerdas Gemini Live yang ramah, alami, dan berbaha
                 >
                   ⚡ Fitur 3.8 Live
                 </button>
-                <button
-                  class="tag-btn"
-                  data-prompt="Hitung satu sampai sepuluh dengan nada ceria."
-                >
+                <button class="tag-btn" data-prompt="Hitung satu sampai sepuluh dengan nada ceria.">
                   🔢 Hitung 1-10
                 </button>
               </div>
@@ -273,18 +240,9 @@ Kamu adalah asisten percakapan cerdas Gemini Live yang ramah, alami, dan berbaha
           <!-- Input Bar with Countdown Indicator -->
           <div class="input-wrapper">
             <div id="countdownBanner" class="countdown-banner hidden">
-              <div
-                class="countdown-progress-bar"
-                id="countdownProgressBar"
-              ></div>
-              <span class="countdown-text" id="countdownText"
-                >⏱️ Mengirim dalam 2.5s...</span
-              >
-              <button
-                id="cancelAutoSendBtn"
-                class="cancel-timer-btn"
-                title="Batal kirim otomatis"
-              >
+              <div class="countdown-progress-bar" id="countdownProgressBar"></div>
+              <span class="countdown-text" id="countdownText">⏱️ Mengirim dalam 2.5s...</span>
+              <button id="cancelAutoSendBtn" class="cancel-timer-btn" title="Batal kirim otomatis">
                 ✕ Batal Kirim Otomatis
               </button>
             </div>
@@ -334,29 +292,15 @@ Kamu adalah asisten percakapan cerdas Gemini Live yang ramah, alami, dan berbaha
               </p>
             </div>
           </div>
-          <button
-            id="closeSfdBmdBtn"
-            class="modal-close-btn"
-            title="Tutup Window"
-          >
-            ✕
-          </button>
+          <button id="closeSfdBmdBtn" class="modal-close-btn" title="Tutup Window">✕</button>
         </div>
         <div class="modal-body">
           <div class="diagram-toolbar">
             <div class="param-badge">Bentang: <strong>L = 6.0 m</strong></div>
-            <div class="param-badge">
-              Beban Merata: <strong>q = 12 kN/m</strong>
-            </div>
-            <div class="param-badge">
-              Beban Terpusat: <strong>P = 25 kN (di L/2)</strong>
-            </div>
-            <div class="param-badge highlight">
-              V_maks = <strong>±48.5 kN</strong>
-            </div>
-            <div class="param-badge highlight">
-              M_maks = <strong>+91.5 kNm</strong>
-            </div>
+            <div class="param-badge">Beban Merata: <strong>q = 12 kN/m</strong></div>
+            <div class="param-badge">Beban Terpusat: <strong>P = 25 kN (di L/2)</strong></div>
+            <div class="param-badge highlight">V_maks = <strong>±48.5 kN</strong></div>
+            <div class="param-badge highlight">M_maks = <strong>+91.5 kNm</strong></div>
           </div>
 
           <div class="diagrams-grid">
@@ -373,16 +317,14 @@ Kamu adalah asisten percakapan cerdas Gemini Live yang ramah, alami, dan berbaha
               <h4>📈 BMD (Bending Moment Diagram)</h4>
               <canvas id="bmdCanvas" width="760" height="150"></canvas>
               <div class="diagram-legend">
-                <span class="legend-box moment"></span> Momen Lentur Positif
-                (+M) Maksimum di Tengah Bentang
+                <span class="legend-box moment"></span> Momen Lentur Positif (+M) Maksimum di Tengah
+                Bentang
               </div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <span class="status-indicator live"
-            >● Window SFD & BMD Berhasil Aktif via Tool Use</span
-          >
+          <span class="status-indicator live">● Window SFD & BMD Berhasil Aktif via Tool Use</span>
           <button id="modalDoneBtn" class="primary-btn">Tutup Window</button>
         </div>
       </div>

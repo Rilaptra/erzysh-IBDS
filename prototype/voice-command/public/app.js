@@ -332,11 +332,7 @@ function playPcmChunk(base64Data) {
     }
 
     // 16-bit linear PCM (little-endian) to Float32 (-1.0 to 1.0)
-    const int16 = new Int16Array(
-      bytes.buffer,
-      bytes.byteOffset,
-      alignedLen / 2,
-    );
+    const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, alignedLen / 2);
     const float32 = new Float32Array(int16.length);
     for (let i = 0; i < int16.length; i++) {
       float32[i] = int16[i] / 32768.0;
@@ -458,8 +454,7 @@ promptInput.addEventListener("input", () => {
 // 1. Browser Native Web Speech API (STT)
 // ==========================================
 function setupSpeechRecognition() {
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     console.warn("Browser ini tidak mendukung Web Speech API.");
     return null;
@@ -542,9 +537,7 @@ function startSttListening() {
     speechRecognition = setupSpeechRecognition();
   }
   if (!speechRecognition) {
-    alert(
-      "Browser Google Chrome kamu mendukung Web Speech API, pastikan izin mikrofon diizinkan!",
-    );
+    alert("Browser Google Chrome kamu mendukung Web Speech API, pastikan izin mikrofon diizinkan!");
     return;
   }
   try {
@@ -709,9 +702,7 @@ async function startClapListening() {
       }
 
       // Ambang batas sensitivitas tepukan tangan
-      const sens = clapSensitivitySelect
-        ? clapSensitivitySelect.value
-        : "medium";
+      const sens = clapSensitivitySelect ? clapSensitivitySelect.value : "medium";
       let peakThresh = 0.2;
       let crestThresh = 2.2;
       let minClapEnergy = 60;
@@ -728,9 +719,7 @@ async function startClapListening() {
 
       // Kriteria Tepukan Tangan Valid
       const isClap =
-        peak >= peakThresh &&
-        crestFactor >= crestThresh &&
-        clapEnergy >= minClapEnergy;
+        peak >= peakThresh && crestFactor >= crestThresh && clapEnergy >= minClapEnergy;
 
       if (isClap) {
         // Debounce dalam 140ms (abaikan pantulan akustik dari tepukan yang sama)
@@ -889,11 +878,7 @@ async function startLiveMicStreaming() {
     micProcessor = inputAudioContext.createScriptProcessor(2048, 1, 1);
 
     micProcessor.onaudioprocess = (e) => {
-      if (
-        !isLiveCallActive ||
-        !liveWebSocket ||
-        liveWebSocket.readyState !== WebSocket.OPEN
-      )
+      if (!isLiveCallActive || !liveWebSocket || liveWebSocket.readyState !== WebSocket.OPEN)
         return;
 
       const input = e.inputBuffer.getChannelData(0);
@@ -930,9 +915,7 @@ async function startLiveMicStreaming() {
     isLiveCallActive = true;
     micBtn.classList.add("recording");
     setStatus("busy", "🎙️ Mic Aktif (PCM Live Streaming)...");
-    appendSystemMessage(
-      "🎙️ Sesi Suara Langsung (Raw PCM) Aktif! Langsung bicara apa saja...",
-    );
+    appendSystemMessage("🎙️ Sesi Suara Langsung (Raw PCM) Aktif! Langsung bicara apa saja...");
   } catch (err) {
     console.error("Mic access error:", err);
     alert("Gagal mengakses mikrofon: " + err.message);
@@ -1147,8 +1130,7 @@ function connectBidiWebSocket() {
                   properties: {
                     target: {
                       type: "STRING",
-                      description:
-                        "Nama window yang ingin diaktifkan, misalnya 'SFD_BMD'.",
+                      description: "Nama window yang ingin diaktifkan, misalnya 'SFD_BMD'.",
                     },
                   },
                   required: ["target"],
@@ -1156,15 +1138,13 @@ function connectBidiWebSocket() {
               },
               {
                 name: "close_window",
-                description:
-                  "Menutup window atau modal tampilan yang sedang terbuka di layar.",
+                description: "Menutup window atau modal tampilan yang sedang terbuka di layar.",
                 parameters: {
                   type: "OBJECT",
                   properties: {
                     target: {
                       type: "STRING",
-                      description:
-                        "Nama window yang ingin ditutup, misalnya 'SFD_BMD'.",
+                      description: "Nama window yang ingin ditutup, misalnya 'SFD_BMD'.",
                     },
                   },
                   required: ["target"],
@@ -1253,14 +1233,11 @@ function connectBidiWebSocket() {
 
           if (call.name === "activate_window") {
             openSfdBmdWindow();
-            appendSystemMessage(
-              `⚙️ Tool Use: Membuka window ${call.args?.target || "SFD_BMD"}`,
-            );
+            appendSystemMessage(`⚙️ Tool Use: Membuka window ${call.args?.target || "SFD_BMD"}`);
             toolOutput = {
               status: "success",
               window: call.args?.target || "SFD_BMD",
-              message:
-                "Window SFD dan BMD telah berhasil diaktifkan dan tampil di layar pengguna.",
+              message: "Window SFD dan BMD telah berhasil diaktifkan dan tampil di layar pengguna.",
             };
           } else if (call.name === "close_window") {
             closeSfdBmdWindow();
@@ -1345,9 +1322,7 @@ async function handleSend() {
     openSfdBmdWindow();
   } else if (
     lowerText.includes("tutup") &&
-    (lowerText.includes("sfd") ||
-      lowerText.includes("bmd") ||
-      lowerText.includes("window"))
+    (lowerText.includes("sfd") || lowerText.includes("bmd") || lowerText.includes("window"))
   ) {
     closeSfdBmdWindow();
   }
@@ -1430,11 +1405,7 @@ async function handleSend() {
       },
     };
 
-    if (
-      liveWebSocket &&
-      liveWebSocket.readyState === WebSocket.OPEN &&
-      isSetupComplete
-    ) {
+    if (liveWebSocket && liveWebSocket.readyState === WebSocket.OPEN && isSetupComplete) {
       liveWebSocket.send(JSON.stringify(clientMsg));
     } else {
       console.log("Socket not open or setup not complete, queuing message...");
@@ -1541,8 +1512,7 @@ function initVisualizer() {
     canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
     const count = 40;
     const barWidth = canvas.width / count;
-    const isPlayingAudio =
-      playbackContext && nextPlayTime > playbackContext.currentTime;
+    const isPlayingAudio = playbackContext && nextPlayTime > playbackContext.currentTime;
     const isMicActive = isLiveCallActive || isSttListening;
 
     for (let i = 0; i < count; i++) {
