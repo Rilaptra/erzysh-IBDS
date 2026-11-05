@@ -43,8 +43,8 @@ jobs:
       - name: Compile Native WASM from Rust Source
         run: bun run wasm:build
 
-      - name: Verify WASM Binary & Bindings are In Sync
-        run: git diff --exit-code src/wasm
+      - name: Verify WASM TypeScript Bindings are In Sync
+        run: git diff --exit-code src/wasm/mechanics_3d_wasm.d.ts src/wasm/mechanics_3d_wasm.js
 
       - name: Check Formatting (bun fmt)
         run: bun fmt --check
@@ -57,3 +57,6 @@ jobs:
 
       - name: Run Parallel Unit Tests
         run: bun test --parallel --check
+
+      - name: Next.js Production Build Verification
+        run: bun --bun next build
