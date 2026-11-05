@@ -5,9 +5,10 @@
  *   1. Bun Fmt Autofix (bun fmt)                      — format files, sort imports & tailwind classes
  *   2. Bun Fmt Check   (bun fmt --check)              — GATE: 0 unformatted files
  *   3. TypeScript      (bun check -b)                 — GATE: 0 type errors
- *   4. SNI Catalogs    (bun run data:validate)        — GATE: catalog integrity & WF 100x100 benchmark
- *   5. Unit Tests      (bun test --parallel --check)  — GATE: parallel unit & macro tests
- *   6. Next Build      (bun run build)                — GATE: optional with --build flag
+ *   4. Rust Mechanics  (cargo test)                   — GATE: 0 Rust test failures
+ *   5. SNI Catalogs    (bun run data:validate)        — GATE: catalog integrity & WF 100x100 benchmark
+ *   6. Unit Tests      (bun test --parallel --check)  — GATE: parallel unit & macro tests
+ *   7. Next Build      (bun run build)                — GATE: optional with --build flag
  */
 
 import { existsSync } from "node:fs";
@@ -105,7 +106,27 @@ export async function runVerification(options: VerifyOptions = {}): Promise<bool
     }
   }
 
-  // --- Stage 4: SNI Catalogs Validation (GATE) ---
+  // --- Stage 4: Rust Mechanics Unit Tests (GATE) ---
+  const cargoManifestPath = join(rootDir, "crates", "mechanics-3d-wasm", "Cargo.toml");
+  if (!failedAt && existsSync(cargoManifestPath)) {
+    write(`${c.cyan("  ▶ Rust Mechanics Tests (cargo test)")}\n`);
+    const start = Date.now();
+    const { code, output } = await spawnCapture([
+      "cargo",
+      "test",
+      "--manifest-path",
+      cargoManifestPath,
+    ]);
+    if (code === 0) {
+      write(`${c.green(`    ✓ Rust unit tests lolos (${elapsed(start)})`)}\n`);
+    } else {
+      console.error(output);
+      write(`${c.red(`    ✗ Rust unit tests gagal (${elapsed(start)}).`)}\n`);
+      failedAt = "Rust Mechanics Unit Tests";
+    }
+  }
+
+  // --- Stage 5: SNI Catalogs Validation (GATE) ---
   const catalogValidatorPath = join(rootDir, "scripts", "data", "validate-sni-catalogs.ts");
   if (!failedAt && existsSync(catalogValidatorPath)) {
     write(`${c.cyan("  ▶ SNI Catalogs Validation (bun run data:validate)")}\n`);
@@ -120,7 +141,7 @@ export async function runVerification(options: VerifyOptions = {}): Promise<bool
     }
   }
 
-  // --- Stage 5: Parallel Unit Tests (GATE) ---
+  // --- Stage 6: Parallel Unit Tests (GATE) ---
   const testsDir = join(rootDir, "tests");
   if (!failedAt && existsSync(testsDir)) {
     write(`${c.cyan("  ▶ Parallel Unit Tests (bun test --parallel --check)")}\n`);
@@ -163,7 +184,7 @@ if (import.meta.main) {
 
   if (ok) {
     log.success(
-      `✅ Semua check lolos${withBuild ? " (fmt + typecheck + catalogs + tests + build)" : " (fmt + typecheck + catalogs + tests)"} — aman untuk commit! 🚀`,
+      `✅ Semua check lolos${withBuild ? " (fmt + typecheck + rust + catalogs + tests + build)" : " (fmt + typecheck + rust + catalogs + tests)"} — aman untuk commit! 🚀`,
     );
   } else {
     log.error("❌ Verifikasi gagal — perbaiki error di atas sebelum commit.");

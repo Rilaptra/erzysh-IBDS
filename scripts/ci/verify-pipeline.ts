@@ -48,6 +48,9 @@ export async function runVerificationPipeline(): Promise<void> {
   const catalogScript = join(rootDir, "scripts", "data", "validate-sni-catalogs.ts");
   const hasCatalogScript = await exists(catalogScript);
 
+  const cargoManifest = join(rootDir, "crates", "mechanics-3d-wasm", "Cargo.toml");
+  const hasCargoManifest = await exists(cargoManifest);
+
   const testsDir = join(rootDir, "tests");
   const hasTestsDir = await exists(testsDir);
 
@@ -65,6 +68,15 @@ export async function runVerificationPipeline(): Promise<void> {
       },
     },
   ];
+
+  if (hasCargoManifest) {
+    steps.push({
+      name: "Rust Mechanics Tests (cargo test)",
+      command: async () => {
+        await $`cargo test --manifest-path ${cargoManifest}`.quiet();
+      },
+    });
+  }
 
   if (hasCatalogScript) {
     steps.push({
