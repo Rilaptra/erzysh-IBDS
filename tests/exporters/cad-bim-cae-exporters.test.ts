@@ -109,7 +109,7 @@ describe("Step 6: Multi-Format CAD / BIM / CAE Exporters", () => {
       expect(dxf.content).toContain("S-REBAR-STIRRUP");
       expect(dxf.content).toContain("S-REBAR-MAIN");
       expect(dxf.content).toContain("S-ANNO-DIMS");
-      expect(dxf.content).toContain("LWPOLYLINE");
+      expect(dxf.content).toContain("POLYLINE");
       expect(dxf.content).toContain("WF 300 x 150 x 36.7");
       expect(dxf.content).toContain("-11.45 mm");
       expect(dxf.content).toContain("EOF");

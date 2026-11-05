@@ -334,34 +334,38 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
   let entityCount = 0;
   const entities: string[] = [];
 
-  const emitLwPolyline = (layer: string, color: number, vertices: PolylineVertex2D[]): void => {
+  const emitPolyline = (layer: string, color: number, vertices: PolylineVertex2D[]): void => {
     entityCount++;
     entities.push(
       "  0",
-      "LWPOLYLINE",
-      "  5",
-      (entityCount + 100).toString(16).toUpperCase(),
-      "100",
-      "AcDbEntity",
+      "POLYLINE",
       "  8",
       layer,
       " 62",
       String(color),
-      "100",
-      "AcDbPolyline",
-      " 90",
-      String(vertices.length),
+      " 66",
+      "1", // Vertices follow
       " 70",
       "1", // Closed polyline
-      " 43",
-      "0.0",
     );
     for (const v of vertices) {
-      entities.push(" 10", fmtDxfReal(v.x), " 20", fmtDxfReal(v.y));
+      entities.push(
+        "  0",
+        "VERTEX",
+        "  8",
+        layer,
+        " 10",
+        fmtDxfReal(v.x),
+        " 20",
+        fmtDxfReal(v.y),
+        " 30",
+        "0.0",
+      );
       if (v.bulge !== undefined && Math.abs(v.bulge) > 1e-6) {
         entities.push(" 42", fmtDxfReal(v.bulge, 6));
       }
     }
+    entities.push("  0", "SEQEND");
   };
 
   const emitCircle = (
@@ -375,16 +379,10 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
     entities.push(
       "  0",
       "CIRCLE",
-      "  5",
-      (entityCount + 100).toString(16).toUpperCase(),
-      "100",
-      "AcDbEntity",
       "  8",
       layer,
       " 62",
       String(color),
-      "100",
-      "AcDbCircle",
       " 10",
       fmtDxfReal(cx),
       " 20",
@@ -408,16 +406,10 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
     entities.push(
       "  0",
       "TEXT",
-      "  5",
-      (entityCount + 100).toString(16).toUpperCase(),
-      "100",
-      "AcDbEntity",
       "  8",
       layer,
       " 62",
       String(color),
-      "100",
-      "AcDbText",
       " 10",
       fmtDxfReal(x),
       " 20",
@@ -428,15 +420,13 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
       fmtDxfReal(height),
       "  1",
       text,
-      "100",
-      "AcDbText",
     );
   };
 
   // 1. Draw Section Profiles
   if (cs.kind === "STEEL_IWF") {
     const verts = buildIwfDxfVertices(cs.bfMm, cs.dMm, cs.twMm, cs.tfMm, cs.rMm);
-    emitLwPolyline("S-SECT-OUTLINE", 7, verts);
+    emitPolyline("S-SECT-OUTLINE", 7, verts);
 
     // Annotations
     emitText("S-ANNO-DIMS", 4, -cs.bfMm / 2, cs.dMm / 2 + 30, 16, `Profile: ${cs.profileName}`);
@@ -453,8 +443,8 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
     const rIn = cs.innerFilletRadiusMm ?? cs.tMm;
     const outerVerts = buildRoundedRectDxfVertices(cs.bMm, cs.hMm, rOut);
     const innerVerts = buildRoundedRectDxfVertices(cs.bMm - 2 * cs.tMm, cs.hMm - 2 * cs.tMm, rIn);
-    emitLwPolyline("S-SECT-OUTLINE", 7, outerVerts);
-    emitLwPolyline("S-SECT-OUTLINE", 7, innerVerts);
+    emitPolyline("S-SECT-OUTLINE", 7, outerVerts);
+    emitPolyline("S-SECT-OUTLINE", 7, innerVerts);
 
     emitText("S-ANNO-DIMS", 4, -cs.bMm / 2, cs.hMm / 2 + 30, 16, `Profile: ${cs.profileName}`);
     emitText(
@@ -468,13 +458,13 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
   } else {
     // Concrete Rectangular Beam
     const concVerts = buildRoundedRectDxfVertices(cs.bwMm, cs.hMm, 0);
-    emitLwPolyline("S-SECT-OUTLINE", 7, concVerts);
+    emitPolyline("S-SECT-OUTLINE", 7, concVerts);
 
     // Stirrup hoop
     const stirrupW = cs.bwMm - 2 * cs.coverMm;
     const stirrupH = cs.hMm - 2 * cs.coverMm;
     const stirrupVerts = buildRoundedRectDxfVertices(stirrupW, stirrupH, cs.stirrup.diameterMm);
-    emitLwPolyline("S-REBAR-STIRRUP", 3, stirrupVerts);
+    emitPolyline("S-REBAR-STIRRUP", 3, stirrupVerts);
 
     // Rebar Main Circles
     const tensileRadius = cs.tensileBars.diameterMm / 2;
@@ -543,7 +533,7 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
       xBaseline,
       yBaseline,
       12,
-      `Max Vertical Deflection: Δ_max = ${signedDefl.toFixed(2)} mm`,
+      `Max Vertical Deflection: \\U+0394_max = ${signedDefl.toFixed(2)} mm`,
     );
   }
 
@@ -561,7 +551,7 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
     "  9",
     "$ACADVER",
     "  1",
-    "AC1015",
+    "AC1009",
     "  9",
     "$INSUNITS",
     " 70",
@@ -589,8 +579,6 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
     "7",
     "  6",
     "CONTINUOUS",
-    "370",
-    "35",
     // Layer 2: S-REBAR-STIRRUP
     "  0",
     "LAYER",
@@ -602,8 +590,6 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
     "3",
     "  6",
     "CONTINUOUS",
-    "370",
-    "25",
     // Layer 3: S-REBAR-MAIN
     "  0",
     "LAYER",
@@ -615,8 +601,6 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
     "1",
     "  6",
     "CONTINUOUS",
-    "370",
-    "50",
     // Layer 4: S-ANNO-DIMS
     "  0",
     "LAYER",
@@ -628,8 +612,6 @@ export function exportBeamToDxf(input: DxfBeamExportInput): DxfExportResult {
     "4",
     "  6",
     "CONTINUOUS",
-    "370",
-    "18",
     "  0",
     "ENDTAB",
     "  0",

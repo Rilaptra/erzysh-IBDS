@@ -5,4 +5,4 @@
 
 export const APP_VERSION = "0.5.1";
 export const WASM_VERSION = "0.5.0";
-export const BUILD_DATE = "2026-11-05T22:32:17.311Z";
+export const BUILD_DATE = "2026-11-05T22:35:37.251Z";
