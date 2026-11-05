@@ -25,8 +25,12 @@ export interface VerifyOptions {
   readonly build?: boolean;
 }
 
-async function spawnInherit(cmd: string[]): Promise<number> {
-  const proc = Bun.spawn(cmd, { stdout: "inherit", stderr: "inherit" });
+async function spawnInherit(cmd: string[], envOverrides?: Record<string, string>): Promise<number> {
+  const proc = Bun.spawn(cmd, {
+    stdout: "inherit",
+    stderr: "inherit",
+    env: envOverrides ? { ...process.env, ...envOverrides } : undefined,
+  });
   return await proc.exited;
 }
 
@@ -160,7 +164,7 @@ export async function runVerification(options: VerifyOptions = {}): Promise<bool
   if (!failedAt && options.build) {
     write(`${c.cyan("  ▶ Production Build (bun run build)")}\n`);
     const start = Date.now();
-    const code = await spawnInherit(["bun", "run", "build"]);
+    const code = await spawnInherit(["bun", "run", "build"], { NODE_ENV: "production" });
     if (code === 0) {
       write(`${c.green(`    ✓ Build production sukses (${elapsed(start)})`)}\n`);
     } else {

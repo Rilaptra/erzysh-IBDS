@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.1] - 2026-11-05
+
+### 🛠️ Maintenance
+
+- Manual patch release v0.5.1.
+
 ## [0.5.0] - 2026-11-04
 
 ### ✨ Added

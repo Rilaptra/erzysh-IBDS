@@ -418,6 +418,14 @@ export const beamSimulatorActions = {
 };
 
 /**
+ * Direct non-reactive getter for the current simulator state snapshot.
+ * Useful for non-React callers, exporters, and automated test suites.
+ */
+export function getBeamSimulatorSnapshot(): BeamSimulatorState {
+  return currentState;
+}
+
+/**
  * React hook to subscribe to the Beam Simulator state.
  * @returns Current immutable BeamSimulatorState snapshot.
  * @example
@@ -433,3 +441,5 @@ export function useBeamSimulatorStore(): BeamSimulatorState {
     () => INITIAL_STATE,
   );
 }
+
+useBeamSimulatorStore.getState = getBeamSimulatorSnapshot;

@@ -196,7 +196,7 @@ interface AiReleaseDecision {
 
 const AIManager = {
   API_KEY: resolveApiKey(),
-  MODEL: "gemini-2.5-flash",
+  MODEL: "gemini-3.5-flash-lite",
   availableModels: [] as string[],
 
   async fetchModels(): Promise<boolean> {

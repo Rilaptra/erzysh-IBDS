@@ -1,6 +1,6 @@
 /**
  * @file ProfileAndModelExportModal.tsx
- * @description Modal dialog providing export capabilities to engineering CAD/BIM/CAE formats:
+ * @description Modal dialog providing direct export capabilities to engineering CAD/BIM/CAE formats:
  * - AutoCAD (.dxf 2D Section & 3D Mesh, .lsp AutoLISP)
  * - SAP2000 (.s2k Text Model with Materials & Joint Restraints)
  * - Revit & Tekla (.ifc IFC4 BIM & Revit Family Type Catalog .txt)
@@ -12,6 +12,20 @@
 
 import React, { type ReactElement, useState } from "react";
 
+import {
+  buildAutoLispFromSimulatorState,
+  buildDxfFromSimulatorState,
+} from "@/core/exporters/dxf-autocad-exporter";
+import { buildIdeaOpenModelXmlFromSimulatorState } from "@/core/exporters/ideastatica-exporter";
+import {
+  buildIfc4FromSimulatorState,
+  buildRevitTypeCatalogFromSimulatorState,
+} from "@/core/exporters/ifc4-bim-revit-exporter";
+import { buildS2kFromSimulatorState } from "@/core/exporters/s2k-sap2000-exporter";
+import {
+  buildStepAp214FromSimulatorState,
+  buildStlFromSimulatorState,
+} from "@/core/exporters/step-solidworks-exporter";
 import { useBeamSimulatorStore } from "@/state/beam-simulator-store";
 
 export interface ProfileAndModelExportModalProps {
@@ -95,28 +109,108 @@ const EXPORT_FORMATS: ExportFormatItem[] = [
   },
 ];
 
+/**
+ * Initiates an in-browser download of text or binary file content.
+ *
+ * @param content - File content as string or Uint8Array.
+ * @param fileName - Target download file name.
+ * @param mimeType - File MIME type.
+ */
+function downloadFile(content: string | Uint8Array, fileName: string, mimeType: string): void {
+  const blob =
+    typeof content === "string"
+      ? new Blob([content], { type: mimeType })
+      : new Blob([content as Uint8Array<ArrayBuffer>], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function ProfileAndModelExportModal({
   isOpen,
   onClose,
 }: ProfileAndModelExportModalProps): ReactElement | null {
-  const { materialKind, coordinateMode } = useBeamSimulatorStore();
+  const store = useBeamSimulatorStore();
+  const { materialKind, coordinateMode } = store;
   const [selectedFormat, setSelectedFormat] = useState<string>("dxf");
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleTriggerExport = (item: ExportFormatItem): void => {
     setIsExporting(true);
     setDownloadSuccess(null);
+    setErrorMessage(null);
 
-    // In Step 5, prepare synthetic trigger which connects to Step 6 exporters
-    setTimeout(() => {
+    try {
+      let fileName = "";
+      switch (item.id) {
+        case "dxf": {
+          const res = buildDxfFromSimulatorState(store);
+          downloadFile(res.content, res.fileName, res.mimeType);
+          fileName = res.fileName;
+          break;
+        }
+        case "lsp": {
+          const res = buildAutoLispFromSimulatorState(store);
+          downloadFile(res.content, res.fileName, res.mimeType);
+          fileName = res.fileName;
+          break;
+        }
+        case "s2k": {
+          const res = buildS2kFromSimulatorState(store);
+          downloadFile(res.content, res.fileName, res.mimeType);
+          fileName = res.fileName;
+          break;
+        }
+        case "ifc": {
+          const res = buildIfc4FromSimulatorState(store);
+          downloadFile(res.content, res.fileName, res.mimeType);
+          fileName = res.fileName;
+          break;
+        }
+        case "revit-txt": {
+          const res = buildRevitTypeCatalogFromSimulatorState(store);
+          downloadFile(res.content, res.fileName, res.mimeType);
+          fileName = res.fileName;
+          break;
+        }
+        case "iom": {
+          const res = buildIdeaOpenModelXmlFromSimulatorState(store);
+          downloadFile(res.content, res.fileName, res.mimeType);
+          fileName = res.fileName;
+          break;
+        }
+        case "step": {
+          const res = buildStepAp214FromSimulatorState(store);
+          downloadFile(res.content, res.fileName, res.mimeType);
+          fileName = res.fileName;
+          break;
+        }
+        case "stl": {
+          const res = buildStlFromSimulatorState(store);
+          downloadFile(res.content, res.fileName, res.mimeType);
+          fileName = res.fileName;
+          break;
+        }
+        default:
+          throw new Error(`Format ekspor ${item.id} belum didukung.`);
+      }
+
+      setDownloadSuccess(`File ${fileName} berhasil diunduh mengikuti sumbu ${coordinateMode}!`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(`Gagal mengekspor ${item.name}: ${msg}`);
+    } finally {
       setIsExporting(false);
-      setDownloadSuccess(
-        `File ${item.name} (${item.extension}) berhasil disiapkan mengikuti sumbu ${coordinateMode}!`,
-      );
-    }, 400);
+    }
   };
 
   return (
@@ -257,6 +351,23 @@ export function ProfileAndModelExportModal({
             }}
           >
             ✓ {downloadSuccess}
+          </div>
+        ) : null}
+
+        {/* Error message */}
+        {errorMessage ? (
+          <div
+            style={{
+              background: "rgba(239, 68, 68, 0.15)",
+              border: "1px solid rgba(239, 68, 68, 0.4)",
+              borderRadius: 6,
+              padding: "8px 12px",
+              color: "#F87171",
+              fontSize: 11,
+              marginBottom: 12,
+            }}
+          >
+            ✕ {errorMessage}
           </div>
         ) : null}
 
