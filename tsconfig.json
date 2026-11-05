@@ -10,7 +10,6 @@
     "types": ["bun"],
     "verbatimModuleSyntax": true,
     "noEmit": true,
-
     /* Strict Type-Checking Options */
     "strict": true,
     "skipLibCheck": true,
@@ -18,12 +17,23 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "forceConsistentCasingInFileNames": true,
-
     /* Paths & Aliases */
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["src/**/*", "scripts/**/*", "tests/**/*"],
+  "include": [
+    "src/**/*",
+    "scripts/**/*",
+    "tests/**/*",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
   "exclude": ["node_modules", "prototype", ".tmp-step-context"]
 }

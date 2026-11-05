@@ -11,10 +11,6 @@
 import { evaluateDeflectionCompliance } from "@/config/deflection-limits-config";
 import type { DeflectionLimitKey } from "@/config/deflection-limits-config";
 import rawSteelGrades from "@/data/steel-material-grades.json";
-import {
-  getPrecomputedSortedBoxCatalog,
-  getPrecomputedSortedIwfCatalog,
-} from "@/macros/precompute-steel-catalog.macro" with { type: "macro" };
 import { kilonewton, kilonewtonMeter, meter, utilizationRatio } from "@/types/branded-units";
 import type { Kilonewton, KilonewtonMeter, Meter, UtilizationRatio } from "@/types/branded-units";
 import { SteelDesignError } from "@/types/steel-sni1729-types";
@@ -29,6 +25,10 @@ import type {
   SteelSectionProperties,
 } from "@/types/steel-sni1729-types";
 
+import {
+  getPrecomputedSortedBoxCatalog,
+  getPrecomputedSortedIwfCatalog,
+} from "../../macros/precompute-steel-catalog.macro";
 import { evaluateBiaxialInteraction } from "./biaxial-interaction-evaluator";
 import type { BoxSectionProperties } from "./iwf-geometric-properties";
 import { solveLateralTorsionalBuckling } from "./lateral-torsional-buckling-solver";
