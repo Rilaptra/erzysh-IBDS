@@ -20,6 +20,7 @@ import { ConcreteOptimizationResultCard } from "@/components/results/ConcreteOpt
 import { DeflectionServiceabilityBadge } from "@/components/results/DeflectionServiceabilityBadge";
 import { ProfileAndModelExportModal } from "@/components/results/ProfileAndModelExportModal";
 import { SteelOptimizationRankingTable } from "@/components/results/SteelOptimizationRankingTable";
+import { CustomEpochVisitorFlexBadge } from "@/components/telemetry/CustomEpochVisitorFlexBadge";
 import { useStructuralSolverEngine } from "@/hooks/use-structural-solver-engine";
 import { useBeamSimulatorStore } from "@/state/beam-simulator-store";
 
@@ -61,6 +62,19 @@ export function AndroidCompanionView(): ReactElement {
 
         <DeflectionServiceabilityBadge compliance={compliance} />
       </header>
+
+      {/* Mobile Telemetry Visitor Bar */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          padding: "6px 16px",
+          background: "rgba(10, 10, 10, 0.7)",
+          borderBottom: "1px solid rgba(148, 163, 184, 0.08)",
+        }}
+      >
+        <CustomEpochVisitorFlexBadge />
+      </div>
 
       {/* Tab Navigation */}
       <nav

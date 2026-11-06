@@ -14,6 +14,8 @@
 import dynamic from "next/dynamic";
 import React, { type ReactElement, useState } from "react";
 
+import { StructuralAiAssistantPanel } from "@/components/assistant/StructuralAiAssistantPanel";
+import { VoiceCommandStatusToast } from "@/components/assistant/VoiceCommandStatusToast";
 import type { ViewportProjectionSnapshot } from "@/components/canvas/Beam3DExtrudedViewport";
 import { CoordinateAxisSwitcher } from "@/components/canvas/CoordinateAxisSwitcher";
 import { DeflectionHudAndColorbar } from "@/components/canvas/DeflectionHudAndColorbar";
@@ -31,8 +33,13 @@ import { SteelDesignParametersForm } from "@/components/forms/SteelDesignParamet
 import { ConcreteOptimizationResultCard } from "@/components/results/ConcreteOptimizationResultCard";
 import { ProfileAndModelExportModal } from "@/components/results/ProfileAndModelExportModal";
 import { SteelOptimizationRankingTable } from "@/components/results/SteelOptimizationRankingTable";
+import { CustomEpochVisitorFlexBadge } from "@/components/telemetry/CustomEpochVisitorFlexBadge";
 import { DraggableFloatingWindow } from "@/components/windows/DraggableFloatingWindow";
+import { DynamicHandCursorOverlay } from "@/components/windows/DynamicHandCursorOverlay";
+import { HandTrackingCameraPreview } from "@/components/windows/HandTrackingCameraPreview";
+import { useMediapipeHandTracking } from "@/hooks/use-mediapipe-hand-tracking";
 import { useStructuralSolverEngine } from "@/hooks/use-structural-solver-engine";
+import { useWebSpeechCommand } from "@/hooks/use-web-speech-command";
 import { beamSimulatorActions, useBeamSimulatorStore } from "@/state/beam-simulator-store";
 import {
   floatingWindowActions,
@@ -61,6 +68,9 @@ export function DesktopWorkstationView(): ReactElement {
 
   const [projection, setProjection] = useState<ViewportProjectionSnapshot | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+
+  const tracking = useMediapipeHandTracking();
+  const voice = useWebSpeechCommand();
 
   return (
     <ErzyshDarkGridBackground style={{ width: "100vw", height: "100vh" }}>
@@ -155,6 +165,18 @@ export function DesktopWorkstationView(): ReactElement {
         </div>
       ) : null}
 
+      {/* Top-Right Telemetry Badge (GA4 Custom Epoch Visitor Counter) */}
+      <div
+        style={{
+          position: "absolute",
+          top: 14,
+          right: 24,
+          zIndex: 30,
+        }}
+      >
+        <CustomEpochVisitorFlexBadge />
+      </div>
+
       {/* 7. The 6 Floating Windows */}
       {/* Window 1: Material & Load Mode */}
       <DraggableFloatingWindow id="MATERIAL_LOAD_MODE">
@@ -238,24 +260,19 @@ export function DesktopWorkstationView(): ReactElement {
 
       {/* Window 6: Gestur & Asisten AI */}
       <DraggableFloatingWindow id="GESTURE_AI_ASSISTANT">
-        <div style={{ fontSize: 12, lineHeight: 1.5, color: "#CBD5E1" }}>
-          <div style={{ marginBottom: 8, fontWeight: 700, color: "#38BDF8" }}>
-            Asisten Rekayasa Struktur IBDS
-          </div>
-          <p style={{ margin: "0 0 8px 0", color: "#94A3B8" }}>
-            Gunakan kontrol suara atau tanyakan saran optimasi profil SNI. Integrasi webcam & AI
-            audio diaktifkan pada Step 7.
-          </p>
-          <div
-            style={{
-              background: "rgba(30, 41, 59, 0.4)",
-              padding: 8,
-              borderRadius: 6,
-              fontSize: 11,
-            }}
-          >
-            💡 <strong>Status:</strong> Siap menerima instruksi struktur.
-          </div>
+        <StructuralAiAssistantPanel
+          onToggleCamera={tracking.toggleRunning}
+          isCameraRunning={tracking.state.isRunning}
+        />
+        <div style={{ marginTop: 10 }}>
+          <HandTrackingCameraPreview
+            state={tracking.state}
+            onToggleRunning={tracking.toggleRunning}
+            onToggleEcoMode={tracking.toggleEcoMode}
+            videoRef={tracking.videoRef}
+            canvasRef={tracking.canvasRef}
+            lastError={tracking.lastError}
+          />
         </div>
       </DraggableFloatingWindow>
 
@@ -263,6 +280,20 @@ export function DesktopWorkstationView(): ReactElement {
       <ProfileAndModelExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
+      />
+
+      {/* 9. Dynamic Hand Cursor Overlay (Zero Pinch-Dip) */}
+      <DynamicHandCursorOverlay state={tracking.state} />
+
+      {/* 10. Voice Command Floating Status Toast */}
+      <VoiceCommandStatusToast
+        isListening={voice.isListening}
+        isSupported={voice.isSupported}
+        transcript={voice.transcript}
+        feedbackMessage={voice.feedbackMessage}
+        lastExecution={voice.lastExecution}
+        error={voice.error}
+        onToggleListening={voice.toggleListening}
       />
     </ErzyshDarkGridBackground>
   );
