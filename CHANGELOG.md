@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1] - 2026-11-08
+
+### 🛠️ Maintenance
+
+- Update Next.js development type reference paths in next-env.ts
+- Refresh build timestamp and version metadata
+
 ## [0.6.0] - 2026-11-08
 
 ### ✨ Added
