@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.2] - 2026-11-08
+
+### ✨ Added
+
+- 📖 Comprehensive User Manual (`USER_MANUAL.md`) covering complete step-by-step operation from SNI 2847:2019 concrete and SNI 1729:2020 steel design to multimodal AI voice and hand gesture controls.
+
+### 🛠️ Maintenance
+
+- 🔗 Updated live deployment URLs and release badges in `README.md` to point to `erzysh-ibds.vercel.app`.
+
 ## [0.6.1] - 2026-11-08
 
 ### 🛠️ Maintenance
