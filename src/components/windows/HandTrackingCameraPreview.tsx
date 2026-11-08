@@ -130,127 +130,126 @@ export function HandTrackingCameraPreview({
         </button>
       </div>
 
-      {/* Collapsible Video & Canvas Viewport */}
-      {!isMinimized && (
-        <div
+      {/* Collapsible Video & Canvas Viewport - Persistent DOM elements to preserve ref integrity */}
+      <div
+        style={{
+          display: isMinimized ? "none" : "block",
+          position: "relative",
+          width: 240,
+          height: 180,
+          borderRadius: 8,
+          overflow: "hidden",
+          background: "#050811",
+          border: "1px solid rgba(51, 65, 85, 0.6)",
+          alignSelf: "center",
+        }}
+      >
+        {/* Mirrored Hidden/Visible Video element */}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
           style={{
-            position: "relative",
-            width: 240,
-            height: 180,
-            borderRadius: 8,
-            overflow: "hidden",
-            background: "#050811",
-            border: "1px solid rgba(51, 65, 85, 0.6)",
-            alignSelf: "center",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: "scaleX(-1)", // Mirror horizontal for natural human intuition
+            opacity: isRunning ? 0.35 : 0,
+            transition: "opacity 300ms ease",
           }}
-        >
-          {/* Mirrored Hidden/Visible Video element */}
-          <video
-            ref={videoRef}
-            playsInline
-            muted
+        />
+
+        {/* 21-Landmark Bones Canvas Overlay */}
+        <canvas
+          ref={canvasRef}
+          width={240}
+          height={180}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Off-State Placeholder Overlay */}
+        {!isRunning && (
+          <div
             style={{
               position: "absolute",
               top: 0,
               left: 0,
               width: "100%",
               height: "100%",
-              objectFit: "cover",
-              transform: "scaleX(-1)", // Mirror horizontal for natural human intuition
-              opacity: isRunning ? 0.35 : 0,
-              transition: "opacity 300ms ease",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+              textAlign: "center",
+              color: "#64748B",
+              fontSize: 11,
+              gap: 6,
             }}
-          />
+          >
+            <span style={{ fontSize: 24, opacity: 0.6 }}>🖐️</span>
+            <span>Kamera Dinonaktifkan</span>
+            <span style={{ fontSize: 9, color: "#475569" }}>
+              Aktifkan untuk navigasi kursor tanpa mouse
+            </span>
+          </div>
+        )}
 
-          {/* 21-Landmark Bones Canvas Overlay */}
-          <canvas
-            ref={canvasRef}
-            width={240}
-            height={180}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              pointerEvents: "none",
-            }}
-          />
-
-          {/* Off-State Placeholder Overlay */}
-          {!isRunning && (
+        {/* Telemetry Overlay Badges on Top of Camera */}
+        {isRunning && (
+          <>
+            {/* FPS & Thermal Mode Badge */}
             <div
               style={{
                 position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 16,
-                textAlign: "center",
-                color: "#64748B",
-                fontSize: 11,
-                gap: 6,
+                top: 6,
+                left: 6,
+                background: "rgba(10, 15, 20, 0.8)",
+                backdropFilter: "blur(4px)",
+                padding: "2px 6px",
+                borderRadius: 4,
+                fontSize: 10,
+                fontFamily: "monospace",
+                fontWeight: 600,
+                color: isEcoMode ? "#38BDF8" : "#F59E0B",
+                border: `1px solid ${isEcoMode ? "rgba(56, 189, 248, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
               }}
             >
-              <span style={{ fontSize: 24, opacity: 0.6 }}>🖐️</span>
-              <span>Kamera Dinonaktifkan</span>
-              <span style={{ fontSize: 9, color: "#475569" }}>
-                Aktifkan untuk navigasi kursor tanpa mouse
-              </span>
+              {fps} FPS {isEcoMode ? "❄️ ECO" : "⚡ MAX"}
             </div>
-          )}
 
-          {/* Telemetry Overlay Badges on Top of Camera */}
-          {isRunning && (
-            <>
-              {/* FPS & Thermal Mode Badge */}
+            {/* Handedness Badge */}
+            {handedness !== "None" && (
               <div
                 style={{
                   position: "absolute",
                   top: 6,
-                  left: 6,
+                  right: 6,
                   background: "rgba(10, 15, 20, 0.8)",
                   backdropFilter: "blur(4px)",
                   padding: "2px 6px",
                   borderRadius: 4,
-                  fontSize: 10,
-                  fontFamily: "monospace",
+                  fontSize: 9,
                   fontWeight: 600,
-                  color: isEcoMode ? "#38BDF8" : "#F59E0B",
-                  border: `1px solid ${isEcoMode ? "rgba(56, 189, 248, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+                  color: "#94A3B8",
                 }}
               >
-                {fps} FPS {isEcoMode ? "❄️ ECO" : "⚡ MAX"}
+                {handedness === "Left" ? "Kiri" : "Kanan"}
               </div>
-
-              {/* Handedness Badge */}
-              {handedness !== "None" && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    background: "rgba(10, 15, 20, 0.8)",
-                    backdropFilter: "blur(4px)",
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    fontSize: 9,
-                    fontWeight: 600,
-                    color: "#94A3B8",
-                  }}
-                >
-                  {handedness === "Left" ? "Kiri" : "Kanan"}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+            )}
+          </>
+        )}
+      </div>
 
       {/* Active Gesture Status Pill */}
       <div

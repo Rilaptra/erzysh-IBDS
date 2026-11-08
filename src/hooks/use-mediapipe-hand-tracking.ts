@@ -406,6 +406,8 @@ export function useMediapipeHandTracking(
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const activeStreamRef = useRef<MediaStream | null>(null);
+  const isMountedRef = useRef<boolean>(true);
 
   // References for animation frame and model instances
   // Using explicit unknown typing cast through dynamic module loading
@@ -491,10 +493,36 @@ export function useMediapipeHandTracking(
       animationFrameIdRef.current = null;
     }
 
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
+    // Always stop and clear active MediaStream tracks from persistent ref to turn off hardware LED
+    if (activeStreamRef.current) {
+      activeStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // Ignore error on individual track stop
+        }
+      });
+      activeStreamRef.current = null;
+    }
+
+    // Explicitly stop any tracks attached directly to video element, pause, and detach srcObject
+    if (videoRef.current) {
+      try {
+        if (videoRef.current.srcObject) {
+          const stream = videoRef.current.srcObject as MediaStream;
+          stream.getTracks().forEach((track) => {
+            try {
+              track.stop();
+            } catch {
+              // Ignore error on individual track stop
+            }
+          });
+          videoRef.current.srcObject = null;
+        }
+        videoRef.current.pause();
+      } catch {
+        // Ignore error if video pause fails
+      }
     }
 
     if (canvasRef.current) {
@@ -676,6 +704,18 @@ export function useMediapipeHandTracking(
       setLastError(null);
       await loadMediaPipeBundle();
 
+      // Ensure any lingering stream is stopped before requesting a new one
+      if (activeStreamRef.current) {
+        activeStreamRef.current.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {
+            // Ignore error
+          }
+        });
+        activeStreamRef.current = null;
+      }
+
       // Request modest 240x180 resolution to conserve memory bandwidth and CPU thermal load
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -686,6 +726,20 @@ export function useMediapipeHandTracking(
         },
         audio: false,
       });
+
+      // If unmounted while waiting for camera permissions, abort and stop tracks immediately
+      if (!isMountedRef.current) {
+        stream.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {
+            // Ignore error
+          }
+        });
+        return;
+      }
+
+      activeStreamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -705,7 +759,9 @@ export function useMediapipeHandTracking(
 
   // Cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       stopTracking();
     };
   }, [stopTracking]);

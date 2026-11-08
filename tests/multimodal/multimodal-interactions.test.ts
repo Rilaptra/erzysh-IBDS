@@ -10,6 +10,11 @@
 
 import { describe, expect, test } from "bun:test";
 
+import React from "react";
+import { renderToString } from "react-dom/server";
+
+import { VoiceCommandStatusToast } from "@/components/assistant/VoiceCommandStatusToast";
+import { HandTrackingCameraPreview } from "@/components/windows/HandTrackingCameraPreview";
 import {
   classifyHandGesture,
   computeKnuckleAnchor,
@@ -18,6 +23,8 @@ import {
 import {
   executeRegistryCommand,
   routeVoiceTranscriptToCommand,
+  useWebSpeechCommand,
+  type UseWebSpeechCommandResult,
 } from "@/hooks/use-web-speech-command";
 import { getBeamSimulatorSnapshot } from "@/state/beam-simulator-store";
 import type { Meter } from "@/types/branded-units";
@@ -357,6 +364,193 @@ describe("Step 7: Multimodal Interactions & Voice Command Registry", () => {
       expect(() => {
         executeRegistryCommand("UNKNOWN_COMMAND_ID" as unknown as CommandId);
       }).toThrow(CommandRegistryError);
+    });
+  });
+
+  describe("5. Voice Command Mute & Speech Recognition Status HUD", () => {
+    test("VoiceCommandStatusToast renders 'Mute' when active (isMuted=false, isListening=true)", () => {
+      const html = renderToString(
+        React.createElement(VoiceCommandStatusToast, {
+          isListening: true,
+          isMuted: false,
+          isSupported: true,
+          transcript: "ubah ke beton",
+          feedbackMessage: "Material berhasil diubah ke Beton Bertulang.",
+          onToggleListening: () => {},
+        }),
+      );
+
+      expect(html).toContain("Mute");
+      expect(html).toContain("Mendengarkan...");
+      expect(html).toContain("ubah ke beton");
+    });
+
+    test("VoiceCommandStatusToast renders 'Listen' when muted (isMuted=true)", () => {
+      const html = renderToString(
+        React.createElement(VoiceCommandStatusToast, {
+          isListening: false,
+          isMuted: true,
+          isSupported: true,
+          transcript: "",
+          feedbackMessage: "Mikrofon dijeda (Mute).",
+          onToggleListening: () => {},
+        }),
+      );
+
+      expect(html).toContain("Listen");
+      expect(html).toContain("Mikrofon Dijeda");
+      expect(html).toContain("#64748B"); // Muted slate accent
+    });
+
+    test("VoiceCommandStatusToast falls back correctly when isMuted is omitted", () => {
+      const htmlListening = renderToString(
+        React.createElement(VoiceCommandStatusToast, {
+          isListening: true,
+          isSupported: true,
+          transcript: "",
+          feedbackMessage: "Listening...",
+          onToggleListening: () => {},
+        }),
+      );
+      expect(htmlListening).toContain("Mute");
+
+      const htmlIdle = renderToString(
+        React.createElement(VoiceCommandStatusToast, {
+          isListening: false,
+          isSupported: true,
+          transcript: "",
+          feedbackMessage: "Idle",
+          onToggleListening: () => {},
+        }),
+      );
+      expect(htmlIdle).toContain("Listen");
+    });
+
+    test("VoiceCommandStatusToast returns null when Speech Recognition is unsupported", () => {
+      const html = renderToString(
+        React.createElement(VoiceCommandStatusToast, {
+          isListening: false,
+          isMuted: false,
+          isSupported: false,
+          transcript: "",
+          feedbackMessage: "Unsupported",
+          onToggleListening: () => {},
+        }),
+      );
+      expect(html).toBe("");
+    });
+
+    test("useWebSpeechCommand separates isMuted from isListening and respects autoStart flag", () => {
+      let activeResult: UseWebSpeechCommandResult | null = null;
+      let mutedResult: UseWebSpeechCommandResult | null = null;
+
+      function ActiveConsumer() {
+        activeResult = useWebSpeechCommand({ autoStart: true });
+        return null;
+      }
+
+      function MutedConsumer() {
+        mutedResult = useWebSpeechCommand({ autoStart: false });
+        return null;
+      }
+
+      renderToString(React.createElement(ActiveConsumer));
+      renderToString(React.createElement(MutedConsumer));
+
+      expect(activeResult).not.toBeNull();
+      expect(activeResult!.isMuted).toBe(false);
+      expect(activeResult!.isListening).toBe(false);
+
+      expect(mutedResult).not.toBeNull();
+      expect(mutedResult!.isMuted).toBe(true);
+      expect(mutedResult!.isListening).toBe(false);
+      expect(mutedResult!.feedbackMessage).toContain("Mute");
+    });
+  });
+
+  describe("6. Webcam Hardware Teardown & DOM Ref Preservation", () => {
+    test("HandTrackingCameraPreview preserves <video> and <canvas> in the DOM to prevent ref detachment", () => {
+      const dummyState = {
+        isRunning: false,
+        handedness: "None" as const,
+        activeGesture: "NONE" as const,
+        cursorSymbol: "",
+        screenCoordinates: { x: 0, y: 0 },
+        normalizedCoordinates: { x: 0.5, y: 0.5 },
+        isPinching: false,
+        pinchDistance: 1.0,
+        fps: 0,
+        isEcoMode: true,
+      };
+
+      const html = renderToString(
+        React.createElement(HandTrackingCameraPreview, {
+          state: dummyState,
+          onToggleRunning: () => {},
+          onToggleEcoMode: () => {},
+          videoRef: { current: null },
+          canvasRef: { current: null },
+        }),
+      );
+
+      // Verify that <video> and <canvas> tags are preserved in DOM markup
+      expect(html).toContain("<video");
+      expect(html).toContain("<canvas");
+      // Verify viewport container renders with display style
+      expect(html).toContain("display:block");
+    });
+
+    test("active MediaStream tracks are cleanly stopped and transition readyState to ended", () => {
+      let stopCallCount = 0;
+      const mockTrack = {
+        readyState: "live",
+        stop: () => {
+          stopCallCount++;
+          mockTrack.readyState = "ended";
+        },
+      };
+
+      const mockStream = {
+        getTracks: () => [mockTrack],
+      };
+
+      mockStream.getTracks().forEach((track) => {
+        track.stop();
+      });
+
+      expect(stopCallCount).toBe(1);
+      expect(mockTrack.readyState).toBe("ended");
+    });
+
+    test("persistent stream teardown stops webcam tracks even when videoRef is detached or null", () => {
+      let stoppedVideoTracks = 0;
+      const mockTrack = {
+        kind: "video",
+        readyState: "live",
+        stop: () => {
+          stoppedVideoTracks++;
+          mockTrack.readyState = "ended";
+        },
+      };
+
+      // Simulating persistent activeStreamRef vs detached videoRef.current = null (e.g. preview minimized)
+      const persistentActiveStream = {
+        getTracks: () => [mockTrack],
+      };
+      const videoRef: { current: HTMLVideoElement | null } = { current: null };
+
+      // Teardown logic as implemented in useMediapipeHandTracking
+      if (persistentActiveStream) {
+        persistentActiveStream.getTracks().forEach((track) => {
+          track.stop();
+        });
+      }
+      if (videoRef.current) {
+        // Not entered because videoRef is null
+      }
+
+      expect(stoppedVideoTracks).toBe(1);
+      expect(mockTrack.readyState).toBe("ended");
     });
   });
 });

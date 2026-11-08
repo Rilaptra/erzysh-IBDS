@@ -848,8 +848,10 @@ export function executeRegistryCommand(
  * Return signature of `useWebSpeechCommand`.
  */
 export interface UseWebSpeechCommandResult {
-  /** Whether the microphone recognition is currently listening for speech. */
+  /** Whether the microphone recognition is currently actively capturing/processing speech. */
   readonly isListening: boolean;
+  /** Whether the voice command feature is muted by user choice. */
+  readonly isMuted: boolean;
   /** Whether the current browser supports SpeechRecognition. */
   readonly isSupported: boolean;
   /** Last recognized transcript string. */
@@ -860,8 +862,10 @@ export interface UseWebSpeechCommandResult {
   readonly feedbackMessage: string;
   /** Error message if SpeechRecognition encounters an issue. */
   readonly error: string | null;
-  /** Toggles speech recognition on and off. */
+  /** Toggles speech recognition mute state on and off. */
   readonly toggleListening: () => void;
+  /** Explicitly sets voice command mute state. */
+  readonly setMuted: (muted: boolean) => void;
   /** Triggers a procedural Web Audio chime test to verify speaker and audio context. */
   readonly testAudioTone: (type?: AudioChimeType) => void;
   /** Explicit programmatic execution of a CommandId. */
@@ -909,19 +913,24 @@ export function useWebSpeechCommand(
 
   const [isSupported, setIsSupported] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(!autoStart);
   const [transcript, setTranscript] = useState<string>("");
   const [lastExecution, setLastExecution] = useState<CommandExecutionResult | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string>(
     autoStart
       ? "🎙️ Selalu Mendengarkan... Siap menerima perintah suara."
-      : "Siap mendengarkan perintah suara.",
+      : "Mikrofon dijeda (Mute). Klik 'Listen' untuk mengaktifkan kembali.",
   );
   const [error, setError] = useState<string | null>(null);
 
   // We type recognition instance loosely as unknown since SpeechRecognition is non-standard across browsers
   const recognitionRef = useRef<unknown>(null);
-  const shouldListenRef = useRef<boolean>(autoStart);
+  const isMutedRef = useRef<boolean>(!autoStart);
+  const isRunningRef = useRef<boolean>(false);
+  const isStartingRef = useRef<boolean>(false);
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didPlayStopToneRef = useRef<boolean>(false);
 
   // Programmatic command runner
   const executeCommand = useCallback(
@@ -953,15 +962,32 @@ export function useWebSpeechCommand(
     );
   }, []);
 
-  // Safe starter wrapper avoiding browser race conditions
+  // Safe starter wrapper avoiding browser race conditions and InvalidStateError
   const safeStart = useCallback((): void => {
-    if (!shouldListenRef.current) return;
+    if (isMutedRef.current) return;
     const rec = recognitionRef.current as { start?: () => void } | null;
-    if (!rec) return;
+    if (!rec || typeof rec.start !== "function") return;
+
+    if (isRunningRef.current || isStartingRef.current) return;
+
+    isStartingRef.current = true;
     try {
-      rec.start?.();
-    } catch {
-      // Ignored if already listening or starting
+      rec.start();
+    } catch (err: unknown) {
+      isStartingRef.current = false;
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      const isAlreadyRunning =
+        errorMsg.includes("already started") ||
+        (err instanceof Error && err.name === "InvalidStateError");
+
+      if (isAlreadyRunning) {
+        if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
+        retryStartTimerRef.current = setTimeout(() => {
+          if (!isMutedRef.current && !isRunningRef.current && !isStartingRef.current) {
+            safeStart();
+          }
+        }, 150);
+      }
     }
   }, []);
 
@@ -994,6 +1020,7 @@ export function useWebSpeechCommand(
         }) => void;
         start: () => void;
         stop: () => void;
+        abort?: () => void;
       };
 
       const recognition = new (SpeechRec as new () => RecInstance)();
@@ -1002,38 +1029,67 @@ export function useWebSpeechCommand(
       recognition.interimResults = false;
 
       recognition.onstart = () => {
+        isRunningRef.current = true;
+        isStartingRef.current = false;
+
+        // If user muted before onstart could complete, immediately abort
+        if (isMutedRef.current) {
+          try {
+            if (typeof recognition.abort === "function") {
+              recognition.abort();
+            } else {
+              recognition.stop();
+            }
+          } catch {
+            // Ignore
+          }
+          setIsListening(false);
+          return;
+        }
+
         setIsListening(true);
         setError(null);
         setFeedbackMessage("🎙️ Selalu Mendengarkan... Silakan ucapkan perintah.");
       };
 
       recognition.onend = () => {
-        if (continuousListening && shouldListenRef.current) {
+        isRunningRef.current = false;
+        isStartingRef.current = false;
+        setIsListening(false);
+
+        if (continuousListening && !isMutedRef.current) {
           // Continuous loop: schedule seamless silent restart so listening never shuts off
           if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
           restartTimerRef.current = setTimeout(() => {
-            if (shouldListenRef.current) {
+            if (!isMutedRef.current) {
               safeStart();
             }
-          }, 250);
+          }, 200);
         } else {
-          setIsListening(false);
-          if (playAudioFeedback) synthesizeAudioTone("STOP");
+          // Only play STOP if muted and tone was not already played
+          if (isMutedRef.current && !didPlayStopToneRef.current && playAudioFeedback) {
+            synthesizeAudioTone("STOP");
+            didPlayStopToneRef.current = true;
+          }
         }
       };
 
       recognition.onerror = (evt) => {
+        isStartingRef.current = false;
         if (evt.error === "no-speech") {
-          // Normal pause in speech in Chrome - continuous loop will restart smoothly
+          // Normal pause in speech in Chrome - continuous loop will restart smoothly via onend
           return;
         }
         if (evt.error === "not-allowed") {
-          shouldListenRef.current = false;
+          isMutedRef.current = true;
+          setIsMuted(true);
+          isRunningRef.current = false;
           setIsListening(false);
           setError("Akses mikrofon ditolak oleh browser. Izinkan mikrofon di address bar.");
           return;
         }
         if (evt.error === "aborted") {
+          // Normal result of calling recognition.abort() during mute
           return;
         }
         setError(`Speech error: ${evt.error}`);
@@ -1057,15 +1113,14 @@ export function useWebSpeechCommand(
 
       recognitionRef.current = recognition;
 
-      // Auto start on mount if enabled
-      if (autoStart) {
-        shouldListenRef.current = true;
+      // Auto start on mount if enabled and not muted
+      if (autoStart && !isMutedRef.current) {
         safeStart();
 
         // Browser gesture fallback: if browser blocked initial autoplay/mic without user gesture,
         // awaken listening and audio context on user's very first interaction on the page
         const onFirstInteraction = (): void => {
-          if (shouldListenRef.current) {
+          if (!isMutedRef.current) {
             safeStart();
             const ctx = getAudioContext();
             if (ctx && ctx.state === "suspended") {
@@ -1083,10 +1138,15 @@ export function useWebSpeechCommand(
 
     return () => {
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-      const rec = recognitionRef.current as { stop?: () => void } | null;
-      if (rec && typeof rec.stop === "function") {
+      if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
+      const rec = recognitionRef.current as { abort?: () => void; stop?: () => void } | null;
+      if (rec) {
         try {
-          rec.stop();
+          if (typeof rec.abort === "function") {
+            rec.abort();
+          } else if (typeof rec.stop === "function") {
+            rec.stop();
+          }
         } catch {
           // Ignore error on teardown
         }
@@ -1094,46 +1154,84 @@ export function useWebSpeechCommand(
     };
   }, [autoStart, continuousListening, executeCommand, language, playAudioFeedback, safeStart]);
 
+  // Set mute state handler with immediate abort and single STOP tone
+  const setMuted = useCallback(
+    (muted: boolean): void => {
+      if (!isSupported) {
+        setError(
+          "Web Speech API tidak didukung pada browser ini (gunakan Chromium / Chrome / Edge).",
+        );
+        return;
+      }
+
+      const rec = recognitionRef.current as {
+        start?: () => void;
+        stop?: () => void;
+        abort?: () => void;
+      } | null;
+
+      isMutedRef.current = muted;
+      setIsMuted(muted);
+
+      if (muted) {
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
+
+        isStartingRef.current = false;
+        isRunningRef.current = false;
+        setIsListening(false);
+
+        // Immediate single acoustic cue
+        if (playAudioFeedback) {
+          synthesizeAudioTone("STOP");
+          didPlayStopToneRef.current = true;
+        }
+
+        // Use abort() so browser immediately drops microphone hardware
+        if (rec) {
+          try {
+            if (typeof rec.abort === "function") {
+              rec.abort();
+            } else if (typeof rec.stop === "function") {
+              rec.stop();
+            }
+          } catch {
+            // Ignore browser race
+          }
+        }
+
+        setFeedbackMessage("Mikrofon dijeda (Mute). Klik 'Listen' untuk mengaktifkan kembali.");
+      } else {
+        didPlayStopToneRef.current = false;
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
+
+        if (playAudioFeedback) {
+          synthesizeAudioTone("START");
+        }
+
+        setFeedbackMessage("🎙️ Selalu Mendengarkan... Silakan ucapkan perintah.");
+        safeStart();
+      }
+    },
+    [isSupported, playAudioFeedback, safeStart],
+  );
+
   // Toggle listening handler
   const toggleListening = useCallback((): void => {
-    if (!isSupported) {
-      setError(
-        "Web Speech API tidak didukung pada browser ini (gunakan Chromium / Chrome / Edge).",
-      );
-      return;
-    }
-
-    const rec = recognitionRef.current as { start?: () => void; stop?: () => void } | null;
-    if (!rec) return;
-
-    if (isListening || shouldListenRef.current) {
-      shouldListenRef.current = false;
-      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-      try {
-        rec.stop?.();
-      } catch {
-        // Handle rapid toggle errors
-      }
-      setIsListening(false);
-      setFeedbackMessage("Mikrofon dijeda (Mute). Klik 'Listen' untuk mengaktifkan kembali.");
-      if (playAudioFeedback) synthesizeAudioTone("STOP");
-    } else {
-      shouldListenRef.current = true;
-      safeStart();
-      setIsListening(true);
-      setFeedbackMessage("🎙️ Selalu Mendengarkan... Silakan ucapkan perintah.");
-      if (playAudioFeedback) synthesizeAudioTone("START");
-    }
-  }, [isListening, isSupported, playAudioFeedback, safeStart]);
+    setMuted(!isMutedRef.current);
+  }, [setMuted]);
 
   return {
     isListening,
+    isMuted,
     isSupported,
     transcript,
     lastExecution,
     feedbackMessage,
     error,
     toggleListening,
+    setMuted,
     testAudioTone,
     executeCommand,
   };

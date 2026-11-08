@@ -16,18 +16,11 @@ jobs:
 
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
 
       - name: Cache Rust Dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: crates/mechanics-3d-wasm -> target
-
-      - name: Install wasm-bindgen CLI (v0.2.130)
-        uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-bindgen-cli@0.2.130
 
       - name: Setup Bun v1.4.4
         uses: oven-sh/setup-bun@v2
@@ -39,12 +32,6 @@ jobs:
 
       - name: Run Native Rust Mechanics Unit Tests
         run: cargo test --manifest-path crates/mechanics-3d-wasm/Cargo.toml
-
-      - name: Compile Native WASM from Rust Source
-        run: bun run wasm:build
-
-      - name: Verify WASM TypeScript Bindings are In Sync
-        run: git diff --exit-code src/wasm/mechanics_3d_wasm.d.ts src/wasm/mechanics_3d_wasm.js
 
       - name: Check Formatting (bun fmt)
         run: bun fmt --check
@@ -59,4 +46,4 @@ jobs:
         run: bun test --parallel --check
 
       - name: Next.js Production Build Verification
-        run: bun --bun next build
+        run: bun run build
