@@ -294,6 +294,7 @@ export function DesktopWorkstationView(): ReactElement {
         lastExecution={voice.lastExecution}
         error={voice.error}
         onToggleListening={voice.toggleListening}
+        onTestAudio={() => voice.testAudioTone("SUCCESS")}
       />
     </ErzyshDarkGridBackground>
   );

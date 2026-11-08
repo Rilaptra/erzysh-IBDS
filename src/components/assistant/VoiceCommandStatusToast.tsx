@@ -32,6 +32,8 @@ export interface VoiceCommandStatusToastProps {
   readonly error?: string | null;
   /** Callback to toggle microphone listening state. */
   readonly onToggleListening: () => void;
+  /** Optional callback to trigger an audio chime test. */
+  readonly onTestAudio?: () => void;
   /** Optional custom CSS class name. */
   readonly className?: string;
 }
@@ -49,6 +51,7 @@ export interface VoiceCommandStatusToastProps {
  *   feedbackMessage={voice.feedbackMessage}
  *   lastExecution={voice.lastExecution}
  *   onToggleListening={voice.toggleListening}
+ *   onTestAudio={voice.testAudioTone}
  * />
  */
 export function VoiceCommandStatusToast({
@@ -59,6 +62,7 @@ export function VoiceCommandStatusToast({
   lastExecution,
   error,
   onToggleListening,
+  onTestAudio,
   className,
 }: VoiceCommandStatusToastProps): ReactElement | null {
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
@@ -202,6 +206,27 @@ export function VoiceCommandStatusToast({
 
       {/* Action & Dismiss Controls */}
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        {onTestAudio && (
+          <button
+            type="button"
+            onClick={onTestAudio}
+            title="Klik untuk menguji bunyi audio speaker"
+            style={{
+              padding: "4px 8px",
+              borderRadius: 6,
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              background: "rgba(16, 185, 129, 0.15)",
+              color: "#34D399",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            🔊 Uji Audio
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onToggleListening}

@@ -862,6 +862,8 @@ export interface UseWebSpeechCommandResult {
   readonly error: string | null;
   /** Toggles speech recognition on and off. */
   readonly toggleListening: () => void;
+  /** Triggers a procedural Web Audio chime test to verify speaker and audio context. */
+  readonly testAudioTone: (type?: AudioChimeType) => void;
   /** Explicit programmatic execution of a CommandId. */
   readonly executeCommand: (
     commandId: CommandId,
@@ -879,6 +881,10 @@ export interface UseWebSpeechCommandOptions {
   readonly playAudioFeedback?: boolean;
   /** Callback fired after each command dispatch. */
   readonly onCommandExecuted?: (result: CommandExecutionResult) => void;
+  /** Whether to automatically activate listening on mount / user interaction (default: true). */
+  readonly autoStart?: boolean;
+  /** Whether to continuously auto-restart recognition when it pauses or idles (default: true). */
+  readonly continuousListening?: boolean;
 }
 
 // ============================================================================
@@ -898,18 +904,24 @@ export function useWebSpeechCommand(
 ): UseWebSpeechCommandResult {
   const language = options.language ?? "id-ID";
   const playAudioFeedback = options.playAudioFeedback ?? true;
+  const autoStart = options.autoStart ?? true;
+  const continuousListening = options.continuousListening ?? true;
 
   const [isSupported, setIsSupported] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
   const [transcript, setTranscript] = useState<string>("");
   const [lastExecution, setLastExecution] = useState<CommandExecutionResult | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string>(
-    "Siap mendengarkan perintah suara.",
+    autoStart
+      ? "🎙️ Selalu Mendengarkan... Siap menerima perintah suara."
+      : "Siap mendengarkan perintah suara.",
   );
   const [error, setError] = useState<string | null>(null);
 
   // We type recognition instance loosely as unknown since SpeechRecognition is non-standard across browsers
   const recognitionRef = useRef<unknown>(null);
+  const shouldListenRef = useRef<boolean>(autoStart);
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Programmatic command runner
   const executeCommand = useCallback(
@@ -930,6 +942,28 @@ export function useWebSpeechCommand(
     },
     [options, playAudioFeedback],
   );
+
+  // Test procedural audio chime helper
+  const testAudioTone = useCallback((type: AudioChimeType = "SUCCESS"): void => {
+    synthesizeAudioTone(type);
+    setFeedbackMessage(
+      type === "SUCCESS"
+        ? "🔊 Uji Bunyi Audio: Berhasil (Arpeggio C5-G5)!"
+        : `🔊 Uji Bunyi Audio: ${type}`,
+    );
+  }, []);
+
+  // Safe starter wrapper avoiding browser race conditions
+  const safeStart = useCallback((): void => {
+    if (!shouldListenRef.current) return;
+    const rec = recognitionRef.current as { start?: () => void } | null;
+    if (!rec) return;
+    try {
+      rec.start?.();
+    } catch {
+      // Ignored if already listening or starting
+    }
+  }, []);
 
   // Check browser support and initialize SpeechRecognition
   useEffect(() => {
@@ -970,18 +1004,39 @@ export function useWebSpeechCommand(
       recognition.onstart = () => {
         setIsListening(true);
         setError(null);
-        setFeedbackMessage("🎙️ Mendengarkan... Silakan ucapkan perintah.");
-        if (playAudioFeedback) synthesizeAudioTone("START");
+        setFeedbackMessage("🎙️ Selalu Mendengarkan... Silakan ucapkan perintah.");
       };
 
       recognition.onend = () => {
-        setIsListening(false);
-        if (playAudioFeedback) synthesizeAudioTone("STOP");
+        if (continuousListening && shouldListenRef.current) {
+          // Continuous loop: schedule seamless silent restart so listening never shuts off
+          if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+          restartTimerRef.current = setTimeout(() => {
+            if (shouldListenRef.current) {
+              safeStart();
+            }
+          }, 250);
+        } else {
+          setIsListening(false);
+          if (playAudioFeedback) synthesizeAudioTone("STOP");
+        }
       };
 
       recognition.onerror = (evt) => {
+        if (evt.error === "no-speech") {
+          // Normal pause in speech in Chrome - continuous loop will restart smoothly
+          return;
+        }
+        if (evt.error === "not-allowed") {
+          shouldListenRef.current = false;
+          setIsListening(false);
+          setError("Akses mikrofon ditolak oleh browser. Izinkan mikrofon di address bar.");
+          return;
+        }
+        if (evt.error === "aborted") {
+          return;
+        }
         setError(`Speech error: ${evt.error}`);
-        setIsListening(false);
       };
 
       recognition.onresult = (evt) => {
@@ -1001,12 +1056,33 @@ export function useWebSpeechCommand(
       };
 
       recognitionRef.current = recognition;
+
+      // Auto start on mount if enabled
+      if (autoStart) {
+        shouldListenRef.current = true;
+        safeStart();
+
+        // Browser gesture fallback: if browser blocked initial autoplay/mic without user gesture,
+        // awaken listening and audio context on user's very first interaction on the page
+        const onFirstInteraction = (): void => {
+          if (shouldListenRef.current) {
+            safeStart();
+            const ctx = getAudioContext();
+            if (ctx && ctx.state === "suspended") {
+              void ctx.resume();
+            }
+          }
+        };
+        window.addEventListener("pointerdown", onFirstInteraction, { once: true });
+        window.addEventListener("keydown", onFirstInteraction, { once: true });
+      }
     } catch (recInitErr) {
       const errMsg = recInitErr instanceof Error ? recInitErr.message : String(recInitErr);
       setError(`Failed to init SpeechRecognition: ${errMsg}`);
     }
 
     return () => {
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       const rec = recognitionRef.current as { stop?: () => void } | null;
       if (rec && typeof rec.stop === "function") {
         try {
@@ -1016,7 +1092,7 @@ export function useWebSpeechCommand(
         }
       }
     };
-  }, [executeCommand, language, playAudioFeedback]);
+  }, [autoStart, continuousListening, executeCommand, language, playAudioFeedback, safeStart]);
 
   // Toggle listening handler
   const toggleListening = useCallback((): void => {
@@ -1030,16 +1106,25 @@ export function useWebSpeechCommand(
     const rec = recognitionRef.current as { start?: () => void; stop?: () => void } | null;
     if (!rec) return;
 
-    if (isListening) {
-      rec.stop?.();
-    } else {
+    if (isListening || shouldListenRef.current) {
+      shouldListenRef.current = false;
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       try {
-        rec.start?.();
+        rec.stop?.();
       } catch {
         // Handle rapid toggle errors
       }
+      setIsListening(false);
+      setFeedbackMessage("Mikrofon dijeda (Mute). Klik 'Listen' untuk mengaktifkan kembali.");
+      if (playAudioFeedback) synthesizeAudioTone("STOP");
+    } else {
+      shouldListenRef.current = true;
+      safeStart();
+      setIsListening(true);
+      setFeedbackMessage("🎙️ Selalu Mendengarkan... Silakan ucapkan perintah.");
+      if (playAudioFeedback) synthesizeAudioTone("START");
     }
-  }, [isListening, isSupported]);
+  }, [isListening, isSupported, playAudioFeedback, safeStart]);
 
   return {
     isListening,
@@ -1049,6 +1134,7 @@ export function useWebSpeechCommand(
     feedbackMessage,
     error,
     toggleListening,
+    testAudioTone,
     executeCommand,
   };
 }

@@ -14,6 +14,7 @@
 
 import React, { type ReactElement, useEffect, useRef, useState } from "react";
 
+import { synthesizeAudioTone } from "@/hooks/use-web-speech-command";
 import { useBeamSimulatorStore } from "@/state/beam-simulator-store";
 
 /**
@@ -237,24 +238,43 @@ export function StructuralAiAssistantPanel({
         <span style={{ fontSize: 11, fontWeight: 700, color: "#38BDF8" }}>
           🤖 Consultant AI & Multimodal
         </span>
-        {onToggleCamera && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
             type="button"
-            onClick={onToggleCamera}
+            onClick={() => synthesizeAudioTone("SUCCESS")}
+            title="Klik untuk menguji bunyi audio speaker"
             style={{
               padding: "2px 8px",
               borderRadius: 4,
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              background: isCameraRunning ? "rgba(239, 68, 68, 0.2)" : "rgba(6, 182, 212, 0.15)",
-              color: isCameraRunning ? "#FCA5A5" : "#38BDF8",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              background: "rgba(16, 185, 129, 0.15)",
+              color: "#34D399",
               fontSize: 10,
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            {isCameraRunning ? "🛑 Stop Cam" : "📷 Cam Tracking"}
+            🔊 Uji Audio
           </button>
-        )}
+          {onToggleCamera && (
+            <button
+              type="button"
+              onClick={onToggleCamera}
+              style={{
+                padding: "2px 8px",
+                borderRadius: 4,
+                border: "1px solid rgba(148, 163, 184, 0.2)",
+                background: isCameraRunning ? "rgba(239, 68, 68, 0.2)" : "rgba(6, 182, 212, 0.15)",
+                color: isCameraRunning ? "#FCA5A5" : "#38BDF8",
+                fontSize: 10,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {isCameraRunning ? "🛑 Stop Cam" : "📷 Cam Tracking"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Quick Prompt Pills */}
