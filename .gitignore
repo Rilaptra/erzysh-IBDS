@@ -59,4 +59,6 @@ target/
 crates/**/target/
 AI_MODEL_STRATEGY_NOTES.md
 *.ps1
+.agents/
+
 
