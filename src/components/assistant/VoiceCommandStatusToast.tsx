@@ -20,6 +20,8 @@ import type { CommandExecutionResult } from "@/types/command-registry-types";
 export interface VoiceCommandStatusToastProps {
   /** Whether the microphone recognition engine is actively listening. */
   readonly isListening: boolean;
+  /** Whether the microphone is muted by user choice. */
+  readonly isMuted?: boolean;
   /** Whether the browser supports the Web Speech API. */
   readonly isSupported: boolean;
   /** Most recent speech transcription recognized from the user. */
@@ -46,6 +48,7 @@ export interface VoiceCommandStatusToastProps {
  * @example
  * <VoiceCommandStatusToast
  *   isListening={voice.isListening}
+ *   isMuted={voice.isMuted}
  *   isSupported={voice.isSupported}
  *   transcript={voice.transcript}
  *   feedbackMessage={voice.feedbackMessage}
@@ -56,6 +59,7 @@ export interface VoiceCommandStatusToastProps {
  */
 export function VoiceCommandStatusToast({
   isListening,
+  isMuted,
   isSupported,
   transcript,
   feedbackMessage,
@@ -72,8 +76,11 @@ export function VoiceCommandStatusToast({
     return null;
   }
 
+  // Derive mute status with fallback to !isListening
+  const isMutedState = isMuted !== undefined ? isMuted : !isListening;
+
   // Auto restore visibility if new speech or active listening occurs
-  const isVisible = !isDismissed || isListening || Boolean(transcript);
+  const isVisible = !isDismissed || !isMutedState || isListening || Boolean(transcript);
 
   if (!isVisible) {
     return null;
@@ -82,11 +89,13 @@ export function VoiceCommandStatusToast({
   const isSuccess = lastExecution ? lastExecution.success : true;
   const accentColor = error
     ? "#EF4444"
-    : isListening
-      ? "#38BDF8"
-      : isSuccess
-        ? "#10B981"
-        : "#F59E0B";
+    : isMutedState
+      ? "#64748B"
+      : isListening
+        ? "#38BDF8"
+        : isSuccess
+          ? "#10B981"
+          : "#F59E0B";
 
   return (
     <div
@@ -136,13 +145,17 @@ export function VoiceCommandStatusToast({
       <button
         type="button"
         onClick={onToggleListening}
-        title={isListening ? "Klik untuk menghentikan mikrofon" : "Klik untuk mulai mendengarkan"}
+        title={
+          isMutedState
+            ? "Klik untuk mulai mendengarkan (Unmute)"
+            : "Klik untuk menjeda mikrofon (Mute)"
+        }
         style={{
           width: 38,
           height: 38,
           borderRadius: "50%",
           border: `1.5px solid ${accentColor}`,
-          background: isListening
+          background: !isMutedState
             ? "linear-gradient(135deg, #0284C7 0%, #0369A1 100%)"
             : "rgba(30, 41, 59, 0.8)",
           color: "#FFFFFF",
@@ -152,11 +165,11 @@ export function VoiceCommandStatusToast({
           cursor: "pointer",
           fontSize: 16,
           flexShrink: 0,
-          animation: isListening ? "micPulseGlow 1.4s infinite" : "none",
+          animation: !isMutedState && isListening ? "micPulseGlow 1.4s infinite" : "none",
           transition: "transform 150ms ease",
         }}
       >
-        {isListening ? "🎙️" : "🎤"}
+        {!isMutedState ? "🎙️" : "🎤"}
       </button>
 
       {/* Transcript & Execution Message Content */}
@@ -172,7 +185,7 @@ export function VoiceCommandStatusToast({
               letterSpacing: "0.04em",
             }}
           >
-            {isListening ? "Mendengarkan..." : "Voice Command"}
+            {isMutedState ? "Mikrofon Dijeda" : isListening ? "Mendengarkan..." : "Voice Command"}
           </span>
           {transcript && (
             <span
@@ -230,19 +243,20 @@ export function VoiceCommandStatusToast({
         <button
           type="button"
           onClick={onToggleListening}
+          title={isMutedState ? "Aktifkan Mikrofon (Listen)" : "Bisukan Mikrofon (Mute)"}
           style={{
             padding: "4px 8px",
             borderRadius: 6,
             border: "1px solid rgba(148, 163, 184, 0.2)",
-            background: isListening ? "rgba(239, 68, 68, 0.2)" : "rgba(6, 182, 212, 0.15)",
-            color: isListening ? "#FCA5A5" : "#38BDF8",
+            background: isMutedState ? "rgba(6, 182, 212, 0.15)" : "rgba(239, 68, 68, 0.2)",
+            color: isMutedState ? "#38BDF8" : "#FCA5A5",
             fontSize: 11,
             fontWeight: 600,
             cursor: "pointer",
             whiteSpace: "nowrap",
           }}
         >
-          {isListening ? "Mute" : "Listen"}
+          {isMutedState ? "Listen" : "Mute"}
         </button>
 
         <button

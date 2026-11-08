@@ -288,6 +288,7 @@ export function DesktopWorkstationView(): ReactElement {
       {/* 10. Voice Command Floating Status Toast */}
       <VoiceCommandStatusToast
         isListening={voice.isListening}
+        isMuted={voice.isMuted}
         isSupported={voice.isSupported}
         transcript={voice.transcript}
         feedbackMessage={voice.feedbackMessage}
