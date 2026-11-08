@@ -466,6 +466,26 @@ describe("Step 7: Multimodal Interactions & Voice Command Registry", () => {
       expect(mutedResult!.isListening).toBe(false);
       expect(mutedResult!.feedbackMessage).toContain("Mute");
     });
+
+    test("useWebSpeechCommand maintains stable function references across consecutive renders", () => {
+      const results: UseWebSpeechCommandResult[] = [];
+
+      function MultiRenderConsumer() {
+        // Pass a new object literal on every render to simulate parent re-renders
+        const res = useWebSpeechCommand({});
+        results.push(res);
+        return null;
+      }
+
+      renderToString(React.createElement(MultiRenderConsumer));
+      renderToString(React.createElement(MultiRenderConsumer));
+
+      expect(results.length).toBe(2);
+      expect(typeof results[0]!.executeCommand).toBe("function");
+      expect(typeof results[0]!.toggleListening).toBe("function");
+      expect(typeof results[0]!.setMuted).toBe("function");
+      expect(results[0]!.isSupported).toBe(false); // In node/bun environment without Web Speech API
+    });
   });
 
   describe("6. Webcam Hardware Teardown & DOM Ref Preservation", () => {

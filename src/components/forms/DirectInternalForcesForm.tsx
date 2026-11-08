@@ -11,8 +11,10 @@
 
 "use client";
 
-import React, { type ReactElement } from "react";
+import type { ReactElement } from "react";
 
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { beamSimulatorActions, useBeamSimulatorStore } from "@/state/beam-simulator-store";
 
 export function DirectInternalForcesForm(): ReactElement {
@@ -26,41 +28,30 @@ export function DirectInternalForcesForm(): ReactElement {
   } = useBeamSimulatorStore();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12 }}>
+    <FieldGroup className="gap-2.5 text-xs">
       {/* 1. Bentang L */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
           Panjang Bentang Balok (L)
-        </label>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input
+        </FieldLabel>
+        <InputGroup>
+          <InputGroupInput
             type="number"
             step="0.5"
             value={Number(directSpanLengthM)}
             onChange={(e) =>
               beamSimulatorActions.setDirectForces({ spanLengthM: parseFloat(e.target.value) || 1 })
             }
-            style={{
-              flex: 1,
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "6px 8px",
-              fontSize: 11,
-            }}
           />
-          <span style={{ color: "#64748B", fontSize: 11 }}>meter</span>
-        </div>
-      </div>
+          <InputGroupAddon align="inline-end">m</InputGroupAddon>
+        </InputGroup>
+      </Field>
 
       {/* 2. Mux (Momen Lentur Utama) */}
-      <div>
-        <label style={{ display: "block", color: "#06B6D4", fontWeight: 700, marginBottom: 2 }}>
-          Momen Lentur Terfaktor Mux
-        </label>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input
+      <Field>
+        <FieldLabel className="font-bold text-cyan-500">Momen Lentur Terfaktor Mux</FieldLabel>
+        <InputGroup>
+          <InputGroupInput
             type="number"
             value={Number(directMomentMuxKnm)}
             onChange={(e) =>
@@ -68,79 +59,48 @@ export function DirectInternalForcesForm(): ReactElement {
                 momentMuxKnm: parseFloat(e.target.value) || 0,
               })
             }
-            style={{
-              flex: 1,
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(6, 182, 212, 0.3)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "6px 8px",
-              fontSize: 11,
-            }}
           />
-          <span style={{ color: "#64748B", fontSize: 11 }}>kNm</span>
-        </div>
-      </div>
+          <InputGroupAddon align="inline-end">kNm</InputGroupAddon>
+        </InputGroup>
+      </Field>
 
       {/* 3. Vu (Gaya Geser) */}
-      <div>
-        <label style={{ display: "block", color: "#10B981", fontWeight: 700, marginBottom: 2 }}>
-          Gaya Geser Terfaktor Vu
-        </label>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input
+      <Field>
+        <FieldLabel className="font-bold text-emerald-500">Gaya Geser Terfaktor Vu</FieldLabel>
+        <InputGroup>
+          <InputGroupInput
             type="number"
             value={Number(directShearVuKn)}
             onChange={(e) =>
               beamSimulatorActions.setDirectForces({ shearVuKn: parseFloat(e.target.value) || 0 })
             }
-            style={{
-              flex: 1,
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "6px 8px",
-              fontSize: 11,
-            }}
           />
-          <span style={{ color: "#64748B", fontSize: 11 }}>kN</span>
-        </div>
-      </div>
+          <InputGroupAddon align="inline-end">kN</InputGroupAddon>
+        </InputGroup>
+      </Field>
 
       {/* 4. Pu (Gaya Aksial) */}
-      <div>
-        <label style={{ display: "block", color: "#A855F7", fontWeight: 700, marginBottom: 2 }}>
-          Gaya Aksial Terfaktor Pu
-        </label>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input
+      <Field>
+        <FieldLabel className="font-bold text-purple-500">Gaya Aksial Terfaktor Pu</FieldLabel>
+        <InputGroup>
+          <InputGroupInput
             type="number"
             value={Number(directAxialPuKn)}
             onChange={(e) =>
               beamSimulatorActions.setDirectForces({ axialPuKn: parseFloat(e.target.value) || 0 })
             }
-            style={{
-              flex: 1,
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(168, 85, 247, 0.3)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "6px 8px",
-              fontSize: 11,
-            }}
           />
-          <span style={{ color: "#64748B", fontSize: 11 }}>kN (+T / -C)</span>
-        </div>
-      </div>
+          <InputGroupAddon align="inline-end">kN (+T / -C)</InputGroupAddon>
+        </InputGroup>
+      </Field>
 
       {/* 5. Muy (Momen Sumbu Lemah) */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
           Momen Sumbu Lemah Muy (Khusus Baja)
-        </label>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input
+        </FieldLabel>
+        <InputGroup>
+          <InputGroupInput
             type="number"
             value={Number(directMomentMuyKnm)}
             onChange={(e) =>
@@ -148,27 +108,18 @@ export function DirectInternalForcesForm(): ReactElement {
                 momentMuyKnm: parseFloat(e.target.value) || 0,
               })
             }
-            style={{
-              flex: 1,
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "6px 8px",
-              fontSize: 11,
-            }}
           />
-          <span style={{ color: "#64748B", fontSize: 11 }}>kNm</span>
-        </div>
-      </div>
+          <InputGroupAddon align="inline-end">kNm</InputGroupAddon>
+        </InputGroup>
+      </Field>
 
       {/* 6. Tu (Torsi) */}
-      <div>
-        <label style={{ display: "block", color: "#F59E0B", fontWeight: 600, marginBottom: 2 }}>
+      <Field>
+        <FieldLabel className="font-semibold text-amber-500">
           Momen Puntir / Torsi Tu (Khusus Baja)
-        </label>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input
+        </FieldLabel>
+        <InputGroup>
+          <InputGroupInput
             type="number"
             value={Number(directTorsionTuKnm)}
             onChange={(e) =>
@@ -176,20 +127,11 @@ export function DirectInternalForcesForm(): ReactElement {
                 torsionTuKnm: parseFloat(e.target.value) || 0,
               })
             }
-            style={{
-              flex: 1,
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(245, 158, 11, 0.3)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "6px 8px",
-              fontSize: 11,
-            }}
           />
-          <span style={{ color: "#64748B", fontSize: 11 }}>kNm</span>
-        </div>
-      </div>
-    </div>
+          <InputGroupAddon align="inline-end">kNm</InputGroupAddon>
+        </InputGroup>
+      </Field>
+    </FieldGroup>
   );
 }
 

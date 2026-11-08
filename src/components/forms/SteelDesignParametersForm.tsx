@@ -9,8 +9,19 @@
 
 "use client";
 
-import React, { type ReactElement } from "react";
+import type { ReactElement } from "react";
 
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { beamSimulatorActions, useBeamSimulatorStore } from "@/state/beam-simulator-store";
 import type { SteelGrade, SteelProfileType } from "@/types/steel-sni1729-types";
 
@@ -32,164 +43,118 @@ export function SteelDesignParametersForm(): ReactElement {
   } = useBeamSimulatorStore();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12 }}>
+    <FieldGroup className="gap-2.5 text-xs">
       {/* 1. Tipe Penampang Baja */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 4 }}>
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
           Tipe Penampang Baja Standar
-        </label>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button
-            type="button"
-            onClick={() => beamSimulatorActions.setSteelParameters({ profileType: "IWF" })}
-            style={{
-              flex: 1,
-              padding: "6px 8px",
-              borderRadius: 6,
-              border: "none",
-              cursor: "pointer",
-              fontWeight: steelProfileType === "IWF" ? 700 : 500,
-              background:
-                steelProfileType === "IWF"
-                  ? "linear-gradient(90deg, #06B6D4 0%, #3B82F6 100%)"
-                  : "rgba(30, 41, 59, 0.6)",
-              color: steelProfileType === "IWF" ? "#FFFFFF" : "#94A3B8",
-            }}
-          >
+        </FieldLabel>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={steelProfileType}
+          onValueChange={(val) => {
+            if (val)
+              beamSimulatorActions.setSteelParameters({ profileType: val as SteelProfileType });
+          }}
+          className="grid w-full grid-cols-2"
+        >
+          <ToggleGroupItem value="IWF" className="text-xs">
             IWF / H-Beam
-          </button>
-          <button
-            type="button"
-            onClick={() => beamSimulatorActions.setSteelParameters({ profileType: "BOX" })}
-            style={{
-              flex: 1,
-              padding: "6px 8px",
-              borderRadius: 6,
-              border: "none",
-              cursor: "pointer",
-              fontWeight: steelProfileType === "BOX" ? 700 : 500,
-              background:
-                steelProfileType === "BOX"
-                  ? "linear-gradient(90deg, #06B6D4 0%, #3B82F6 100%)"
-                  : "rgba(30, 41, 59, 0.6)",
-              color: steelProfileType === "BOX" ? "#FFFFFF" : "#94A3B8",
-            }}
-          >
+          </ToggleGroupItem>
+          <ToggleGroupItem value="BOX" className="text-xs">
             BOX / Hollow HSS
-          </button>
-        </div>
-      </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </Field>
 
       {/* 2. Mutu Material Baja */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
           Mutu Baja Struktural (SNI 1729 / JIS G 3101)
-        </label>
-        <select
+        </FieldLabel>
+        <Select
           value={steelGrade}
-          onChange={(e) =>
-            beamSimulatorActions.setSteelParameters({ grade: e.target.value as SteelGrade })
+          onValueChange={(val) =>
+            beamSimulatorActions.setSteelParameters({ grade: val as SteelGrade })
           }
-          style={{
-            width: "100%",
-            background: "rgba(30, 41, 59, 0.8)",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            borderRadius: 6,
-            color: "#F8FAFC",
-            padding: "6px 8px",
-            fontSize: 11,
-          }}
         >
-          {STEEL_GRADES.map((g) => (
-            <option key={g.value} value={g.value}>
-              {g.label}
-            </option>
-          ))}
-        </select>
-      </div>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent onPointerDown={(e) => e.stopPropagation()}>
+            <SelectGroup>
+              {STEEL_GRADES.map((g) => (
+                <SelectItem key={g.value} value={g.value}>
+                  {g.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
 
       {/* 3. Panjang Tak Terkekang Lateral Lb */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
-          Panjang Tak Terkekang Lateral Lb (m)
-        </label>
-        <input
-          type="number"
-          step="0.5"
-          value={Number(steelUnbracedLengthLbM)}
-          onChange={(e) =>
-            beamSimulatorActions.setSteelParameters({
-              unbracedLengthLbM: parseFloat(e.target.value) || 1,
-            })
-          }
-          style={{
-            width: "100%",
-            background: "rgba(30, 41, 59, 0.8)",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            color: "#F8FAFC",
-            borderRadius: 6,
-            padding: "6px 8px",
-            fontSize: 11,
-          }}
-        />
-        <span style={{ fontSize: 10, color: "#64748B" }}>
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
+          Panjang Tak Terkekang Lateral Lb
+        </FieldLabel>
+        <InputGroup>
+          <InputGroupInput
+            type="number"
+            step="0.5"
+            value={Number(steelUnbracedLengthLbM)}
+            onChange={(e) =>
+              beamSimulatorActions.setSteelParameters({
+                unbracedLengthLbM: parseFloat(e.target.value) || 1,
+              })
+            }
+          />
+          <InputGroupAddon align="inline-end">m</InputGroupAddon>
+        </InputGroup>
+        <FieldDescription className="text-[10px]">
           Digunakan untuk analisis Tekuk Torsi Lateral (LTB SNI Bab F).
-        </span>
-      </div>
+        </FieldDescription>
+      </Field>
 
       {/* 4. Filter Batasan Geometri Maksimum (Hmax & Bmax) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <div>
-          <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
-            Batas Hmax (mm)
-          </label>
-          <input
-            type="number"
-            placeholder="Tanpa batas"
-            value={steelMaxHeightMm ? Number(steelMaxHeightMm) : ""}
-            onChange={(e) =>
-              beamSimulatorActions.setSteelParameters({
-                maxHeightMm: e.target.value ? parseFloat(e.target.value) : undefined,
-              })
-            }
-            style={{
-              width: "100%",
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "5px 8px",
-              fontSize: 11,
-            }}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field>
+          <FieldLabel className="text-muted-foreground font-semibold">Batas Hmax</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              type="number"
+              placeholder="Tanpa batas"
+              value={steelMaxHeightMm ? Number(steelMaxHeightMm) : ""}
+              onChange={(e) =>
+                beamSimulatorActions.setSteelParameters({
+                  maxHeightMm: e.target.value ? parseFloat(e.target.value) : undefined,
+                })
+              }
+            />
+            <InputGroupAddon align="inline-end">mm</InputGroupAddon>
+          </InputGroup>
+        </Field>
 
-        <div>
-          <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
-            Batas Bmax (mm)
-          </label>
-          <input
-            type="number"
-            placeholder="Tanpa batas"
-            value={steelMaxWidthMm ? Number(steelMaxWidthMm) : ""}
-            onChange={(e) =>
-              beamSimulatorActions.setSteelParameters({
-                maxWidthMm: e.target.value ? parseFloat(e.target.value) : undefined,
-              })
-            }
-            style={{
-              width: "100%",
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "5px 8px",
-              fontSize: 11,
-            }}
-          />
-        </div>
+        <Field>
+          <FieldLabel className="text-muted-foreground font-semibold">Batas Bmax</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              type="number"
+              placeholder="Tanpa batas"
+              value={steelMaxWidthMm ? Number(steelMaxWidthMm) : ""}
+              onChange={(e) =>
+                beamSimulatorActions.setSteelParameters({
+                  maxWidthMm: e.target.value ? parseFloat(e.target.value) : undefined,
+                })
+              }
+            />
+            <InputGroupAddon align="inline-end">mm</InputGroupAddon>
+          </InputGroup>
+        </Field>
       </div>
-    </div>
+    </FieldGroup>
   );
 }
 

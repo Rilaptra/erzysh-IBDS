@@ -34,12 +34,15 @@ import { ConcreteOptimizationResultCard } from "@/components/results/ConcreteOpt
 import { ProfileAndModelExportModal } from "@/components/results/ProfileAndModelExportModal";
 import { SteelOptimizationRankingTable } from "@/components/results/SteelOptimizationRankingTable";
 import { CustomEpochVisitorFlexBadge } from "@/components/telemetry/CustomEpochVisitorFlexBadge";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { DraggableFloatingWindow } from "@/components/windows/DraggableFloatingWindow";
 import { DynamicHandCursorOverlay } from "@/components/windows/DynamicHandCursorOverlay";
 import { HandTrackingCameraPreview } from "@/components/windows/HandTrackingCameraPreview";
 import { useMediapipeHandTracking } from "@/hooks/use-mediapipe-hand-tracking";
 import { useStructuralSolverEngine } from "@/hooks/use-structural-solver-engine";
 import { useWebSpeechCommand } from "@/hooks/use-web-speech-command";
+import { cn } from "@/lib/utils";
 import { beamSimulatorActions, useBeamSimulatorStore } from "@/state/beam-simulator-store";
 import {
   floatingWindowActions,
@@ -73,7 +76,7 @@ export function DesktopWorkstationView(): ReactElement {
   const voice = useWebSpeechCommand();
 
   return (
-    <ErzyshDarkGridBackground style={{ width: "100vw", height: "100vh" }}>
+    <ErzyshDarkGridBackground className="h-screen w-screen">
       {/* 1. WebGL 3D Beam Extruded Viewport (Client Only) */}
       <DynamicBeam3DViewport
         mesh={meshViews}
@@ -117,19 +120,8 @@ export function DesktopWorkstationView(): ReactElement {
       {/* 6. Window Quick Dock Bar (Conditional when screen is clear) */}
       {windowStore.showComplementaryBars ? (
         <div
-          style={{
-            position: "absolute",
-            top: 14,
-            left: 24,
-            zIndex: 30,
-            display: "flex",
-            gap: 6,
-            background: "rgba(15, 20, 22, 0.8)",
-            backdropFilter: "blur(8px)",
-            padding: "4px 8px",
-            borderRadius: 8,
-            border: "1px solid rgba(148, 163, 184, 0.12)",
-          }}
+          className="bg-card/80 border-border/30 absolute top-3.5 left-6 z-30 flex items-center gap-1.5 rounded-lg border px-2 py-1.5 shadow-lg backdrop-blur-md"
+          onPointerDown={(e) => e.stopPropagation()}
         >
           {(
             [
@@ -143,37 +135,26 @@ export function DesktopWorkstationView(): ReactElement {
           ).map(([id, label]) => {
             const isOpen = windowStore.windows[id].isOpen;
             return (
-              <button
+              <Button
                 key={id}
                 type="button"
+                variant={isOpen ? "secondary" : "ghost"}
+                size="xs"
                 onClick={() => floatingWindowActions.toggleWindow(id as FloatingWindowId)}
-                style={{
-                  border: "none",
-                  padding: "4px 8px",
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: isOpen ? 700 : 500,
-                  cursor: "pointer",
-                  background: isOpen ? "rgba(6, 182, 212, 0.25)" : "transparent",
-                  color: isOpen ? "#38BDF8" : "#94A3B8",
-                }}
+                className={cn(
+                  "text-[11px] font-medium transition-colors",
+                  isOpen && "bg-sky-500/20 font-bold text-sky-400 hover:bg-sky-500/30",
+                )}
               >
                 {label}
-              </button>
+              </Button>
             );
           })}
         </div>
       ) : null}
 
       {/* Top-Right Telemetry Badge (GA4 Custom Epoch Visitor Counter) */}
-      <div
-        style={{
-          position: "absolute",
-          top: 14,
-          right: 24,
-          zIndex: 30,
-        }}
-      >
+      <div className="absolute top-3.5 right-6 z-30">
         <CustomEpochVisitorFlexBadge />
       </div>
 
@@ -219,7 +200,7 @@ export function DesktopWorkstationView(): ReactElement {
       {/* Window 5: Diagram Gaya Dalam Khusus (Mode 3) */}
       <DraggableFloatingWindow id="INTERNAL_FORCE_DIAGRAMS">
         {stationViews ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             <SingleDiagramCard
               title="BMD — Bidang Momen Lentur (Mux)"
               unit="kNm"
@@ -252,9 +233,14 @@ export function DesktopWorkstationView(): ReactElement {
             />
           </div>
         ) : (
-          <div style={{ color: "#64748B", fontSize: 11, textAlign: "center", padding: 12 }}>
-            Diagram dihitung pada Mode A (Beban Eksternal).
-          </div>
+          <Empty className="border-dashed py-6">
+            <EmptyHeader>
+              <EmptyTitle className="text-xs">Diagram Belum Tersedia</EmptyTitle>
+              <EmptyDescription className="text-[11px]">
+                Diagram gaya dalam dihitung pada Mode A (Beban Eksternal).
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
       </DraggableFloatingWindow>
 
@@ -264,7 +250,7 @@ export function DesktopWorkstationView(): ReactElement {
           onToggleCamera={tracking.toggleRunning}
           isCameraRunning={tracking.state.isRunning}
         />
-        <div style={{ marginTop: 10 }}>
+        <div className="mt-2.5">
           <HandTrackingCameraPreview
             state={tracking.state}
             onToggleRunning={tracking.toggleRunning}

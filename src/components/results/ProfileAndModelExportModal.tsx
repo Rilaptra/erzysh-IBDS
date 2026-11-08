@@ -10,8 +10,22 @@
 
 "use client";
 
+import { AlertCircleIcon, CheckCircle2Icon } from "lucide-react";
 import React, { type ReactElement, useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import {
   buildAutoLispFromSimulatorState,
   buildDxfFromSimulatorState,
@@ -26,6 +40,7 @@ import {
   buildStepAp214FromSimulatorState,
   buildStlFromSimulatorState,
 } from "@/core/exporters/step-solidworks-exporter";
+import { cn } from "@/lib/utils";
 import { useBeamSimulatorStore } from "@/state/beam-simulator-store";
 
 export interface ProfileAndModelExportModalProps {
@@ -142,8 +157,6 @@ export function ProfileAndModelExportModal({
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  if (!isOpen) return null;
-
   const handleTriggerExport = (item: ExportFormatItem): void => {
     setIsExporting(true);
     setDownloadSuccess(null);
@@ -214,204 +227,107 @@ export function ProfileAndModelExportModal({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        background: "rgba(0, 0, 0, 0.75)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
       }}
-      onClick={onClose}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 640,
-          background: "rgba(15, 20, 22, 0.95)",
-          border: "1px solid rgba(148, 163, 184, 0.2)",
-          borderRadius: 12,
-          padding: 20,
-          boxShadow: "0 20px 48px rgba(0, 0, 0, 0.6)",
-          color: "#E2E8F0",
-        }}
+      <DialogContent
+        className="flex max-h-[90vh] flex-col p-6 sm:max-w-xl"
+        onPointerDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
-          <div>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#F8FAFC" }}>
-              Ekspor Model Struktur & Gambar CAD/BIM
-            </h3>
-            <span style={{ fontSize: 11, color: "#94A3B8" }}>
-              Material Aktif: <strong>{materialKind}</strong> | Sistem Sumbu:{" "}
-              <strong>{coordinateMode}</strong>
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "#94A3B8",
-              cursor: "pointer",
-              fontSize: 16,
-            }}
-          >
-            ✕
-          </button>
-        </div>
+        <DialogHeader>
+          <DialogTitle className="text-foreground text-base font-bold">
+            Ekspor Model Struktur & Gambar CAD/BIM
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground text-xs">
+            Material Aktif: <strong className="text-foreground">{materialKind}</strong> | Sistem
+            Sumbu: <strong className="text-foreground">{coordinateMode}</strong>
+          </DialogDescription>
+        </DialogHeader>
 
         {/* List of Formats */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-            maxHeight: 360,
-            overflowY: "auto",
-            marginBottom: 16,
-          }}
-        >
+        <div className="grid max-h-80 grid-cols-2 gap-2.5 overflow-y-auto py-1">
           {EXPORT_FORMATS.map((item) => {
             const isSelected = selectedFormat === item.id;
             return (
-              <div
+              <Card
                 key={item.id}
                 onClick={() => setSelectedFormat(item.id)}
-                style={{
-                  padding: 10,
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  background: isSelected ? "rgba(6, 182, 212, 0.15)" : "rgba(30, 41, 59, 0.4)",
-                  border: `1px solid ${isSelected ? "#06B6D4" : "rgba(148, 163, 184, 0.12)"}`,
-                  transition: "all 0.15s ease",
-                }}
+                className={cn(
+                  "cursor-pointer gap-1 rounded-lg border p-3 py-3 transition-all",
+                  isSelected
+                    ? "border-primary bg-primary/10 ring-primary ring-1"
+                    : "border-border/40 bg-card/60 hover:bg-muted/40",
+                )}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 4,
-                  }}
-                >
-                  <strong style={{ fontSize: 12, color: isSelected ? "#38BDF8" : "#F8FAFC" }}>
-                    {item.extension}
-                  </strong>
+                <div className="flex items-center justify-between">
                   <span
-                    style={{
-                      fontSize: 9,
-                      padding: "1px 6px",
-                      borderRadius: 4,
-                      background: "rgba(148, 163, 184, 0.1)",
-                      color: "#94A3B8",
-                    }}
+                    className={cn(
+                      "font-mono text-xs font-bold",
+                      isSelected ? "text-primary" : "text-foreground",
+                    )}
                   >
-                    {item.category}
+                    {item.extension}
                   </span>
+                  <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px]">
+                    {item.category}
+                  </Badge>
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#CBD5E1", marginBottom: 2 }}>
+                <div className="text-foreground line-clamp-1 text-xs font-semibold">
                   {item.name}
                 </div>
-                <div style={{ fontSize: 10, color: "#94A3B8", lineHeight: 1.3 }}>
+                <div className="text-muted-foreground line-clamp-1 text-[10px]">
                   {item.targetSoftware}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
 
         {/* Success / Feedback notice */}
         {downloadSuccess ? (
-          <div
-            style={{
-              background: "rgba(16, 185, 129, 0.15)",
-              border: "1px solid rgba(16, 185, 129, 0.4)",
-              borderRadius: 6,
-              padding: "8px 12px",
-              color: "#34D399",
-              fontSize: 11,
-              marginBottom: 12,
-            }}
-          >
-            ✓ {downloadSuccess}
-          </div>
+          <Alert className="border-emerald-500/40 bg-emerald-500/10 py-2 text-emerald-400">
+            <CheckCircle2Icon className="size-4" />
+            <AlertDescription className="text-xs text-emerald-300">
+              {downloadSuccess}
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         {/* Error message */}
         {errorMessage ? (
-          <div
-            style={{
-              background: "rgba(239, 68, 68, 0.15)",
-              border: "1px solid rgba(239, 68, 68, 0.4)",
-              borderRadius: 6,
-              padding: "8px 12px",
-              color: "#F87171",
-              fontSize: 11,
-              marginBottom: 12,
-            }}
-          >
-            ✕ {errorMessage}
-          </div>
+          <Alert variant="destructive" className="py-2">
+            <AlertCircleIcon className="size-4" />
+            <AlertDescription className="text-xs">{errorMessage}</AlertDescription>
+          </Alert>
         ) : null}
 
         {/* Actions */}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 6,
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              background: "transparent",
-              color: "#94A3B8",
-              cursor: "pointer",
-              fontSize: 12,
-            }}
-          >
+        <DialogFooter className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" size="sm" onClick={onClose}>
             Tutup
-          </button>
-
-          <button
-            type="button"
+          </Button>
+          <Button
+            size="sm"
             disabled={isExporting}
             onClick={() => {
               const item = EXPORT_FORMATS.find((f) => f.id === selectedFormat);
               if (item) handleTriggerExport(item);
             }}
-            style={{
-              padding: "8px 20px",
-              borderRadius: 6,
-              border: "none",
-              background: "linear-gradient(90deg, #06B6D4 0%, #3B82F6 100%)",
-              color: "#FFFFFF",
-              fontWeight: 700,
-              cursor: isExporting ? "wait" : "pointer",
-              fontSize: 12,
-            }}
           >
-            {isExporting ? "Memproses Ekspor…" : "Unduh File Pilihan"}
-          </button>
-        </div>
-      </div>
-    </div>
+            {isExporting ? (
+              <>
+                <Spinner data-icon="inline-start" /> Memproses Ekspor…
+              </>
+            ) : (
+              "Unduh File Pilihan"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

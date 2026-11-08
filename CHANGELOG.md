@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0] - 2026-11-08
+
+### ✨ Added
+
+- 🎨 Migrate global stylesheet to Tailwind CSS v4 `@theme` tokens and Erzysh Dark Void theme
+- ⚡ Integrate shadcn UI primitives (`Card`, `Tabs`, `Button`, `Badge`, `ScrollArea`, `Empty`) across mobile & desktop workstation views
+
+### 🛠️ Maintenance
+
+- 🧹 Clean up component styles in `AndroidCompanionView`, `DesktopWorkstationView`, and `StructuralAiAssistantPanel` using utility classes
+
 ## [0.5.1] - 2026-11-05
 
 ### 🛠️ Maintenance

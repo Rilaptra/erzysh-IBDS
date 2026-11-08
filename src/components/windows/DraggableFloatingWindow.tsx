@@ -10,6 +10,7 @@
 
 "use client";
 
+import { MinusIcon, SquareIcon, XIcon } from "lucide-react";
 import React, {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -19,6 +20,9 @@ import React, {
   useState,
 } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   floatingWindowActions,
   type FloatingWindowId,
@@ -111,114 +115,84 @@ export function DraggableFloatingWindow({
   };
 
   return (
-    <div
-      className={className}
+    <Card
       data-component="DraggableFloatingWindow"
       data-window-id={id}
+      className={cn(
+        "bg-card/90 border-border/40 absolute gap-0 overflow-hidden py-0 shadow-2xl backdrop-blur-md select-none",
+        isDragging ? "transition-none" : "transition-shadow duration-200",
+        className,
+      )}
       onPointerDown={(e) => {
         // Prevent clicking inside the window body from rotating the 3D camera
         e.stopPropagation();
         floatingWindowActions.bringToFront(id);
       }}
       style={{
-        position: "absolute",
         left: `${x}px`,
         top: `${y}px`,
         width: `${width || defaultWidth}px`,
         zIndex,
-        background: "rgba(15, 20, 22, 0.88)",
-        backdropFilter: "blur(14px)",
-        WebkitBackdropFilter: "blur(14px)",
-        border: "1px solid rgba(148, 163, 184, 0.16)",
-        borderRadius: 10,
-        boxShadow: "0 12px 36px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        transition: isDragging ? "none" : "box-shadow 0.2s ease",
         ...style,
       }}
     >
       {/* Draggable Window Header */}
-      <div
+      <CardHeader
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 12px",
-          background: "rgba(30, 41, 59, 0.5)",
-          borderBottom: isMinimized ? "none" : "1px solid rgba(148, 163, 184, 0.12)",
-          cursor: isDragging ? "grabbing" : "grab",
-          userSelect: "none",
-        }}
+        className={cn(
+          "bg-muted/40 border-border/30 flex flex-row items-center justify-between rounded-t-xl border-b px-3 py-2",
+          isMinimized && "rounded-b-xl border-b-0",
+          isDragging ? "cursor-grabbing" : "cursor-grab",
+        )}
       >
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0", letterSpacing: 0.3 }}>
-          {title}
-        </span>
+        <CardTitle className="text-foreground text-xs font-bold tracking-wider">{title}</CardTitle>
 
         {/* Action Buttons: Minimize & Close */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button
+        <div className="flex items-center gap-1">
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={(e) => {
               e.stopPropagation();
               floatingWindowActions.toggleMinimize(id);
             }}
             title={isMinimized ? "Perbesar Jendela" : "Kecilkan Jendela"}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "#94A3B8",
-              cursor: "pointer",
-              padding: "2px 6px",
-              fontSize: 12,
-              borderRadius: 4,
-            }}
           >
-            {isMinimized ? "□" : "—"}
-          </button>
+            {isMinimized ? <SquareIcon className="size-3" /> : <MinusIcon className="size-3" />}
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={(e) => {
               e.stopPropagation();
               floatingWindowActions.closeWindow(id);
             }}
             title="Tutup Jendela"
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "#94A3B8",
-              cursor: "pointer",
-              padding: "2px 6px",
-              fontSize: 13,
-              borderRadius: 4,
-            }}
           >
-            ✕
-          </button>
+            <XIcon className="size-3.5" />
+          </Button>
         </div>
-      </div>
+      </CardHeader>
 
       {/* Window Body */}
       {!isMinimized ? (
-        <div
+        <CardContent
+          className="overflow-y-auto p-3 text-slate-300"
           style={{
-            padding: 12,
             maxHeight: `${maxHeight}px`,
-            overflowY: "auto",
             scrollbarWidth: "thin",
-            color: "#CBD5E1",
           }}
         >
           {children}
-        </div>
+        </CardContent>
       ) : null}
-    </div>
+    </Card>
   );
 }
 

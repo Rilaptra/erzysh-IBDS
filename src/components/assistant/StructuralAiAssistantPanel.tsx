@@ -12,8 +12,18 @@
 
 "use client";
 
+import { cn } from "cn";
 import React, { type ReactElement, useEffect, useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { synthesizeAudioTone } from "@/hooks/use-web-speech-command";
 import { useBeamSimulatorStore } from "@/state/beam-simulator-store";
 
@@ -214,169 +224,102 @@ export function StructuralAiAssistantPanel({
 
   return (
     <div
-      className={className}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        maxHeight: 460,
-        gap: 8,
-        color: "#E2E8F0",
-        fontSize: 12,
-      }}
+      className={cn("text-foreground flex h-full max-h-[460px] flex-col gap-2 text-xs", className)}
     >
       {/* Quick Action Top Bar (Camera Toggle & Reset) */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingBottom: 6,
-          borderBottom: "1px solid rgba(148, 163, 184, 0.12)",
-        }}
-      >
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#38BDF8" }}>
-          🤖 Consultant AI & Multimodal
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <button
+      <div className="border-border/40 flex items-center justify-between border-b pb-2">
+        <span className="text-[11px] font-bold text-sky-400">🤖 Consultant AI & Multimodal</span>
+        <div className="flex items-center gap-1.5">
+          <Button
             type="button"
+            size="xs"
+            variant="outline"
             onClick={() => synthesizeAudioTone("SUCCESS")}
             title="Klik untuk menguji bunyi audio speaker"
-            style={{
-              padding: "2px 8px",
-              borderRadius: 4,
-              border: "1px solid rgba(16, 185, 129, 0.3)",
-              background: "rgba(16, 185, 129, 0.15)",
-              color: "#34D399",
-              fontSize: 10,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            className="h-6 border-emerald-500/30 bg-emerald-500/15 px-2 text-[10px] font-semibold text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300"
           >
             🔊 Uji Audio
-          </button>
+          </Button>
           {onToggleCamera && (
-            <button
+            <Button
               type="button"
+              size="xs"
+              variant="outline"
               onClick={onToggleCamera}
-              style={{
-                padding: "2px 8px",
-                borderRadius: 4,
-                border: "1px solid rgba(148, 163, 184, 0.2)",
-                background: isCameraRunning ? "rgba(239, 68, 68, 0.2)" : "rgba(6, 182, 212, 0.15)",
-                color: isCameraRunning ? "#FCA5A5" : "#38BDF8",
-                fontSize: 10,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              className={cn(
+                "h-6 px-2 text-[10px] font-semibold transition-colors",
+                isCameraRunning
+                  ? "border-destructive/30 bg-destructive/15 text-destructive hover:bg-destructive/25"
+                  : "border-cyan-500/30 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25",
+              )}
             >
               {isCameraRunning ? "🛑 Stop Cam" : "📷 Cam Tracking"}
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Quick Prompt Pills */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+      <div className="flex flex-wrap gap-1.5">
         {QUICK_PROMPTS.map((prompt) => (
-          <button
+          <Badge
             key={prompt}
-            type="button"
-            onClick={() => handleSendMessage(prompt)}
-            disabled={isLoading}
-            style={{
-              background: "rgba(30, 41, 59, 0.6)",
-              border: "1px solid rgba(148, 163, 184, 0.14)",
-              borderRadius: 6,
-              padding: "3px 8px",
-              color: "#94A3B8",
-              fontSize: 10,
-              cursor: isLoading ? "not-allowed" : "pointer",
-              transition: "all 120ms ease",
-            }}
+            variant="outline"
+            onClick={() => !isLoading && handleSendMessage(prompt)}
+            className={cn(
+              "cursor-pointer px-2 py-0.5 text-[10px] font-normal transition-colors select-none",
+              isLoading
+                ? "cursor-not-allowed opacity-50"
+                : "border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+            )}
           >
             {prompt}
-          </button>
+          </Badge>
         ))}
       </div>
 
       {/* Chat Messages Scrolling History */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          paddingRight: 4,
-          minHeight: 220,
-        }}
-      >
-        {messages.map((msg) => {
-          const isUser = msg.sender === "user";
-          return (
-            <div
-              key={msg.id}
-              style={{
-                alignSelf: isUser ? "flex-end" : "flex-start",
-                maxWidth: "92%",
-                background: isUser
-                  ? "linear-gradient(135deg, #0284C7 0%, #0369A1 100%)"
-                  : "rgba(15, 23, 42, 0.8)",
-                border: isUser ? "none" : "1px solid rgba(56, 189, 248, 0.2)",
-                borderRadius: isUser ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
-                padding: "8px 12px",
-                color: isUser ? "#FFFFFF" : "#CBD5E1",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.25)",
-              }}
-            >
+      <ScrollArea className="border-border/30 bg-background/50 min-h-[220px] flex-1 rounded-md border p-2.5">
+        <div className="flex flex-col gap-2.5 pr-2">
+          {messages.map((msg) => {
+            const isUser = msg.sender === "user";
+            return (
               <div
-                style={{
-                  fontSize: 11,
-                  lineHeight: 1.45,
-                  whiteSpace: "pre-wrap",
-                  fontFamily: isUser ? "inherit" : "system-ui, -apple-system, sans-serif",
-                }}
+                key={msg.id}
+                className={cn(
+                  "max-w-[92%] rounded-xl px-3 py-2 text-xs shadow-xs",
+                  isUser
+                    ? "bg-primary text-primary-foreground ml-auto rounded-br-xs"
+                    : "border-border/60 bg-card text-card-foreground mr-auto rounded-bl-xs border",
+                )}
               >
-                {msg.text}
+                <div className="font-sans text-[11px] leading-relaxed whitespace-pre-wrap">
+                  {msg.text}
+                </div>
+                <div
+                  className={cn(
+                    "mt-1 text-right text-[8px]",
+                    isUser ? "text-primary-foreground/70" : "text-muted-foreground",
+                  )}
+                >
+                  {new Date(msg.timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: 8,
-                  color: isUser ? "rgba(255, 255, 255, 0.6)" : "#64748B",
-                  textAlign: "right",
-                  marginTop: 4,
-                }}
-              >
-                {new Date(msg.timestamp).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
-        {/* Loading / Thinking Indicator */}
-        {isLoading && (
-          <div
-            style={{
-              alignSelf: "flex-start",
-              background: "rgba(15, 23, 42, 0.8)",
-              border: "1px solid rgba(56, 189, 248, 0.2)",
-              borderRadius: "10px 10px 10px 2px",
-              padding: "6px 12px",
-              fontSize: 11,
-              color: "#38BDF8",
-              fontStyle: "italic",
-            }}
-          >
-            Memeriksa parameter struktur & SNI...
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          {/* Loading / Thinking Indicator */}
+          {isLoading && (
+            <div className="bg-card mr-auto rounded-xl rounded-bl-xs border border-sky-500/30 px-3 py-1.5 text-[11px] text-sky-400 italic">
+              Memeriksa parameter struktur & SNI...
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
 
       {/* Input Form Box */}
       <form
@@ -384,46 +327,29 @@ export function StructuralAiAssistantPanel({
           e.preventDefault();
           handleSendMessage(inputText);
         }}
-        style={{
-          display: "flex",
-          gap: 6,
-          marginTop: "auto",
-        }}
+        className="mt-auto"
       >
-        <input
-          type="text"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          placeholder="Tanya saran optimasi balok..."
-          disabled={isLoading}
-          style={{
-            flex: 1,
-            background: "rgba(10, 15, 20, 0.8)",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            borderRadius: 6,
-            padding: "6px 10px",
-            color: "#F8FAFC",
-            fontSize: 11,
-            outline: "none",
-          }}
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !inputText.trim()}
-          style={{
-            background: "linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)",
-            border: "none",
-            borderRadius: 6,
-            padding: "6px 12px",
-            color: "#FFFFFF",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: isLoading || !inputText.trim() ? "not-allowed" : "pointer",
-            opacity: isLoading || !inputText.trim() ? 0.6 : 1,
-          }}
-        >
-          Kirim
-        </button>
+        <InputGroup className="border-border/60 bg-background/60 h-9">
+          <InputGroupInput
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Tanya saran optimasi balok..."
+            disabled={isLoading}
+            className="text-xs"
+          />
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              type="submit"
+              size="xs"
+              variant="default"
+              disabled={isLoading || !inputText.trim()}
+              className="bg-linear-to-r from-cyan-500 to-blue-600 font-bold text-white hover:from-cyan-600 hover:to-blue-700"
+            >
+              Kirim
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
       </form>
     </div>
   );
