@@ -7,8 +7,11 @@
 
 "use client";
 
+import { cn } from "cn";
 import React, { type CSSProperties, type ReactElement } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { DeflectionEvaluationResult } from "@/config/deflection-limits-config";
 
 export interface DeflectionHudAndColorbarProps {
@@ -40,142 +43,78 @@ export function DeflectionHudAndColorbar({
 
   return (
     <div
-      className={className}
+      className={cn("pointer-events-none absolute inset-0 z-10", className)}
       data-component="DeflectionHudAndColorbar"
-      style={{
-        position: "absolute",
-        inset: 0,
-        pointerEvents: "none",
-        zIndex: 10,
-        ...style,
-      }}
+      style={style}
     >
       {/* 1. RIGHT EDGE: Vertical Colorbar Legend */}
-      <div
-        style={{
-          position: "absolute",
-          right: 20,
-          top: "50%",
-          transform: "translateY(-50%)",
-          background: "rgba(15, 20, 22, 0.86)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(148, 163, 184, 0.14)",
-          borderRadius: 10,
-          padding: "12px 14px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 8,
-          pointerEvents: "auto",
-        }}
+      <Card
+        size="sm"
+        className="border-border/40 bg-card/85 pointer-events-auto absolute top-1/2 right-5 -translate-y-1/2 flex-col items-center gap-2 p-3 shadow-lg backdrop-blur-md"
+        onPointerDown={(e) => e.stopPropagation()}
       >
-        <span style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", letterSpacing: 0.5 }}>
+        <span className="text-muted-foreground text-[11px] font-semibold tracking-wider">
           LENDUTAN (mm)
         </span>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "stretch", height: 180 }}>
+        <div className="flex h-44 items-stretch gap-2">
           {/* Vertical Color Gradient Bar (SAP2000 Blue -> Cyan -> Green -> Yellow -> Red) */}
-          <div
-            style={{
-              width: 14,
-              borderRadius: 7,
-              background:
-                "linear-gradient(180deg, #3B82F6 0%, #06B6D4 25%, #10B981 50%, #EAB308 75%, #EF4444 100%)",
-              boxShadow: "0 0 10px rgba(6, 182, 212, 0.3)",
-            }}
-          />
+          <div className="w-3.5 rounded-full bg-linear-to-b from-blue-500 via-cyan-500 via-emerald-500 via-yellow-500 to-red-500 shadow-[0_0_10px_rgba(6,182,212,0.3)]" />
 
           {/* Tick Labels */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              fontSize: 10,
-              fontFamily: "monospace",
-              color: "#CBD5E1",
-            }}
-          >
+          <div className="text-foreground/80 flex flex-col justify-between font-mono text-[10px]">
             <span> 0.00</span>
             <span>-{(peakMagnitude * 0.25).toFixed(2)}</span>
             <span>-{(peakMagnitude * 0.5).toFixed(2)}</span>
             <span>-{(peakMagnitude * 0.75).toFixed(2)}</span>
-            <span style={{ color: "#FCA5A5", fontWeight: 700 }}>-{peakMagnitude.toFixed(2)}</span>
+            <span className="font-bold text-red-400">-{peakMagnitude.toFixed(2)}</span>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* 2. BOTTOM-LEFT: Maximum Deflection Status Card */}
-      <div
-        style={{
-          position: "absolute",
-          left: 24,
-          bottom: 24,
-          background: "rgba(15, 20, 22, 0.90)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(148, 163, 184, 0.16)",
-          borderRadius: 10,
-          padding: "12px 16px",
-          minWidth: 260,
-          pointerEvents: "auto",
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
-        }}
+      <Card
+        size="sm"
+        className="border-border/40 bg-card/90 pointer-events-auto absolute bottom-6 left-6 min-w-64 gap-2 p-3.5 shadow-2xl backdrop-blur-md"
+        onPointerDown={(e) => e.stopPropagation()}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 6,
-          }}
-        >
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: 0.5 }}>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-muted-foreground text-[11px] font-bold tracking-wider">
             LENDUTAN MAKSIMUM
           </span>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              padding: "2px 8px",
-              borderRadius: 6,
-              background: isSatisfied ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)",
-              color: isSatisfied ? "#34D399" : "#F87171",
-              border: `1px solid ${isSatisfied ? "rgba(16, 185, 129, 0.4)" : "rgba(239, 68, 68, 0.4)"}`,
-            }}
+          <Badge
+            variant={isSatisfied ? "outline" : "destructive"}
+            className={cn(
+              "px-2 py-0.5 text-[10px] font-bold",
+              isSatisfied
+                ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-400"
+                : "border-destructive/40 bg-destructive/20 text-destructive",
+            )}
           >
             {isSatisfied ? "AMAN (OK)" : "MELEBIHI BATAS (NG)"}
-          </span>
+          </Badge>
         </div>
 
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 4 }}>
-          <span
-            style={{ fontSize: 22, fontWeight: 800, fontFamily: "monospace", color: "#F8FAFC" }}
-          >
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-foreground font-mono text-2xl font-extrabold">
             -{peakMagnitude.toFixed(2)}
           </span>
-          <span style={{ fontSize: 12, color: "#64748B" }}>mm</span>
-          <span style={{ fontSize: 11, color: "#94A3B8", marginLeft: "auto" }}>
+          <span className="text-muted-foreground text-xs">mm</span>
+          <span className="text-muted-foreground ml-auto text-[11px]">
             di x = {maxDeflectionStationM.toFixed(2)} m
           </span>
         </div>
 
-        <div
-          style={{
-            fontSize: 11,
-            color: "#94A3B8",
-            borderTop: "1px solid rgba(148, 163, 184, 0.1)",
-            paddingTop: 4,
-          }}
-        >
+        <div className="border-border/30 text-muted-foreground border-t pt-1.5 text-[11px]">
           Batas Izin (L/{limitDenominator}):{" "}
-          <strong style={{ color: "#E2E8F0" }}>
+          <strong className="text-foreground">
             -{Math.abs(compliance?.allowableLimitMm ?? 0).toFixed(2)} mm
           </strong>{" "}
           {compliance?.deflectionDcr !== undefined
             ? `(${(compliance.deflectionDcr * 100).toFixed(1)}%)`
             : ""}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

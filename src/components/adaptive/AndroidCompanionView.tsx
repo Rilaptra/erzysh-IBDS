@@ -21,41 +21,26 @@ import { DeflectionServiceabilityBadge } from "@/components/results/DeflectionSe
 import { ProfileAndModelExportModal } from "@/components/results/ProfileAndModelExportModal";
 import { SteelOptimizationRankingTable } from "@/components/results/SteelOptimizationRankingTable";
 import { CustomEpochVisitorFlexBadge } from "@/components/telemetry/CustomEpochVisitorFlexBadge";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStructuralSolverEngine } from "@/hooks/use-structural-solver-engine";
 import { useBeamSimulatorStore } from "@/state/beam-simulator-store";
 
 export function AndroidCompanionView(): ReactElement {
   const store = useBeamSimulatorStore();
   const { compliance, concreteResult, steelResult } = useStructuralSolverEngine();
-  const [activeTab, setActiveTab] = useState<"INPUT" | "PARAMETERS" | "RESULTS">("RESULTS");
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   return (
     <ErzyshDarkGridBackground
-      style={{
-        width: "100vw",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        overflowY: "auto",
-      }}
+      className="flex min-h-screen w-screen flex-col"
+      style={{ overflowY: "auto" }}
     >
       {/* Top Mobile Header */}
-      <header
-        style={{
-          padding: "12px 16px",
-          background: "rgba(15, 20, 22, 0.9)",
-          borderBottom: "1px solid rgba(148, 163, 184, 0.14)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+      <header className="bg-card/90 border-border/40 flex items-center justify-between border-b px-4 py-3 backdrop-blur-md">
         <div>
-          <h1 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#F8FAFC" }}>
-            IBDS Mobile Companion
-          </h1>
-          <span style={{ fontSize: 10, color: "#94A3B8" }}>
+          <h1 className="text-foreground text-sm font-extrabold">IBDS Mobile Companion</h1>
+          <span className="text-muted-foreground text-[10px]">
             Kalkulator Desain Balok SNI (Mode Lapangan)
           </span>
         </div>
@@ -64,61 +49,29 @@ export function AndroidCompanionView(): ReactElement {
       </header>
 
       {/* Mobile Telemetry Visitor Bar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          padding: "6px 16px",
-          background: "rgba(10, 10, 10, 0.7)",
-          borderBottom: "1px solid rgba(148, 163, 184, 0.08)",
-        }}
-      >
+      <div className="border-border/20 flex justify-center border-b bg-black/50 px-4 py-1.5">
         <CustomEpochVisitorFlexBadge />
       </div>
 
-      {/* Tab Navigation */}
-      <nav
-        style={{
-          display: "flex",
-          borderBottom: "1px solid rgba(148, 163, 184, 0.12)",
-          background: "rgba(30, 41, 59, 0.3)",
-        }}
-      >
-        {(
-          [
-            ["RESULTS", "Hasil Desain"],
-            ["INPUT", "Gaya Dalam"],
-            ["PARAMETERS", "Parameter SNI"],
-          ] as const
-        ).map(([tab, label]) => {
-          const isCurrent = activeTab === tab;
-          return (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              style={{
-                flex: 1,
-                padding: "10px 4px",
-                border: "none",
-                fontSize: 12,
-                fontWeight: isCurrent ? 700 : 500,
-                background: isCurrent ? "rgba(6, 182, 212, 0.15)" : "transparent",
-                color: isCurrent ? "#38BDF8" : "#94A3B8",
-                borderBottom: isCurrent ? "2px solid #06B6D4" : "none",
-                cursor: "pointer",
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </nav>
+      {/* Main Tabs Navigation & Content */}
+      <Tabs defaultValue="RESULTS" className="flex w-full flex-1 flex-col gap-0">
+        <TabsList
+          variant="line"
+          className="border-border/30 bg-muted/20 h-11 w-full justify-around rounded-none border-b px-2"
+        >
+          <TabsTrigger value="RESULTS" className="flex-1 text-xs font-semibold">
+            Hasil Desain
+          </TabsTrigger>
+          <TabsTrigger value="INPUT" className="flex-1 text-xs font-semibold">
+            Gaya Dalam
+          </TabsTrigger>
+          <TabsTrigger value="PARAMETERS" className="flex-1 text-xs font-semibold">
+            Parameter SNI
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Main Tab Content */}
-      <main style={{ padding: 16, flex: 1, maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        {activeTab === "RESULTS" && (
-          <div>
+        <main className="mx-auto w-full max-w-xl flex-1 p-4">
+          <TabsContent value="RESULTS" className="mt-0">
             {store.materialKind === "CONCRETE" ? (
               <ConcreteOptimizationResultCard
                 result={concreteResult}
@@ -130,52 +83,29 @@ export function AndroidCompanionView(): ReactElement {
                 onOpenExportModal={() => setIsExportOpen(true)}
               />
             )}
-          </div>
-        )}
+          </TabsContent>
 
-        {activeTab === "INPUT" && (
-          <div
-            style={{
-              background: "rgba(15, 20, 22, 0.8)",
-              border: "1px solid rgba(148, 163, 184, 0.14)",
-              borderRadius: 10,
-              padding: 14,
-            }}
-          >
-            <DirectInternalForcesForm />
-          </div>
-        )}
+          <TabsContent value="INPUT" className="mt-0">
+            <Card className="bg-card/85 border-border/40 p-4 py-4 backdrop-blur-md">
+              <DirectInternalForcesForm />
+            </Card>
+          </TabsContent>
 
-        {activeTab === "PARAMETERS" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div
-              style={{
-                background: "rgba(15, 20, 22, 0.8)",
-                border: "1px solid rgba(148, 163, 184, 0.14)",
-                borderRadius: 10,
-                padding: 14,
-              }}
-            >
+          <TabsContent value="PARAMETERS" className="mt-0 flex flex-col gap-3">
+            <Card className="bg-card/85 border-border/40 p-4 py-4 backdrop-blur-md">
               <MaterialAndLoadModeSelector />
-            </div>
+            </Card>
 
-            <div
-              style={{
-                background: "rgba(15, 20, 22, 0.8)",
-                border: "1px solid rgba(148, 163, 184, 0.14)",
-                borderRadius: 10,
-                padding: 14,
-              }}
-            >
+            <Card className="bg-card/85 border-border/40 p-4 py-4 backdrop-blur-md">
               {store.materialKind === "CONCRETE" ? (
                 <ConcreteDesignParametersForm />
               ) : (
                 <SteelDesignParametersForm />
               )}
-            </div>
-          </div>
-        )}
-      </main>
+            </Card>
+          </TabsContent>
+        </main>
+      </Tabs>
 
       <ProfileAndModelExportModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
     </ErzyshDarkGridBackground>

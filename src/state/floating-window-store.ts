@@ -46,6 +46,7 @@ export interface FloatingWindowManagerState {
 
 /**
  * Initial positions arranged proportionally at the screen borders (leaving center 3D beam open).
+ * Windows start at y: 64 to clear the top Quick Dock Bar (top: 14px .. 52px).
  */
 const DEFAULT_WINDOWS: Record<FloatingWindowId, FloatingWindowState> = {
   MATERIAL_LOAD_MODE: {
@@ -54,7 +55,7 @@ const DEFAULT_WINDOWS: Record<FloatingWindowId, FloatingWindowState> = {
     isOpen: true,
     isMinimized: false,
     x: 24,
-    y: 24,
+    y: 64,
     zIndex: 10,
     width: 340,
   },
@@ -64,7 +65,7 @@ const DEFAULT_WINDOWS: Record<FloatingWindowId, FloatingWindowState> = {
     isOpen: true,
     isMinimized: false,
     x: 24,
-    y: 240,
+    y: 280,
     zIndex: 11,
     width: 340,
   },
@@ -74,7 +75,7 @@ const DEFAULT_WINDOWS: Record<FloatingWindowId, FloatingWindowState> = {
     isOpen: false,
     isMinimized: false,
     x: 24,
-    y: 450,
+    y: 490,
     zIndex: 12,
     width: 340,
   },
@@ -84,7 +85,7 @@ const DEFAULT_WINDOWS: Record<FloatingWindowId, FloatingWindowState> = {
     isOpen: true,
     isMinimized: false,
     x: 390,
-    y: 24,
+    y: 64,
     zIndex: 13,
     width: 420,
   },
@@ -94,7 +95,7 @@ const DEFAULT_WINDOWS: Record<FloatingWindowId, FloatingWindowState> = {
     isOpen: false,
     isMinimized: false,
     x: 390,
-    y: 380,
+    y: 420,
     zIndex: 14,
     width: 480,
   },
@@ -104,7 +105,7 @@ const DEFAULT_WINDOWS: Record<FloatingWindowId, FloatingWindowState> = {
     isOpen: false,
     isMinimized: false,
     x: 840,
-    y: 24,
+    y: 64,
     zIndex: 15,
     width: 360,
   },
@@ -116,9 +117,9 @@ function calculateActiveCount(windows: Record<FloatingWindowId, FloatingWindowSt
 
 let currentState: FloatingWindowManagerState = {
   windows: DEFAULT_WINDOWS,
-  maxZIndex: 20,
+  maxZIndex: 16,
   activeWindowCount: calculateActiveCount(DEFAULT_WINDOWS),
-  showComplementaryBars: calculateActiveCount(DEFAULT_WINDOWS) <= 2,
+  showComplementaryBars: true,
 };
 
 const listeners = new Set<() => void>();
@@ -130,28 +131,49 @@ function emitChange(): void {
 }
 
 /**
+ * Reorders window z-indices so that the target window is on top while keeping
+ * all window z-indices bounded between 10 and 15 (never overflowing HUD layers z-30+).
+ */
+function reorderWindowsWithTop(
+  windows: Record<FloatingWindowId, FloatingWindowState>,
+  topId: FloatingWindowId,
+): Record<FloatingWindowId, FloatingWindowState> {
+  const allIds = Object.keys(windows) as FloatingWindowId[];
+  allIds.sort((a, b) => windows[a].zIndex - windows[b].zIndex);
+  const reordered = allIds.filter((id) => id !== topId).concat(topId);
+
+  const updated: Record<FloatingWindowId, FloatingWindowState> = { ...windows };
+  reordered.forEach((id, index) => {
+    updated[id] = {
+      ...updated[id],
+      zIndex: 10 + index,
+    };
+  });
+  return updated;
+}
+
+/**
  * Floating window management actions.
  */
 export const floatingWindowActions = {
   openWindow(id: FloatingWindowId): void {
     const target = currentState.windows[id];
     if (!target) return;
-    const nextZ = currentState.maxZIndex + 1;
+    const reorderedWindows = reorderWindowsWithTop(currentState.windows, id);
     const updatedWindows = {
-      ...currentState.windows,
+      ...reorderedWindows,
       [id]: {
-        ...target,
+        ...reorderedWindows[id],
         isOpen: true,
         isMinimized: false,
-        zIndex: nextZ,
       },
     };
     currentState = {
       ...currentState,
       windows: updatedWindows,
-      maxZIndex: nextZ,
+      maxZIndex: 16,
       activeWindowCount: calculateActiveCount(updatedWindows),
-      showComplementaryBars: calculateActiveCount(updatedWindows) <= 2,
+      showComplementaryBars: true,
     };
     emitChange();
   },
@@ -170,7 +192,7 @@ export const floatingWindowActions = {
       ...currentState,
       windows: updatedWindows,
       activeWindowCount: calculateActiveCount(updatedWindows),
-      showComplementaryBars: calculateActiveCount(updatedWindows) <= 2,
+      showComplementaryBars: true,
     };
     emitChange();
   },
@@ -199,7 +221,7 @@ export const floatingWindowActions = {
       ...currentState,
       windows: updatedWindows,
       activeWindowCount: calculateActiveCount(updatedWindows),
-      showComplementaryBars: calculateActiveCount(updatedWindows) <= 2,
+      showComplementaryBars: true,
     };
     emitChange();
   },
@@ -207,17 +229,11 @@ export const floatingWindowActions = {
   bringToFront(id: FloatingWindowId): void {
     const target = currentState.windows[id];
     if (!target) return;
-    const nextZ = currentState.maxZIndex + 1;
+    const updatedWindows = reorderWindowsWithTop(currentState.windows, id);
     currentState = {
       ...currentState,
-      maxZIndex: nextZ,
-      windows: {
-        ...currentState.windows,
-        [id]: {
-          ...target,
-          zIndex: nextZ,
-        },
-      },
+      maxZIndex: 16,
+      windows: updatedWindows,
     };
     emitChange();
   },
@@ -242,9 +258,9 @@ export const floatingWindowActions = {
   resetLayout(): void {
     currentState = {
       windows: DEFAULT_WINDOWS,
-      maxZIndex: 20,
+      maxZIndex: 16,
       activeWindowCount: calculateActiveCount(DEFAULT_WINDOWS),
-      showComplementaryBars: calculateActiveCount(DEFAULT_WINDOWS) <= 2,
+      showComplementaryBars: true,
     };
     emitChange();
   },

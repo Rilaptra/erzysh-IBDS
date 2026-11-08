@@ -10,8 +10,22 @@
 
 "use client";
 
-import React, { type ReactElement } from "react";
+import { PlusIcon, XIcon } from "lucide-react";
+import type { ReactElement } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { beamSimulatorActions, useBeamSimulatorStore } from "@/state/beam-simulator-store";
 import type { SupportOrientation } from "@/types/beam-loading-modes";
 import { kilonewton, kilonewtonPerMeter, meter } from "@/types/branded-units";
@@ -29,8 +43,7 @@ const SUPPORT_OPTIONS: Array<{ value: SupportOrientation; label: string }> = [
 ];
 
 export function ExternalLoadInteractiveForm(): ReactElement {
-  const { spanLengthM, supportOrientation, includeSelfWeight, pointLoads, distributedLoads } =
-    useBeamSimulatorStore();
+  const { spanLengthM, supportOrientation, pointLoads, distributedLoads } = useBeamSimulatorStore();
 
   const handleSpanChange = (val: number): void => {
     if (val > 0) {
@@ -85,233 +98,186 @@ export function ExternalLoadInteractiveForm(): ReactElement {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 12 }}>
+    <FieldGroup className="gap-3 text-xs">
       {/* 1. Panjang Bentang L */}
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <label style={{ color: "#94A3B8", fontWeight: 600 }}>Panjang Bentang Balok (L)</label>
-          <span style={{ color: "#38BDF8", fontWeight: 700, fontFamily: "monospace" }}>
+      <Field>
+        <div className="flex items-center justify-between">
+          <FieldLabel className="text-muted-foreground font-semibold">
+            Panjang Bentang Balok (L)
+          </FieldLabel>
+          <span className="font-mono font-bold text-sky-400">
             {Number(spanLengthM).toFixed(2)} m
           </span>
         </div>
-        <input
-          type="range"
-          min="1"
-          max="24"
-          step="0.25"
-          value={Number(spanLengthM)}
-          onChange={(e) => handleSpanChange(parseFloat(e.target.value))}
-          style={{ width: "100%", accentColor: "#06B6D4" }}
+        <Slider
+          min={1}
+          max={24}
+          step={0.25}
+          value={[Number(spanLengthM)]}
+          onValueChange={([val]) => {
+            if (val !== undefined) handleSpanChange(val);
+          }}
+          className="mt-1"
         />
-      </div>
+      </Field>
 
       {/* 2. Konfigurasi Tumpuan */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 4 }}>
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
           Konfigurasi Tumpuan Balok
-        </label>
-        <select
+        </FieldLabel>
+        <Select
           value={supportOrientation}
-          onChange={(e) => beamSimulatorActions.setSupportOrientation(e.target.value as any)}
-          style={{
-            width: "100%",
-            background: "rgba(30, 41, 59, 0.8)",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            borderRadius: 6,
-            color: "#F8FAFC",
-            padding: "6px 8px",
-            fontSize: 11,
-            outline: "none",
-          }}
+          onValueChange={(val) =>
+            beamSimulatorActions.setSupportOrientation(val as SupportOrientation)
+          }
         >
-          {SUPPORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Pilih tumpuan balok..." />
+          </SelectTrigger>
+          <SelectContent onPointerDown={(e) => e.stopPropagation()}>
+            <SelectGroup>
+              {SUPPORT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
 
       {/* 3. Beban Titik Terpusat (P) */}
-      <div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 4,
-          }}
-        >
-          <label style={{ color: "#94A3B8", fontWeight: 600 }}>Beban Titik Terpusat (P)</label>
-          <button
+      <Field>
+        <div className="mb-1 flex items-center justify-between">
+          <FieldLabel className="text-muted-foreground font-semibold">
+            Beban Titik Terpusat (P)
+          </FieldLabel>
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={handleAddPointLoad}
-            style={{
-              padding: "2px 8px",
-              background: "rgba(6, 182, 212, 0.2)",
-              border: "1px solid rgba(6, 182, 212, 0.4)",
-              color: "#38BDF8",
-              borderRadius: 4,
-              fontSize: 10,
-              cursor: "pointer",
-            }}
+            className="border-sky-400/30 text-sky-400 hover:bg-sky-500/10"
           >
-            + Tambah P
-          </button>
+            <PlusIcon data-icon="inline-start" /> Tambah P
+          </Button>
         </div>
 
-        {pointLoads.map((pl, idx) => (
-          <div
-            key={pl.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              background: "rgba(30, 41, 59, 0.4)",
-              padding: "4px 8px",
-              borderRadius: 6,
-              marginBottom: 4,
-            }}
-          >
-            <span style={{ color: "#EF4444", fontWeight: 700, width: 22 }}>{pl.id}</span>
-            <input
-              type="number"
-              value={Number(pl.magnitude)}
-              onChange={(e) =>
-                handleUpdatePointLoad(idx, parseFloat(e.target.value) || 0, Number(pl.position))
-              }
-              style={{
-                width: 65,
-                background: "rgba(15, 20, 22, 0.8)",
-                border: "1px solid rgba(148, 163, 184, 0.2)",
-                color: "#F8FAFC",
-                borderRadius: 4,
-                padding: "2px 4px",
-                fontSize: 11,
-              }}
-            />
-            <span style={{ color: "#64748B", fontSize: 10 }}>kN</span>
-            <span style={{ color: "#64748B", fontSize: 10, marginLeft: "auto" }}>x =</span>
-            <input
-              type="number"
-              step="0.1"
-              value={Number(pl.position)}
-              onChange={(e) =>
-                handleUpdatePointLoad(idx, Number(pl.magnitude), parseFloat(e.target.value) || 0)
-              }
-              style={{
-                width: 55,
-                background: "rgba(15, 20, 22, 0.8)",
-                border: "1px solid rgba(148, 163, 184, 0.2)",
-                color: "#F8FAFC",
-                borderRadius: 4,
-                padding: "2px 4px",
-                fontSize: 11,
-              }}
-            />
-            <span style={{ color: "#64748B", fontSize: 10 }}>m</span>
-            <button
-              type="button"
-              onClick={() => handleRemovePointLoad(idx)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#94A3B8",
-                cursor: "pointer",
-                padding: "0 4px",
-              }}
+        <div className="flex flex-col gap-1.5">
+          {pointLoads.map((pl, idx) => (
+            <div
+              key={pl.id}
+              className="bg-muted/30 border-border/30 flex items-center gap-1.5 rounded-lg border p-1.5"
             >
-              ✕
-            </button>
-          </div>
-        ))}
-      </div>
+              <Badge
+                variant="outline"
+                className="h-5 border-red-500/30 px-1.5 py-0 font-bold text-red-400"
+              >
+                {pl.id}
+              </Badge>
+              <InputGroup className="w-24">
+                <InputGroupInput
+                  type="number"
+                  value={Number(pl.magnitude)}
+                  onChange={(e) =>
+                    handleUpdatePointLoad(idx, parseFloat(e.target.value) || 0, Number(pl.position))
+                  }
+                />
+                <InputGroupAddon align="inline-end">kN</InputGroupAddon>
+              </InputGroup>
+
+              <InputGroup className="w-28">
+                <InputGroupAddon align="inline-start">x=</InputGroupAddon>
+                <InputGroupInput
+                  type="number"
+                  step="0.1"
+                  value={Number(pl.position)}
+                  onChange={(e) =>
+                    handleUpdatePointLoad(
+                      idx,
+                      Number(pl.magnitude),
+                      parseFloat(e.target.value) || 0,
+                    )
+                  }
+                />
+                <InputGroupAddon align="inline-end">m</InputGroupAddon>
+              </InputGroup>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => handleRemovePointLoad(idx)}
+                className="text-muted-foreground hover:text-destructive ml-auto"
+              >
+                <XIcon />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Field>
 
       {/* 4. Beban Merata (q) */}
-      <div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 4,
-          }}
-        >
-          <label style={{ color: "#94A3B8", fontWeight: 600 }}>Beban Merata (q)</label>
-          <button
+      <Field>
+        <div className="mb-1 flex items-center justify-between">
+          <FieldLabel className="text-muted-foreground font-semibold">Beban Merata (q)</FieldLabel>
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={handleAddDistLoad}
-            style={{
-              padding: "2px 8px",
-              background: "rgba(16, 185, 129, 0.2)",
-              border: "1px solid rgba(16, 185, 129, 0.4)",
-              color: "#34D399",
-              borderRadius: 4,
-              fontSize: 10,
-              cursor: "pointer",
-            }}
+            className="border-emerald-400/30 text-emerald-400 hover:bg-emerald-500/10"
           >
-            + Tambah q
-          </button>
+            <PlusIcon data-icon="inline-start" /> Tambah q
+          </Button>
         </div>
 
-        {distributedLoads.map((dl, idx) => (
-          <div
-            key={dl.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              background: "rgba(30, 41, 59, 0.4)",
-              padding: "4px 8px",
-              borderRadius: 6,
-              marginBottom: 4,
-            }}
-          >
-            <span style={{ color: "#10B981", fontWeight: 700, width: 22 }}>{dl.id}</span>
-            <input
-              type="number"
-              value={Number(dl.magnitude)}
-              onChange={(e) => {
-                const updated = [...distributedLoads];
-                const target = updated[idx];
-                if (target) {
-                  updated[idx] = {
-                    ...target,
-                    magnitude: kilonewtonPerMeter(parseFloat(e.target.value) || 0),
-                  };
-                  beamSimulatorActions.setDistributedLoads(updated);
-                }
-              }}
-              style={{
-                width: 65,
-                background: "rgba(15, 20, 22, 0.8)",
-                border: "1px solid rgba(148, 163, 184, 0.2)",
-                color: "#F8FAFC",
-                borderRadius: 4,
-                padding: "2px 4px",
-                fontSize: 11,
-              }}
-            />
-            <span style={{ color: "#64748B", fontSize: 10 }}>kN/m</span>
-            <button
-              type="button"
-              onClick={() => handleRemoveDistLoad(idx)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#94A3B8",
-                cursor: "pointer",
-                padding: "0 4px",
-                marginLeft: "auto",
-              }}
+        <div className="flex flex-col gap-1.5">
+          {distributedLoads.map((dl, idx) => (
+            <div
+              key={dl.id}
+              className="bg-muted/30 border-border/30 flex items-center gap-1.5 rounded-lg border p-1.5"
             >
-              ✕
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
+              <Badge
+                variant="outline"
+                className="h-5 border-emerald-500/30 px-1.5 py-0 font-bold text-emerald-400"
+              >
+                {dl.id}
+              </Badge>
+              <InputGroup className="flex-1">
+                <InputGroupInput
+                  type="number"
+                  value={Number(dl.magnitude)}
+                  onChange={(e) => {
+                    const updated = [...distributedLoads];
+                    const target = updated[idx];
+                    if (target) {
+                      updated[idx] = {
+                        ...target,
+                        magnitude: kilonewtonPerMeter(parseFloat(e.target.value) || 0),
+                      };
+                      beamSimulatorActions.setDistributedLoads(updated);
+                    }
+                  }}
+                />
+                <InputGroupAddon align="inline-end">kN/m</InputGroupAddon>
+              </InputGroup>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => handleRemoveDistLoad(idx)}
+                className="text-muted-foreground hover:text-destructive ml-auto"
+              >
+                <XIcon />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Field>
+    </FieldGroup>
   );
 }
 

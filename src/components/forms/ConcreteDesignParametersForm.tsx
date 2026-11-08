@@ -10,8 +10,18 @@
 
 "use client";
 
-import React, { type ReactElement } from "react";
+import type { ReactElement } from "react";
 
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { beamSimulatorActions, useBeamSimulatorStore } from "@/state/beam-simulator-store";
 import type { ConcreteCubeGrade, RebarSteelGrade } from "@/types/concrete-sni2847-types";
 
@@ -43,49 +53,41 @@ export function ConcreteDesignParametersForm(): ReactElement {
     concreteCubeGrade,
     longitudinalRebarGrade,
     stirrupRebarGrade,
-    maxAggregateSizeMm,
   } = useBeamSimulatorStore();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12 }}>
+    <FieldGroup className="gap-2.5 text-xs">
       {/* 1. Mutu Beton: Silinder fc' atau Kubus K */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 4 }}>
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
           Mutu Kuat Tekan Beton
-        </label>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          <div>
-            <span style={{ fontSize: 10, color: "#64748B" }}>Silinder fc' (MPa)</span>
-            <input
-              type="number"
-              min="17"
-              max="60"
-              value={Number(concreteFcMpa)}
-              onChange={(e) =>
-                beamSimulatorActions.setConcreteParameters({
-                  fcMpa: parseFloat(e.target.value) || 25,
-                  cubeGrade: null,
-                })
-              }
-              style={{
-                width: "100%",
-                background: "rgba(30, 41, 59, 0.8)",
-                border: "1px solid rgba(148, 163, 184, 0.2)",
-                color: "#F8FAFC",
-                borderRadius: 6,
-                padding: "5px 8px",
-                fontSize: 11,
-              }}
-            />
-          </div>
+        </FieldLabel>
+        <div className="grid grid-cols-2 gap-2">
+          <Field>
+            <span className="text-muted-foreground text-[10px]">Silinder fc'</span>
+            <InputGroup>
+              <InputGroupInput
+                type="number"
+                min="17"
+                max="60"
+                value={Number(concreteFcMpa)}
+                onChange={(e) =>
+                  beamSimulatorActions.setConcreteParameters({
+                    fcMpa: parseFloat(e.target.value) || 25,
+                    cubeGrade: null,
+                  })
+                }
+              />
+              <InputGroupAddon align="inline-end">MPa</InputGroupAddon>
+            </InputGroup>
+          </Field>
 
-          <div>
-            <span style={{ fontSize: 10, color: "#64748B" }}>Atau Kubus K-xxx</span>
-            <select
-              value={concreteCubeGrade ?? ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val) {
+          <Field>
+            <span className="text-muted-foreground text-[10px]">Atau Kubus K-xxx</span>
+            <Select
+              value={concreteCubeGrade ?? "NONE"}
+              onValueChange={(val) => {
+                if (val && val !== "NONE") {
                   beamSimulatorActions.setConcreteParameters({
                     cubeGrade: val as ConcreteCubeGrade,
                   });
@@ -93,164 +95,138 @@ export function ConcreteDesignParametersForm(): ReactElement {
                   beamSimulatorActions.setConcreteParameters({ cubeGrade: null });
                 }
               }}
-              style={{
-                width: "100%",
-                background: "rgba(30, 41, 59, 0.8)",
-                border: "1px solid rgba(148, 163, 184, 0.2)",
-                color: "#F8FAFC",
-                borderRadius: 6,
-                padding: "5px 8px",
-                fontSize: 11,
-              }}
             >
-              <option value="">Pilih K-xxx...</option>
-              {CUBE_GRADES.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          </div>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Pilih K-xxx..." />
+              </SelectTrigger>
+              <SelectContent onPointerDown={(e) => e.stopPropagation()}>
+                <SelectGroup>
+                  <SelectItem value="NONE">Manual fc'</SelectItem>
+                  {CUBE_GRADES.map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {k}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
-      </div>
+      </Field>
 
       {/* 2. Dimensi Penampang Balok (bw x h) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <div>
-          <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
-            Lebar bw (mm)
-          </label>
-          <input
-            type="number"
-            step="25"
-            value={Number(concreteBwMm)}
-            onChange={(e) =>
-              beamSimulatorActions.setConcreteParameters({
-                bwMm: parseFloat(e.target.value) || 200,
-              })
-            }
-            style={{
-              width: "100%",
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "5px 8px",
-              fontSize: 11,
-            }}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field>
+          <FieldLabel className="text-muted-foreground font-semibold">Lebar bw</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              type="number"
+              step="25"
+              value={Number(concreteBwMm)}
+              onChange={(e) =>
+                beamSimulatorActions.setConcreteParameters({
+                  bwMm: parseFloat(e.target.value) || 200,
+                })
+              }
+            />
+            <InputGroupAddon align="inline-end">mm</InputGroupAddon>
+          </InputGroup>
+        </Field>
 
-        <div>
-          <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
-            Tinggi h (mm)
-          </label>
-          <input
-            type="number"
-            step="50"
-            value={Number(concreteHMm)}
-            onChange={(e) =>
-              beamSimulatorActions.setConcreteParameters({ hMm: parseFloat(e.target.value) || 300 })
-            }
-            style={{
-              width: "100%",
-              background: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              color: "#F8FAFC",
-              borderRadius: 6,
-              padding: "5px 8px",
-              fontSize: 11,
-            }}
-          />
-        </div>
+        <Field>
+          <FieldLabel className="text-muted-foreground font-semibold">Tinggi h</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              type="number"
+              step="50"
+              value={Number(concreteHMm)}
+              onChange={(e) =>
+                beamSimulatorActions.setConcreteParameters({
+                  hMm: parseFloat(e.target.value) || 300,
+                })
+              }
+            />
+            <InputGroupAddon align="inline-end">mm</InputGroupAddon>
+          </InputGroup>
+        </Field>
       </div>
 
       {/* 3. Selimut Beton (dc) */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
-          Tebal Selimut Beton Bersih dc (mm)
-        </label>
-        <input
-          type="number"
-          step="5"
-          value={Number(concreteCoverMm)}
-          onChange={(e) =>
-            beamSimulatorActions.setConcreteParameters({
-              coverMm: parseFloat(e.target.value) || 40,
-            })
-          }
-          style={{
-            width: "100%",
-            background: "rgba(30, 41, 59, 0.8)",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            color: "#F8FAFC",
-            borderRadius: 6,
-            padding: "5px 8px",
-            fontSize: 11,
-          }}
-        />
-      </div>
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
+          Tebal Selimut Bersih dc
+        </FieldLabel>
+        <InputGroup>
+          <InputGroupInput
+            type="number"
+            step="5"
+            value={Number(concreteCoverMm)}
+            onChange={(e) =>
+              beamSimulatorActions.setConcreteParameters({
+                coverMm: parseFloat(e.target.value) || 40,
+              })
+            }
+          />
+          <InputGroupAddon align="inline-end">mm</InputGroupAddon>
+        </InputGroup>
+      </Field>
 
-      {/* 4. Mutu Baja Tulangan Longitudinal */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
+      {/* 4. Mutu Tulangan Pokok Memanjang */}
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
           Mutu Tulangan Pokok Memanjang
-        </label>
-        <select
+        </FieldLabel>
+        <Select
           value={longitudinalRebarGrade}
-          onChange={(e) =>
+          onValueChange={(val) =>
             beamSimulatorActions.setConcreteParameters({
-              longitudinalGrade: e.target.value as RebarSteelGrade,
+              longitudinalGrade: val as RebarSteelGrade,
             })
           }
-          style={{
-            width: "100%",
-            background: "rgba(30, 41, 59, 0.8)",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            borderRadius: 6,
-            color: "#F8FAFC",
-            padding: "6px 8px",
-            fontSize: 11,
-          }}
         >
-          {REBAR_GRADES.map((rg) => (
-            <option key={rg.value} value={rg.value}>
-              {rg.label}
-            </option>
-          ))}
-        </select>
-      </div>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent onPointerDown={(e) => e.stopPropagation()}>
+            <SelectGroup>
+              {REBAR_GRADES.map((rg) => (
+                <SelectItem key={rg.value} value={rg.value}>
+                  {rg.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
 
-      {/* 5. Mutu Baja Tulangan Sengkang Geser */}
-      <div>
-        <label style={{ display: "block", color: "#94A3B8", fontWeight: 600, marginBottom: 2 }}>
+      {/* 5. Mutu Tulangan Sengkang Geser */}
+      <Field>
+        <FieldLabel className="text-muted-foreground font-semibold">
           Mutu Tulangan Sengkang Geser
-        </label>
-        <select
+        </FieldLabel>
+        <Select
           value={stirrupRebarGrade}
-          onChange={(e) =>
+          onValueChange={(val) =>
             beamSimulatorActions.setConcreteParameters({
-              stirrupGrade: e.target.value as RebarSteelGrade,
+              stirrupGrade: val as RebarSteelGrade,
             })
           }
-          style={{
-            width: "100%",
-            background: "rgba(30, 41, 59, 0.8)",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            borderRadius: 6,
-            color: "#F8FAFC",
-            padding: "6px 8px",
-            fontSize: 11,
-          }}
         >
-          {REBAR_GRADES.map((rg) => (
-            <option key={rg.value} value={rg.value}>
-              {rg.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent onPointerDown={(e) => e.stopPropagation()}>
+            <SelectGroup>
+              {REBAR_GRADES.map((rg) => (
+                <SelectItem key={rg.value} value={rg.value}>
+                  {rg.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
+    </FieldGroup>
   );
 }
 

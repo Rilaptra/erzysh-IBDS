@@ -7,8 +7,10 @@
 
 "use client";
 
+import { cn } from "cn";
 import React, { type CSSProperties, type ReactElement } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import type { DeflectionEvaluationResult } from "@/config/deflection-limits-config";
 
 export interface DeflectionServiceabilityBadgeProps {
@@ -23,44 +25,46 @@ export function DeflectionServiceabilityBadge({
   style,
 }: DeflectionServiceabilityBadgeProps): ReactElement {
   if (!compliance) {
-    return <span style={{ color: "#64748B", fontSize: 11 }}>Mengevaluasi lendutan...</span>;
+    return (
+      <Badge
+        variant="outline"
+        className={cn("text-muted-foreground text-[11px]", className)}
+        style={style}
+      >
+        Mengevaluasi lendutan...
+      </Badge>
+    );
   }
 
   const { isCompliant, absDeflectionMm, allowableLimitMm, deflectionDcr, advisory } = compliance;
 
   return (
-    <div
-      className={className}
+    <Badge
+      variant={isCompliant ? "outline" : "destructive"}
+      className={cn(
+        "inline-flex items-center gap-2 px-2.5 py-1 text-[11px] font-normal transition-colors",
+        isCompliant
+          ? "border-emerald-500/35 bg-emerald-500/15 text-emerald-400"
+          : "border-destructive/35 bg-destructive/15 text-destructive",
+        className,
+      )}
+      style={style}
       data-component="DeflectionServiceabilityBadge"
       title={advisory}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "4px 10px",
-        borderRadius: 8,
-        background: isCompliant ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-        border: `1px solid ${isCompliant ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)"}`,
-        color: isCompliant ? "#34D399" : "#F87171",
-        fontSize: 11,
-        ...style,
-      }}
     >
       <span
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: isCompliant ? "#10B981" : "#EF4444",
-        }}
+        className={cn(
+          "size-2 shrink-0 rounded-full",
+          isCompliant ? "bg-emerald-500" : "bg-destructive",
+        )}
       />
-      <span style={{ fontWeight: 700 }}>{isCompliant ? "AMAN (OK)" : "MELEBIHI BATAS (NG)"}</span>
-      <span style={{ color: "#94A3B8" }}>
+      <span className="font-bold">{isCompliant ? "AMAN (OK)" : "MELEBIHI BATAS (NG)"}</span>
+      <span className="text-muted-foreground">
         | Δ = {Number(absDeflectionMm).toFixed(2)} mm (Batas: {Number(allowableLimitMm).toFixed(2)}{" "}
         mm)
       </span>
-      <span style={{ fontWeight: 600 }}>({(deflectionDcr * 100).toFixed(1)}%)</span>
-    </div>
+      <span className="font-semibold">({(deflectionDcr * 100).toFixed(1)}%)</span>
+    </Badge>
   );
 }
 

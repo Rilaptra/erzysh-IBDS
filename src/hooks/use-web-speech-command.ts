@@ -928,28 +928,35 @@ export function useWebSpeechCommand(
   const isMutedRef = useRef<boolean>(!autoStart);
   const isRunningRef = useRef<boolean>(false);
   const isStartingRef = useRef<boolean>(false);
+  const isMountedRef = useRef<boolean>(true);
+  const retryCountRef = useRef<number>(0);
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listeningGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didPlayStopToneRef = useRef<boolean>(false);
 
-  // Programmatic command runner
+  // Store options in a ref so closures always access the freshest callbacks/settings without breaking memoization
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  // Programmatic command runner - fully memoized with stable deps to prevent effect teardown loops
   const executeCommand = useCallback(
     (commandId: CommandId, params?: Record<string, unknown>): CommandExecutionResult => {
       const result = executeRegistryCommand(commandId, params);
       setLastExecution(result);
       setFeedbackMessage(result.message);
 
-      if (playAudioFeedback) {
+      if (optionsRef.current.playAudioFeedback ?? true) {
         synthesizeAudioTone(result.success ? "SUCCESS" : "FAILURE");
       }
 
-      if (options.onCommandExecuted) {
-        options.onCommandExecuted(result);
+      if (optionsRef.current.onCommandExecuted) {
+        optionsRef.current.onCommandExecuted(result);
       }
 
       return result;
     },
-    [options, playAudioFeedback],
+    [],
   );
 
   // Test procedural audio chime helper
@@ -964,7 +971,7 @@ export function useWebSpeechCommand(
 
   // Safe starter wrapper avoiding browser race conditions and InvalidStateError
   const safeStart = useCallback((): void => {
-    if (isMutedRef.current) return;
+    if (!isMountedRef.current || isMutedRef.current) return;
     const rec = recognitionRef.current as { start?: () => void } | null;
     if (!rec || typeof rec.start !== "function") return;
 
@@ -981,18 +988,27 @@ export function useWebSpeechCommand(
         (err instanceof Error && err.name === "InvalidStateError");
 
       if (isAlreadyRunning) {
-        if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
-        retryStartTimerRef.current = setTimeout(() => {
-          if (!isMutedRef.current && !isRunningRef.current && !isStartingRef.current) {
-            safeStart();
-          }
-        }, 150);
+        if (retryCountRef.current < 5) {
+          retryCountRef.current++;
+          if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
+          retryStartTimerRef.current = setTimeout(() => {
+            if (
+              !isMutedRef.current &&
+              !isRunningRef.current &&
+              !isStartingRef.current &&
+              isMountedRef.current
+            ) {
+              safeStart();
+            }
+          }, 200);
+        }
       }
     }
   }, []);
 
   // Check browser support and initialize SpeechRecognition
   useEffect(() => {
+    isMountedRef.current = true;
     if (typeof window === "undefined") return;
 
     // Browser SpeechRecognition constructor resolution
@@ -1007,138 +1023,196 @@ export function useWebSpeechCommand(
 
     setIsSupported(true);
 
+    type RecInstance = {
+      lang: string;
+      continuous: boolean;
+      interimResults: boolean;
+      onstart: () => void;
+      onend: () => void;
+      onerror: (event: { error: string }) => void;
+      onresult: (event: {
+        results: { [index: number]: { [index: number]: { transcript: string } }; length: number };
+      }) => void;
+      start: () => void;
+      stop: () => void;
+      abort?: () => void;
+    };
+
+    let recognition: RecInstance;
     try {
-      type RecInstance = {
-        lang: string;
-        continuous: boolean;
-        interimResults: boolean;
-        onstart: () => void;
-        onend: () => void;
-        onerror: (event: { error: string }) => void;
-        onresult: (event: {
-          results: { [index: number]: { [index: number]: { transcript: string } }; length: number };
-        }) => void;
-        start: () => void;
-        stop: () => void;
-        abort?: () => void;
-      };
-
-      const recognition = new (SpeechRec as new () => RecInstance)();
-      recognition.lang = language;
-      recognition.continuous = true;
-      recognition.interimResults = false;
-
-      recognition.onstart = () => {
-        isRunningRef.current = true;
-        isStartingRef.current = false;
-
-        // If user muted before onstart could complete, immediately abort
-        if (isMutedRef.current) {
-          try {
-            if (typeof recognition.abort === "function") {
-              recognition.abort();
-            } else {
-              recognition.stop();
-            }
-          } catch {
-            // Ignore
-          }
-          setIsListening(false);
-          return;
-        }
-
-        setIsListening(true);
-        setError(null);
-        setFeedbackMessage("🎙️ Selalu Mendengarkan... Silakan ucapkan perintah.");
-      };
-
-      recognition.onend = () => {
-        isRunningRef.current = false;
-        isStartingRef.current = false;
-        setIsListening(false);
-
-        if (continuousListening && !isMutedRef.current) {
-          // Continuous loop: schedule seamless silent restart so listening never shuts off
-          if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-          restartTimerRef.current = setTimeout(() => {
-            if (!isMutedRef.current) {
-              safeStart();
-            }
-          }, 200);
-        } else {
-          // Only play STOP if muted and tone was not already played
-          if (isMutedRef.current && !didPlayStopToneRef.current && playAudioFeedback) {
-            synthesizeAudioTone("STOP");
-            didPlayStopToneRef.current = true;
-          }
-        }
-      };
-
-      recognition.onerror = (evt) => {
-        isStartingRef.current = false;
-        if (evt.error === "no-speech") {
-          // Normal pause in speech in Chrome - continuous loop will restart smoothly via onend
-          return;
-        }
-        if (evt.error === "not-allowed") {
-          isMutedRef.current = true;
-          setIsMuted(true);
-          isRunningRef.current = false;
-          setIsListening(false);
-          setError("Akses mikrofon ditolak oleh browser. Izinkan mikrofon di address bar.");
-          return;
-        }
-        if (evt.error === "aborted") {
-          // Normal result of calling recognition.abort() during mute
-          return;
-        }
-        setError(`Speech error: ${evt.error}`);
-      };
-
-      recognition.onresult = (evt) => {
-        const lastIndex = evt.results.length - 1;
-        const text = evt.results[lastIndex]?.[0]?.transcript.trim() ?? "";
-        if (!text) return;
-
-        setTranscript(text);
-
-        const match = routeVoiceTranscriptToCommand(text);
-        if (match) {
-          executeCommand(match.commandId, match.extractedParameters);
-        } else {
-          setFeedbackMessage(`Perintah tidak dikenali: "${text}"`);
-          if (playAudioFeedback) synthesizeAudioTone("FAILURE");
-        }
-      };
-
-      recognitionRef.current = recognition;
-
-      // Auto start on mount if enabled and not muted
-      if (autoStart && !isMutedRef.current) {
-        safeStart();
-
-        // Browser gesture fallback: if browser blocked initial autoplay/mic without user gesture,
-        // awaken listening and audio context on user's very first interaction on the page
-        const onFirstInteraction = (): void => {
-          if (!isMutedRef.current) {
-            safeStart();
-            const ctx = getAudioContext();
-            if (ctx && ctx.state === "suspended") {
-              void ctx.resume();
-            }
-          }
-        };
-        window.addEventListener("pointerdown", onFirstInteraction, { once: true });
-        window.addEventListener("keydown", onFirstInteraction, { once: true });
-      }
+      recognition = new (SpeechRec as new () => RecInstance)();
     } catch (recInitErr) {
       const errMsg = recInitErr instanceof Error ? recInitErr.message : String(recInitErr);
       setError(`Failed to init SpeechRecognition: ${errMsg}`);
+      return;
+    }
+
+    recognition.lang = language;
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      if (!isMountedRef.current) return;
+      isRunningRef.current = true;
+      isStartingRef.current = false;
+      retryCountRef.current = 0;
+
+      if (listeningGraceTimerRef.current) {
+        clearTimeout(listeningGraceTimerRef.current);
+        listeningGraceTimerRef.current = null;
+      }
+
+      // If user muted before onstart could complete, immediately abort
+      if (isMutedRef.current) {
+        try {
+          if (typeof recognition.abort === "function") {
+            recognition.abort();
+          } else {
+            recognition.stop();
+          }
+        } catch {
+          // Ignore
+        }
+        setIsListening(false);
+        return;
+      }
+
+      setIsListening(true);
+      setError(null);
+      setFeedbackMessage("🎙️ Selalu Mendengarkan... Silakan ucapkan perintah.");
+    };
+
+    recognition.onend = () => {
+      if (!isMountedRef.current) return;
+      isRunningRef.current = false;
+      isStartingRef.current = false;
+
+      // If user is muted or not in continuous mode, transition to idle/stopped immediately
+      if (!continuousListening || isMutedRef.current) {
+        setIsListening(false);
+        if (
+          isMutedRef.current &&
+          !didPlayStopToneRef.current &&
+          (optionsRef.current.playAudioFeedback ?? true)
+        ) {
+          synthesizeAudioTone("STOP");
+          didPlayStopToneRef.current = true;
+        }
+        return;
+      }
+
+      // Continuous loop:
+      // Chrome fires onend periodically on pauses in speech and after recognition results.
+      // CRITICAL FIX: Do NOT set isListening to false here to avoid high-frequency visual jitter!
+      // Schedule seamless silent restart so listening never shuts off.
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = setTimeout(() => {
+        if (!isMutedRef.current && isMountedRef.current) {
+          safeStart();
+        }
+      }, 150);
+
+      // Grace period fallback: only if recognition fails to restart within 3s, drop isListening to false
+      if (listeningGraceTimerRef.current) clearTimeout(listeningGraceTimerRef.current);
+      listeningGraceTimerRef.current = setTimeout(() => {
+        if (!isRunningRef.current && isMountedRef.current) {
+          setIsListening(false);
+        }
+      }, 3000);
+    };
+
+    recognition.onerror = (evt) => {
+      if (!isMountedRef.current) return;
+      isStartingRef.current = false;
+
+      if (evt.error === "no-speech") {
+        // Normal pause in speech in Chrome - continuous loop will restart smoothly via onend
+        return;
+      }
+      if (evt.error === "aborted") {
+        // Normal result of calling recognition.abort() during mute or teardown
+        return;
+      }
+      if (evt.error === "not-allowed") {
+        isMutedRef.current = true;
+        setIsMuted(true);
+        isRunningRef.current = false;
+        setIsListening(false);
+        setError("Akses mikrofon ditolak oleh browser. Izinkan mikrofon di address bar.");
+        return;
+      }
+      if (evt.error === "audio-capture") {
+        isMutedRef.current = true;
+        setIsMuted(true);
+        isRunningRef.current = false;
+        setIsListening(false);
+        setError("Mikrofon tidak terdeteksi atau sedang digunakan aplikasi lain.");
+        return;
+      }
+      if (evt.error === "service-not-allowed") {
+        isMutedRef.current = true;
+        setIsMuted(true);
+        isRunningRef.current = false;
+        setIsListening(false);
+        setError("Layanan Web Speech API diblokir oleh browser.");
+        return;
+      }
+      if (evt.error === "network") {
+        setError("Layanan pengenalan suara memerlukan koneksi internet aktif.");
+        return;
+      }
+
+      setError(`Speech error: ${evt.error}`);
+    };
+
+    recognition.onresult = (evt) => {
+      if (!isMountedRef.current) return;
+      const lastIndex = evt.results.length - 1;
+      const text = evt.results[lastIndex]?.[0]?.transcript.trim() ?? "";
+      if (!text) return;
+
+      setTranscript(text);
+
+      const match = routeVoiceTranscriptToCommand(text);
+      if (match) {
+        executeCommand(match.commandId, match.extractedParameters);
+      } else {
+        setFeedbackMessage(`Perintah tidak dikenali: "${text}"`);
+        if (optionsRef.current.playAudioFeedback ?? true) {
+          synthesizeAudioTone("FAILURE");
+        }
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    // Gesture fallback listener handlers defined so they can be cleaned up
+    const onFirstInteraction = (): void => {
+      if (!isMutedRef.current && isMountedRef.current) {
+        safeStart();
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === "suspended") {
+          void ctx.resume();
+        }
+      }
+    };
+
+    // Auto start on mount if enabled and not muted
+    if (autoStart && !isMutedRef.current) {
+      safeStart();
+
+      window.addEventListener("pointerdown", onFirstInteraction, { once: true });
+      window.addEventListener("keydown", onFirstInteraction, { once: true });
     }
 
     return () => {
+      isMountedRef.current = false;
+      window.removeEventListener("pointerdown", onFirstInteraction);
+      window.removeEventListener("keydown", onFirstInteraction);
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
+      if (listeningGraceTimerRef.current) clearTimeout(listeningGraceTimerRef.current);
+
       const rec = recognitionRef.current as { abort?: () => void; stop?: () => void } | null;
       if (rec) {
         try {
@@ -1152,7 +1226,7 @@ export function useWebSpeechCommand(
         }
       }
     };
-  }, [autoStart, continuousListening, executeCommand, language, playAudioFeedback, safeStart]);
+  }, [autoStart, continuousListening, executeCommand, language, safeStart]);
 
   // Set mute state handler with immediate abort and single STOP tone
   const setMuted = useCallback(
@@ -1176,13 +1250,14 @@ export function useWebSpeechCommand(
       if (muted) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
+        if (listeningGraceTimerRef.current) clearTimeout(listeningGraceTimerRef.current);
 
         isStartingRef.current = false;
         isRunningRef.current = false;
         setIsListening(false);
 
         // Immediate single acoustic cue
-        if (playAudioFeedback) {
+        if (optionsRef.current.playAudioFeedback ?? true) {
           synthesizeAudioTone("STOP");
           didPlayStopToneRef.current = true;
         }
@@ -1205,16 +1280,18 @@ export function useWebSpeechCommand(
         didPlayStopToneRef.current = false;
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
+        if (listeningGraceTimerRef.current) clearTimeout(listeningGraceTimerRef.current);
 
-        if (playAudioFeedback) {
+        if (optionsRef.current.playAudioFeedback ?? true) {
           synthesizeAudioTone("START");
         }
 
+        setIsListening(true);
         setFeedbackMessage("🎙️ Selalu Mendengarkan... Silakan ucapkan perintah.");
         safeStart();
       }
     },
-    [isSupported, playAudioFeedback, safeStart],
+    [isSupported, safeStart],
   );
 
   // Toggle listening handler

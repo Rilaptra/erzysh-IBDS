@@ -9,8 +9,11 @@
 
 "use client";
 
+import { cn } from "cn";
 import React, { type CSSProperties, type ReactElement } from "react";
 
+import { Card } from "@/components/ui/card";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { beamSimulatorActions, useBeamSimulatorStore } from "@/state/beam-simulator-store";
 import type { CoordinateSystemMode } from "@/types/branded-units";
 
@@ -29,27 +32,15 @@ export function CoordinateAxisSwitcher({
   const { coordinateMode } = useBeamSimulatorStore();
 
   return (
-    <div
-      className={className}
+    <Card
+      size="sm"
+      className={cn(
+        "border-border/40 bg-card/85 pointer-events-auto absolute right-5 bottom-6 z-10 flex flex-col items-center gap-2 p-2.5 shadow-lg backdrop-blur-md",
+        className,
+      )}
       data-component="CoordinateAxisSwitcher"
       onPointerDown={(e) => e.stopPropagation()}
-      style={{
-        position: "absolute",
-        right: 20,
-        bottom: 24,
-        background: "rgba(15, 20, 22, 0.86)",
-        backdropFilter: "blur(12px)",
-        border: "1px solid rgba(148, 163, 184, 0.14)",
-        borderRadius: 10,
-        padding: "10px 12px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 8,
-        zIndex: 10,
-        pointerEvents: "auto",
-        ...style,
-      }}
+      style={style}
     >
       {/* 3D Axis Mini Gizmo */}
       <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
@@ -111,39 +102,35 @@ export function CoordinateAxisSwitcher({
         </text>
       </svg>
 
-      {/* Axis Switcher Toggle Buttons */}
-      <div style={{ display: "flex", gap: 4 }}>
-        {(["Z-Up", "Y-Up"] as const).map((mode) => {
-          const isActive = coordinateMode === mode;
-          return (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => beamSimulatorActions.setCoordinateMode(mode)}
-              title={
-                mode === "Z-Up"
-                  ? "Standar Rekayasa Sipil (SAP2000, Revit, AutoCAD)"
-                  : "Standar WebGL & CAD (Three.js, SolidWorks)"
-              }
-              style={{
-                border: "none",
-                borderRadius: 6,
-                padding: "4px 8px",
-                fontSize: 10,
-                fontWeight: isActive ? 700 : 500,
-                cursor: "pointer",
-                background: isActive
-                  ? "linear-gradient(90deg, #06B6D4 0%, #3B82F6 100%)"
-                  : "rgba(30, 41, 59, 0.6)",
-                color: isActive ? "#F8FAFC" : "#94A3B8",
-              }}
-            >
-              {mode}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+      {/* Axis Switcher ToggleGroup */}
+      <ToggleGroup
+        type="single"
+        value={coordinateMode}
+        onValueChange={(val) => {
+          if (val) {
+            beamSimulatorActions.setCoordinateMode(val as CoordinateSystemMode);
+          }
+        }}
+        size="sm"
+        variant="outline"
+        spacing={1}
+      >
+        <ToggleGroupItem
+          value="Z-Up"
+          title="Standar Rekayasa Sipil (SAP2000, Revit, AutoCAD)"
+          className="h-6 px-2 text-[10px] font-medium"
+        >
+          Z-Up
+        </ToggleGroupItem>
+        <ToggleGroupItem
+          value="Y-Up"
+          title="Standar WebGL & CAD (Three.js, SolidWorks)"
+          className="h-6 px-2 text-[10px] font-medium"
+        >
+          Y-Up
+        </ToggleGroupItem>
+      </ToggleGroup>
+    </Card>
   );
 }
 

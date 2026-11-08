@@ -10,9 +10,15 @@
 
 "use client";
 
+import { cn } from "cn";
 import React, { type ReactElement } from "react";
 
 import { ConcreteCrossSectionSvg } from "@/components/canvas/ConcreteCrossSectionSvg";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Separator } from "@/components/ui/separator";
 import type {
   ConcreteOptimizationResult,
   RebarLayerArrangement,
@@ -29,125 +35,109 @@ export function ConcreteOptimizationResultCard({
 }: ConcreteOptimizationResultCardProps): ReactElement {
   if (!result) {
     return (
-      <div style={{ color: "#64748B", fontSize: 12, padding: 12, textAlign: "center" }}>
-        Menunggu input gaya dalam untuk menghitung desain beton SNI 2847…
-      </div>
+      <Empty className="py-6 text-center">
+        <EmptyDescription className="text-muted-foreground text-xs">
+          Menunggu input gaya dalam untuk menghitung desain beton SNI 2847…
+        </EmptyDescription>
+      </Empty>
     );
   }
 
   const { section, flexure, shear } = result;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12 }}>
+    <div className="flex flex-col gap-2.5 text-xs">
       {/* 1. Header Ringkasan Penampang */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: "rgba(30, 41, 59, 0.4)",
-          padding: "8px 10px",
-          borderRadius: 6,
-        }}
-      >
-        <div>
-          <span style={{ fontSize: 10, color: "#94A3B8" }}>DIMENSI PENAMPANG</span>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#38BDF8" }}>
-            {Number(section.bw)} × {Number(section.h)} mm
+      <Card size="sm" className="border-border/40 bg-card/60">
+        <CardContent className="flex items-center justify-between p-2.5">
+          <div>
+            <span className="text-muted-foreground text-[10px] font-medium">DIMENSI PENAMPANG</span>
+            <div className="text-sm font-bold text-sky-400">
+              {Number(section.bw)} × {Number(section.h)} mm
+            </div>
           </div>
-        </div>
 
-        <div style={{ textAlign: "right" }}>
-          <span style={{ fontSize: 10, color: "#94A3B8" }}>RASIO TULANGAN (ρ)</span>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#FCD34D" }}>
-            {(result.reinforcementRatioRho * 100).toFixed(2)}%
+          <div className="text-right">
+            <span className="text-muted-foreground text-[10px] font-medium">
+              RASIO TULANGAN (ρ)
+            </span>
+            <div className="text-xs font-bold text-amber-300">
+              {(result.reinforcementRatioRho * 100).toFixed(2)}%
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* 2. Gambar Potongan SVG 2D */}
-      <div style={{ display: "flex", justifyContent: "center" }}>
+      <div className="flex justify-center py-1">
         <ConcreteCrossSectionSvg result={result} width={220} height={200} />
       </div>
 
       {/* 3. Desain Lentur (Whitney Flexure) */}
-      <div
-        style={{
-          background: "rgba(15, 20, 22, 0.6)",
-          border: "1px solid rgba(148, 163, 184, 0.12)",
-          borderRadius: 6,
-          padding: 8,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <strong style={{ color: "#38BDF8" }}>Tulangan Lentur (As)</strong>
-          <span style={{ color: "#94A3B8" }}>
-            DCR: <strong>{(Number(flexure.flexuralDcr) * 100).toFixed(1)}%</strong>
-          </span>
-        </div>
+      <Card size="sm" className="border-border/40 bg-card/60">
+        <CardHeader className="flex flex-row items-center justify-between px-3 pt-2.5 pb-1">
+          <CardTitle className="text-xs font-bold text-sky-400">Tulangan Lentur (As)</CardTitle>
+          <Badge
+            variant={Number(flexure.flexuralDcr) > 1.0 ? "destructive" : "secondary"}
+            className="text-[10px] font-semibold"
+          >
+            DCR: {(Number(flexure.flexuralDcr) * 100).toFixed(1)}%
+          </Badge>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-1 px-3 pb-2.5 text-[11px]">
+          <div className="text-foreground/90">
+            • Tarik:{" "}
+            {flexure.tensionLayers
+              .map(
+                (l: RebarLayerArrangement, i: number) =>
+                  `${l.barCount} D${Number(l.barDiameter)} (Lapis ${i + 1})`,
+              )
+              .join(", ")}
+          </div>
+          <div className="text-muted-foreground">
+            • As Perlu: {Math.round(Number(flexure.requiredAs))} mm² | Terpasang:{" "}
+            {Math.round(Number(flexure.providedAs))} mm²
+          </div>
+          <div className="text-muted-foreground">
+            • Kapasitas Desain φMn: {Number(flexure.designMomentPhiMn).toFixed(1)} kNm
+          </div>
+        </CardContent>
+      </Card>
 
-        <div style={{ fontSize: 11, color: "#CBD5E1" }}>
-          • Tarik:{" "}
-          {flexure.tensionLayers
-            .map(
-              (l: RebarLayerArrangement, i: number) =>
-                `${l.barCount} D${Number(l.barDiameter)} (Lapis ${i + 1})`,
-            )
-            .join(", ")}
-        </div>
-        <div style={{ fontSize: 11, color: "#94A3B8" }}>
-          • As Perlu: {Math.round(Number(flexure.requiredAs))} mm² | Terpasang:{" "}
-          {Math.round(Number(flexure.providedAs))} mm²
-        </div>
-        <div style={{ fontSize: 11, color: "#94A3B8" }}>
-          • Kapasitas Desain φMn: {Number(flexure.designMomentPhiMn).toFixed(1)} kNm
-        </div>
-      </div>
+      <Separator className="my-0.5 opacity-40" />
 
       {/* 4. Desain Geser (Stirrups) */}
-      <div
-        style={{
-          background: "rgba(15, 20, 22, 0.6)",
-          border: "1px solid rgba(148, 163, 184, 0.12)",
-          borderRadius: 6,
-          padding: 8,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <strong style={{ color: "#10B981" }}>Sengkang Geser (Av)</strong>
-          <span style={{ color: "#94A3B8" }}>
-            DCR: <strong>{(Number(shear.shearDcr) * 100).toFixed(1)}%</strong>
-          </span>
-        </div>
-
-        <div style={{ fontSize: 11, color: "#CBD5E1" }}>
-          • Sengkang: {shear.stirrupLegs}-Kaki D{Number(shear.stirrupDiameter)} — jarak{" "}
-          {Number(shear.stirrupSpacing)} mm
-        </div>
-        <div style={{ fontSize: 11, color: "#94A3B8" }}>
-          • Kapasitas Desain φVn: {Number(shear.designShearPhiVn).toFixed(1)} kN (Vc ={" "}
-          {Number(shear.concreteShearStrengthVc).toFixed(1)} kN)
-        </div>
-      </div>
+      <Card size="sm" className="border-border/40 bg-card/60">
+        <CardHeader className="flex flex-row items-center justify-between px-3 pt-2.5 pb-1">
+          <CardTitle className="text-xs font-bold text-emerald-400">Sengkang Geser (Av)</CardTitle>
+          <Badge
+            variant={Number(shear.shearDcr) > 1.0 ? "destructive" : "secondary"}
+            className="text-[10px] font-semibold"
+          >
+            DCR: {(Number(shear.shearDcr) * 100).toFixed(1)}%
+          </Badge>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-1 px-3 pb-2.5 text-[11px]">
+          <div className="text-foreground/90">
+            • Sengkang: {shear.stirrupLegs}-Kaki D{Number(shear.stirrupDiameter)} — jarak{" "}
+            {Number(shear.stirrupSpacing)} mm
+          </div>
+          <div className="text-muted-foreground">
+            • Kapasitas Desain φVn: {Number(shear.designShearPhiVn).toFixed(1)} kN (Vc ={" "}
+            {Number(shear.concreteShearStrengthVc).toFixed(1)} kN)
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 5. Tombol Ekspor CAD / BIM */}
       {onOpenExportModal ? (
-        <button
+        <Button
           type="button"
           onClick={onOpenExportModal}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: "none",
-            cursor: "pointer",
-            fontWeight: 700,
-            background: "linear-gradient(90deg, #06B6D4 0%, #3B82F6 100%)",
-            color: "#FFFFFF",
-            marginTop: 4,
-          }}
+          className="mt-1 w-full bg-linear-to-r from-cyan-500 to-blue-600 font-bold text-white shadow-sm hover:from-cyan-600 hover:to-blue-700"
         >
           📦 Ekspor Gambar CAD (.dxf) & Model BIM (.ifc)
-        </button>
+        </Button>
       ) : null}
     </div>
   );

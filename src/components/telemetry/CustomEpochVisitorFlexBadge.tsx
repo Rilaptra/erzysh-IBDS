@@ -7,8 +7,11 @@
 
 "use client";
 
+import { cn } from "cn";
 import React, { type ReactElement, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useVisitorFlexCounter } from "@/hooks/use-visitor-flex-counter";
 
 /**
@@ -37,7 +40,6 @@ export function CustomEpochVisitorFlexBadge({
   const { formattedBadge, visitorCount, status, isLoading, cachedAt, refresh } =
     useVisitorFlexCounter();
 
-  const [isTooltipOpen, setIsTooltipOpen] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   const handleManualRefresh = async (e: React.MouseEvent): Promise<void> => {
@@ -62,136 +64,74 @@ export function CustomEpochVisitorFlexBadge({
     }
   };
 
-  return (
-    <div
-      className={className}
-      style={{
-        position: "relative",
-        display: "inline-flex",
-        alignItems: "center",
-      }}
-      onMouseEnter={() => enableTooltip && setIsTooltipOpen(true)}
-      onMouseLeave={() => enableTooltip && setIsTooltipOpen(false)}
+  const badgeElement = (
+    <Badge
+      variant="outline"
+      role="status"
+      aria-label={formattedBadge}
+      className={cn(
+        "border-border/60 bg-card text-foreground hover:bg-muted/50 inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 font-mono text-[11px] shadow-md transition-all select-none",
+        className,
+      )}
     >
-      <div
-        role="status"
-        aria-label={formattedBadge}
-        onClick={() => enableTooltip && setIsTooltipOpen((prev) => !prev)}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          backgroundColor: "#0A0A0A",
-          border: "1px solid #334155",
-          padding: "4px 12px",
-          borderRadius: 9999,
-          fontSize: 11,
-          fontFamily: "var(--font-mono, monospace)",
-          color: "#E2E8F0",
-          cursor: "pointer",
-          userSelect: "none",
-          transition: "all 0.2s ease-in-out",
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.4)",
-        }}
-      >
-        {/* Pulsing indicator dot */}
+      {/* Pulsing indicator dot */}
+      <span className="relative flex size-2">
         <span
-          style={{
-            position: "relative",
-            display: "flex",
-            height: 8,
-            width: 8,
-          }}
-        >
-          <span
-            style={{
-              position: "absolute",
-              display: "inline-flex",
-              height: "100%",
-              width: "100%",
-              borderRadius: "50%",
-              backgroundColor: status === "fallback" ? "#F59E0B" : "#10B981",
-              opacity: 0.75,
-              animation: "ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite",
-            }}
-          />
-          <span
-            style={{
-              position: "relative",
-              display: "inline-flex",
-              borderRadius: "50%",
-              height: 8,
-              width: 8,
-              backgroundColor: status === "fallback" ? "#D97706" : "#059669",
-            }}
-          />
-        </span>
+          className={cn(
+            "absolute inline-flex size-full animate-ping rounded-full opacity-75",
+            status === "fallback" ? "bg-amber-500" : "bg-emerald-500",
+          )}
+        />
+        <span
+          className={cn(
+            "relative inline-flex size-2 rounded-full",
+            status === "fallback" ? "bg-amber-600" : "bg-emerald-600",
+          )}
+        />
+      </span>
 
-        {/* Badge Text */}
-        <span style={{ fontWeight: 600, letterSpacing: "0.02em" }}>
-          {isLoading && !visitorCount ? "Mengambil data..." : formattedBadge}
-        </span>
+      {/* Badge Text */}
+      <span className="font-semibold tracking-wide">
+        {isLoading && !visitorCount ? "Mengambil data..." : formattedBadge}
+      </span>
 
-        {/* Refresh Icon */}
-        <button
-          type="button"
-          aria-label="Refresh visitor count"
-          onClick={handleManualRefresh}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            color: "#94A3B8",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginLeft: 2,
-          }}
+      {/* Refresh Icon */}
+      <button
+        type="button"
+        aria-label="Refresh visitor count"
+        onClick={handleManualRefresh}
+        className="text-muted-foreground hover:text-foreground ml-0.5 inline-flex cursor-pointer items-center justify-center p-0 transition-colors"
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={cn("transition-transform", (isRefreshing || isLoading) && "animate-spin")}
         >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              animation: isRefreshing || isLoading ? "spin 1s linear infinite" : "none",
-            }}
-          >
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-          </svg>
-        </button>
-      </div>
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+        </svg>
+      </button>
+    </Badge>
+  );
 
-      {/* Tooltip / Details Popover */}
-      {isTooltipOpen && (
-        <div
-          role="tooltip"
-          style={{
-            position: "absolute",
-            bottom: "calc(100% + 8px)",
-            left: "50%",
-            transform: "translateX(-50%)",
-            backgroundColor: "#0F172A",
-            border: "1px solid #475569",
-            borderRadius: 6,
-            padding: "10px 14px",
-            fontSize: 11,
-            color: "#CBD5E1",
-            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6)",
-            zIndex: 1000,
-            whiteSpace: "nowrap",
-            pointerEvents: "none",
-            fontFamily: "var(--font-mono, monospace)",
-          }}
+  if (!enableTooltip) {
+    return badgeElement;
+  }
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>{badgeElement}</TooltipTrigger>
+        <TooltipContent
+          side="top"
+          className="border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 shadow-xl"
         >
-          <div style={{ fontWeight: 700, color: "#F8FAFC", marginBottom: 4 }}>
-            📊 Statistik Pengunjung IBDS
-          </div>
+          <div className="mb-1 font-bold text-slate-100">📊 Statistik Pengunjung IBDS</div>
           <div>
             Mulai Epoch: <strong>01 Nov 2026</strong>
           </div>
@@ -199,34 +139,15 @@ export function CustomEpochVisitorFlexBadge({
             Total Kunjungan: <strong>{visitorCount.toLocaleString()}</strong> sesi
           </div>
           <div>
-            Status Data: <strong style={{ color: "#38BDF8" }}>{getStatusLabel()}</strong>
+            Status Data: <strong className="text-sky-400">{getStatusLabel()}</strong>
           </div>
           {cachedAt && (
-            <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>
+            <div className="mt-1 text-[10px] text-slate-400">
               Terakhir diperbarui: {new Date(cachedAt).toLocaleTimeString("id-ID")}
             </div>
           )}
-        </div>
-      )}
-
-      {/* CSS Keyframes for Ping and Spin */}
-      <style jsx>{`
-        @keyframes ping {
-          75%,
-          100% {
-            transform: scale(2);
-            opacity: 0;
-          }
-        }
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
-    </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

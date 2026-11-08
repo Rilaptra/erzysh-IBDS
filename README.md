@@ -13,13 +13,13 @@ _Dikembangkan oleh **Rizqi Lasheva Purnama Putra** — Dikendalikan secara real-
 
 <!-- ROW 1: LIVE DEPLOYMENT, RELEASE VERSION, &amp; AUTHOR -->
 <p align="center">
-<a href="https://erzysh.vercel.app">
-<img src="https://img.shields.io/badge/%F0%9F%9A%80_LIVE_DEMO-VERCEL_DEPLOYMENT_(SOON)-000000?style=for-the-badge&amp;logo=vercel&amp;logoColor=06B6D4" alt="Vercel Live Deployment" />
+<a href="https://erzysh-ibds.vercel.app">
+<img src="https://img.shields.io/badge/%F0%9F%9A%80_LIVE_DEMO-ERZYSH--IBDS.VERCEL.APP-000000?style=for-the-badge&amp;logo=vercel&amp;logoColor=06B6D4" alt="Vercel Live Deployment" />
 </a>
-<a href="https://github.com/erzysh/IBDS/releases">
-<img src="https://img.shields.io/badge/RELEASE-v0.5.1--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
+<a href="https://github.com/Rilaptra/erzysh-IBDS/releases">
+<img src="https://img.shields.io/badge/RELEASE-v0.6.2--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
 </a>
-<a href="https://erzysh.vercel.app">
+<a href="https://erzysh-ibds.vercel.app">
 <img src="https://img.shields.io/badge/AUTHOR-RIZQI_LASHEVA_(ERZY.SH)-06B6D4?style=for-the-badge&amp;logo=opsgenie&amp;logoColor=white" alt="Author Erzy.sh" />
 </a>
 </p>
@@ -51,7 +51,7 @@ _Dikembangkan oleh **Rizqi Lasheva Purnama Putra** — Dikendalikan secara real-
 > [!TIP]
 > 🌐 **Akses Aplikasi & Portofolio:**
 >
-> - **Live Deployment (Vercel):** `https://[LINK-VERCEL-AKAN-DIISI-NANTI].vercel.app` _(Segera Hadir)_
+> - **Live Deployment (Vercel):** [https://erzysh-ibds.vercel.app](https://erzysh-ibds.vercel.app) _(Aktif & Siap Diakses)_
 
 ## ✨ 8 Kapabilitas Rekayasa Utama
 

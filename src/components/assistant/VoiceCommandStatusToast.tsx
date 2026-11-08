@@ -4,14 +4,18 @@
  * Features:
  * - Live microphone status pill with pulsating red/cyan audio listening wave.
  * - Real-time display of recognized speech transcript and instant execution feedback.
- * - Elegant glassmorphic dark CAD surface matching the Erzysh Dark Void theme.
- * - Quick mic mute/unmute action button and dismiss control.
+ * - Built with shadcn/ui primitives and Erzysh Dark Void theme.
+ * - Quick mic mute/unmute action button, audio test chime trigger, and dismiss control.
  */
 
 "use client";
 
-import React, { type ReactElement, useState } from "react";
+import { Volume2, X } from "lucide-react";
+import React, { type CSSProperties, type ReactElement, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { CommandExecutionResult } from "@/types/command-registry-types";
 
 /**
@@ -38,24 +42,15 @@ export interface VoiceCommandStatusToastProps {
   readonly onTestAudio?: () => void;
   /** Optional custom CSS class name. */
   readonly className?: string;
+  /** Optional custom style overrides. */
+  readonly style?: CSSProperties;
 }
 
 /**
- * Floating voice command status HUD toast.
+ * Floating voice command status HUD toast refactored with shadcn primitives.
  *
  * @param props {@link VoiceCommandStatusToastProps}
- * @returns ReactElement
- * @example
- * <VoiceCommandStatusToast
- *   isListening={voice.isListening}
- *   isMuted={voice.isMuted}
- *   isSupported={voice.isSupported}
- *   transcript={voice.transcript}
- *   feedbackMessage={voice.feedbackMessage}
- *   lastExecution={voice.lastExecution}
- *   onToggleListening={voice.toggleListening}
- *   onTestAudio={voice.testAudioTone}
- * />
+ * @returns ReactElement | null
  */
 export function VoiceCommandStatusToast({
   isListening,
@@ -68,6 +63,7 @@ export function VoiceCommandStatusToast({
   onToggleListening,
   onTestAudio,
   className,
+  style,
 }: VoiceCommandStatusToastProps): ReactElement | null {
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
 
@@ -99,48 +95,18 @@ export function VoiceCommandStatusToast({
 
   return (
     <div
-      className={className}
+      className={cn(
+        "fixed bottom-6 left-1/2 z-[9998] flex w-[520px] max-w-[90vw] -translate-x-1/2 items-center justify-between gap-3 rounded-xl border bg-slate-900/90 p-2.5 px-3.5 text-slate-100 shadow-2xl backdrop-blur-xl transition-all duration-200",
+        className,
+      )}
       style={{
-        position: "fixed",
-        bottom: 24,
-        left: "50%",
-        transform: "translateX(-50%)",
-        zIndex: 9998,
-        maxWidth: "90vw",
-        width: 520,
-        background: "rgba(15, 23, 42, 0.88)",
-        backdropFilter: "blur(16px)",
-        border: `1px solid ${accentColor}40`,
-        borderRadius: 12,
-        padding: "10px 14px",
+        borderColor: `${accentColor}40`,
         boxShadow: `0 12px 32px rgba(0, 0, 0, 0.45), 0 0 16px ${accentColor}25`,
-        color: "#F8FAFC",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        transition: "all 200ms ease",
+        ...style,
       }}
       role="status"
       aria-live="polite"
     >
-      <style>{`
-        @keyframes micPulseGlow {
-          0% {
-            box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.6);
-            transform: scale(0.98);
-          }
-          70% {
-            box-shadow: 0 0 0 8px rgba(56, 189, 248, 0);
-            transform: scale(1.05);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
-            transform: scale(0.98);
-          }
-        }
-      `}</style>
-
       {/* Mic Status & Icon Toggle */}
       <button
         type="button"
@@ -150,132 +116,87 @@ export function VoiceCommandStatusToast({
             ? "Klik untuk mulai mendengarkan (Unmute)"
             : "Klik untuk menjeda mikrofon (Mute)"
         }
+        className={cn(
+          "flex size-[38px] shrink-0 cursor-pointer items-center justify-center rounded-full text-base transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none",
+        )}
         style={{
-          width: 38,
-          height: 38,
-          borderRadius: "50%",
           border: `1.5px solid ${accentColor}`,
           background: !isMutedState
             ? "linear-gradient(135deg, #0284C7 0%, #0369A1 100%)"
             : "rgba(30, 41, 59, 0.8)",
           color: "#FFFFFF",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          fontSize: 16,
-          flexShrink: 0,
           animation: !isMutedState && isListening ? "micPulseGlow 1.4s infinite" : "none",
-          transition: "transform 150ms ease",
         }}
       >
         {!isMutedState ? "🎙️" : "🎤"}
       </button>
 
       {/* Transcript & Execution Message Content */}
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, gap: 2 }}>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         {/* Status Title & Transcript */}
-        <div
-          style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700 }}
-        >
-          <span
-            style={{
-              color: accentColor,
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-            }}
-          >
+        <div className="flex items-center gap-1.5 text-[11px] font-bold">
+          <span className="tracking-wider uppercase" style={{ color: accentColor }}>
             {isMutedState ? "Mikrofon Dijeda" : isListening ? "Mendengarkan..." : "Voice Command"}
           </span>
           {transcript && (
-            <span
-              style={{
-                color: "#94A3B8",
-                fontWeight: 500,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              "{transcript}"
-            </span>
+            <span className="truncate font-medium text-slate-400">"{transcript}"</span>
           )}
         </div>
 
         {/* Execution Feedback Action Text */}
         <div
-          style={{
-            fontSize: 12,
-            lineHeight: 1.35,
-            color: error ? "#FCA5A5" : "#E2E8F0",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
+          className={cn(
+            "truncate text-xs leading-tight",
+            error ? "text-red-300" : "text-slate-200",
+          )}
         >
           {error ? `⚠️ ${error}` : feedbackMessage}
         </div>
       </div>
 
       {/* Action & Dismiss Controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="flex items-center gap-1.5">
         {onTestAudio && (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={onTestAudio}
             title="Klik untuk menguji bunyi audio speaker"
-            style={{
-              padding: "4px 8px",
-              borderRadius: 6,
-              border: "1px solid rgba(16, 185, 129, 0.3)",
-              background: "rgba(16, 185, 129, 0.15)",
-              color: "#34D399",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
+            className="border-emerald-500/30 bg-emerald-500/15 font-semibold text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300"
           >
+            <Volume2 className="size-3.5" data-icon="inline-start" />
             🔊 Uji Audio
-          </button>
+          </Button>
         )}
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="xs"
           onClick={onToggleListening}
           title={isMutedState ? "Aktifkan Mikrofon (Listen)" : "Bisukan Mikrofon (Mute)"}
-          style={{
-            padding: "4px 8px",
-            borderRadius: 6,
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            background: isMutedState ? "rgba(6, 182, 212, 0.15)" : "rgba(239, 68, 68, 0.2)",
-            color: isMutedState ? "#38BDF8" : "#FCA5A5",
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
+          className={cn(
+            "font-semibold",
+            isMutedState
+              ? "border-cyan-500/30 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 hover:text-cyan-200"
+              : "border-red-500/30 bg-red-500/20 text-red-200 hover:bg-red-500/30 hover:text-red-100",
+          )}
         >
           {isMutedState ? "Listen" : "Mute"}
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={() => setIsDismissed(true)}
           title="Tutup Toast"
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "#64748B",
-            cursor: "pointer",
-            fontSize: 14,
-            padding: "2px 4px",
-            lineHeight: 1,
-            borderRadius: 4,
-          }}
+          className="text-slate-400 hover:bg-slate-800 hover:text-slate-200"
         >
-          ✕
-        </button>
+          <X className="size-3.5" />
+          <span className="sr-only">Tutup</span>
+        </Button>
       </div>
     </div>
   );

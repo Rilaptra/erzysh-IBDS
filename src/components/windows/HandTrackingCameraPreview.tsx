@@ -6,13 +6,21 @@
  * - Live real-time FPS badge (<45°C thermal indication).
  * - Gesture status chip displaying active symbol and name.
  * - Direct toggle controls for camera stream activation and Thermal Eco-Mode (16 FPS).
+ * - Refactored with shadcn/ui primitives while preserving hardware lifecycle state machine.
  */
 
 "use client";
 
-import React, { type ReactElement, useState } from "react";
+import { AlertCircle, Camera, ChevronDown, ChevronUp } from "lucide-react";
+import React, { type CSSProperties, type ReactElement, useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { GESTURE_ACCENT_COLORS } from "@/hooks/use-mediapipe-hand-tracking";
+import { cn } from "@/lib/utils";
 import {
   GESTURE_LABELS,
   GESTURE_SYMBOLS,
@@ -37,21 +45,15 @@ export interface HandTrackingCameraPreviewProps {
   readonly lastError?: string | null;
   /** Optional custom CSS class. */
   readonly className?: string;
+  /** Optional custom style overrides. */
+  readonly style?: CSSProperties;
 }
 
 /**
- * Interactive camera preview HUD component.
+ * Interactive camera preview HUD component refactored with shadcn/ui.
  *
  * @param props {@link HandTrackingCameraPreviewProps}
  * @returns ReactElement rendering the compact webcam feed and tracking telemetry.
- * @example
- * <HandTrackingCameraPreview
- *   state={tracking.state}
- *   onToggleRunning={tracking.toggleRunning}
- *   onToggleEcoMode={tracking.toggleEcoMode}
- *   videoRef={tracking.videoRef}
- *   canvasRef={tracking.canvasRef}
- * />
  */
 export function HandTrackingCameraPreview({
   state,
@@ -61,6 +63,7 @@ export function HandTrackingCameraPreview({
   canvasRef,
   lastError,
   className,
+  style,
 }: HandTrackingCameraPreviewProps): ReactElement {
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -80,54 +83,30 @@ export function HandTrackingCameraPreview({
   };
 
   return (
-    <div
-      className={className}
-      style={{
-        background: "rgba(15, 23, 42, 0.75)",
-        backdropFilter: "blur(12px)",
-        border: "1px solid rgba(148, 163, 184, 0.16)",
-        borderRadius: 10,
-        padding: 12,
-        color: "#E2E8F0",
-        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        width: 264,
-      }}
+    <Card
+      className={cn(
+        "flex w-[264px] flex-col gap-2.5 rounded-xl border-slate-700/60 bg-slate-900/85 p-3 text-slate-200 shadow-xl backdrop-blur-md",
+        className,
+      )}
+      style={style}
     >
       {/* Header Bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontSize: 12,
-          fontWeight: 700,
-          borderBottom: "1px solid rgba(148, 163, 184, 0.1)",
-          paddingBottom: 6,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 14 }}>📷</span>
+      <div className="flex items-center justify-between border-b border-slate-700/60 pb-1.5 text-xs font-bold">
+        <div className="flex items-center gap-1.5">
+          <Camera className="size-4 text-cyan-400" />
           <span>Webcam Hand Tracking</span>
         </div>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={() => setIsMinimized((prev) => !prev)}
           title={isMinimized ? "Perbesar Preview" : "Perkecil Preview"}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "#94A3B8",
-            cursor: "pointer",
-            fontSize: 12,
-            padding: "2px 6px",
-            borderRadius: 4,
-          }}
+          className="text-slate-400 hover:bg-slate-800 hover:text-slate-200"
         >
-          {isMinimized ? "▲" : "▼"}
-        </button>
+          {isMinimized ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+          <span className="sr-only">{isMinimized ? "Perbesar Preview" : "Perkecil Preview"}</span>
+        </Button>
       </div>
 
       {/* Collapsible Video & Canvas Viewport - Persistent DOM elements to preserve ref integrity */}
@@ -179,27 +158,10 @@ export function HandTrackingCameraPreview({
 
         {/* Off-State Placeholder Overlay */}
         {!isRunning && (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
-              textAlign: "center",
-              color: "#64748B",
-              fontSize: 11,
-              gap: 6,
-            }}
-          >
-            <span style={{ fontSize: 24, opacity: 0.6 }}>🖐️</span>
-            <span>Kamera Dinonaktifkan</span>
-            <span style={{ fontSize: 9, color: "#475569" }}>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-4 text-center text-xs text-slate-500">
+            <span className="text-2xl opacity-60">🖐️</span>
+            <span className="font-medium text-slate-400">Kamera Dinonaktifkan</span>
+            <span className="text-[9px] text-slate-500">
               Aktifkan untuk navigasi kursor tanpa mouse
             </span>
           </div>
@@ -209,42 +171,29 @@ export function HandTrackingCameraPreview({
         {isRunning && (
           <>
             {/* FPS & Thermal Mode Badge */}
-            <div
-              style={{
-                position: "absolute",
-                top: 6,
-                left: 6,
-                background: "rgba(10, 15, 20, 0.8)",
-                backdropFilter: "blur(4px)",
-                padding: "2px 6px",
-                borderRadius: 4,
-                fontSize: 10,
-                fontFamily: "monospace",
-                fontWeight: 600,
-                color: isEcoMode ? "#38BDF8" : "#F59E0B",
-                border: `1px solid ${isEcoMode ? "rgba(56, 189, 248, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
-              }}
-            >
-              {fps} FPS {isEcoMode ? "❄️ ECO" : "⚡ MAX"}
+            <div className="absolute top-1.5 left-1.5">
+              <Badge
+                variant="outline"
+                className={cn(
+                  "bg-slate-950/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold backdrop-blur-sm",
+                  isEcoMode
+                    ? "border-cyan-400/30 text-cyan-400"
+                    : "border-amber-400/30 text-amber-400",
+                )}
+              >
+                {fps} FPS {isEcoMode ? "❄️ ECO" : "⚡ MAX"}
+              </Badge>
             </div>
 
             {/* Handedness Badge */}
             {handedness !== "None" && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 6,
-                  right: 6,
-                  background: "rgba(10, 15, 20, 0.8)",
-                  backdropFilter: "blur(4px)",
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  fontSize: 9,
-                  fontWeight: 600,
-                  color: "#94A3B8",
-                }}
-              >
-                {handedness === "Left" ? "Kiri" : "Kanan"}
+              <div className="absolute top-1.5 right-1.5">
+                <Badge
+                  variant="outline"
+                  className="border-slate-700/60 bg-slate-950/80 px-1.5 py-0.5 text-[9px] font-medium text-slate-400 backdrop-blur-sm"
+                >
+                  {handedness === "Left" ? "Kiri" : "Kanan"}
+                </Badge>
               </div>
             )}
           </>
@@ -253,41 +202,25 @@ export function HandTrackingCameraPreview({
 
       {/* Active Gesture Status Pill */}
       <div
+        className="flex items-center gap-2 rounded-md border bg-slate-800/50 px-2.5 py-1.5"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          background: "rgba(30, 41, 59, 0.5)",
-          padding: "6px 10px",
-          borderRadius: 6,
-          border: `1px solid ${isRunning ? gestureColor + "40" : "rgba(148, 163, 184, 0.1)"}`,
+          borderColor: isRunning ? `${gestureColor}40` : "rgba(148, 163, 184, 0.1)",
         }}
       >
         <span
-          style={{
-            fontSize: 16,
-            fontWeight: 800,
-            color: isRunning ? gestureColor : "#64748B",
-            minWidth: 18,
-            textAlign: "center",
-          }}
+          className="min-w-[18px] text-center text-base font-extrabold"
+          style={{ color: isRunning ? gestureColor : "#64748B" }}
         >
           {isRunning ? gestureSymbol : "○"}
         </span>
-        <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+        <div className="flex min-w-0 flex-1 flex-col">
           <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: isRunning ? gestureColor : "#94A3B8",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
+            className="truncate text-[11px] font-semibold"
+            style={{ color: isRunning ? gestureColor : "#94A3B8" }}
           >
             {isRunning ? gestureLabel : "Siap Dinyalakan"}
           </span>
-          <span style={{ fontSize: 9, color: "#64748B" }}>
+          <span className="text-[9px] text-slate-500">
             {isRunning ? "Zero-Pinch Dip Active" : "Knuckle Anchored"}
           </span>
         </div>
@@ -295,68 +228,59 @@ export function HandTrackingCameraPreview({
 
       {/* Error Message Alert */}
       {lastError && (
-        <div
-          style={{
-            background: "rgba(239, 68, 68, 0.15)",
-            border: "1px solid rgba(239, 68, 68, 0.3)",
-            borderRadius: 6,
-            padding: "4px 8px",
-            fontSize: 10,
-            color: "#FCA5A5",
-          }}
-        >
-          ⚠️ {lastError}
-        </div>
+        <Alert variant="destructive" className="px-2 py-1 text-[10px]">
+          <AlertCircle className="size-3" data-icon="inline-start" />
+          <AlertDescription>⚠️ {lastError}</AlertDescription>
+        </Alert>
       )}
 
       {/* Control Buttons */}
-      <div style={{ display: "flex", gap: 6 }}>
-        <button
+      <div className="flex gap-1.5">
+        <Button
           type="button"
           onClick={handleToggle}
           disabled={isLoading}
-          style={{
-            flex: 1,
-            padding: "6px 10px",
-            borderRadius: 6,
-            border: "none",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: isLoading ? "wait" : "pointer",
-            background: isRunning
-              ? "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
-              : "linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)",
-            color: "#FFFFFF",
-            transition: "opacity 150ms ease",
-            opacity: isLoading ? 0.7 : 1,
-          }}
+          size="sm"
+          className={cn(
+            "h-7 flex-1 text-xs font-bold",
+            isRunning
+              ? "border-none bg-red-600 text-white hover:bg-red-700"
+              : "border-none bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700",
+          )}
         >
-          {isLoading ? "Memproses..." : isRunning ? "Matikan Kamera" : "Nyalakan Kamera"}
-        </button>
+          {isLoading ? (
+            <>
+              <Spinner className="size-3" data-icon="inline-start" />
+              Memproses...
+            </>
+          ) : isRunning ? (
+            "Matikan Kamera"
+          ) : (
+            "Nyalakan Kamera"
+          )}
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={onToggleEcoMode}
           title={
             isEcoMode
               ? "Eco Mode Aktif: Dibatasi ~16 FPS agar suhu < 45°C. Klik untuk 30+ FPS."
               : "Max FPS Aktif. Klik untuk menyalakan Thermal Eco Mode."
           }
-          style={{
-            padding: "6px 10px",
-            borderRadius: 6,
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            background: isEcoMode ? "rgba(6, 182, 212, 0.15)" : "rgba(30, 41, 59, 0.6)",
-            color: isEcoMode ? "#38BDF8" : "#94A3B8",
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className={cn(
+            "h-7 px-2.5 text-xs font-semibold",
+            isEcoMode
+              ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 hover:text-cyan-200"
+              : "border-slate-700/60 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-slate-100",
+          )}
         >
           {isEcoMode ? "❄️ 16 FPS" : "⚡ Max"}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
