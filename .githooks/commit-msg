@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+set -e
+grep -Eq "^(feat|fix|perf|refactor|docs|test|chore|ci|build)(\([a-z0-9-]+\))?: .+" "$1" || {
+  echo "Error: Commit message must follow Conventional Commits format (e.g., feat(mechanics): add 3D solver)."
+  exit 1
+}

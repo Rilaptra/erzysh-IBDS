@@ -7,7 +7,7 @@
 
 **Platform Rekayasa Struktur 3D/2D Interaktif untuk Simulasi Defleksi Balok & Optimasi Desain Penampang (Beton Bertulang SNI 2847:2019 & Baja Profil IWF/BOX SNI 1729:2020) dengan Multi-Format CAD/BIM/CAE Exporter**
 
-_Dikembangkan oleh **Rizqi Lasheva Purnama Putra ([Erzy.sh](https://erzysh.vercel.app))** — Dikendalikan secara real-time melalui gerakan tangan (MediaPipe Motion Capture), kursor, dan perintah suara AI di atas arsitektur **Next.js + Bun v1.4.4 + Rust WebAssembly (`wasm32-unknown-unknown`)** dengan dukungan **Adaptive PWA**._
+_Dikembangkan oleh **Rizqi Lasheva Purnama Putra** — Dikendalikan secara real-time melalui gerakan tangan (MediaPipe Motion Capture), kursor, dan perintah suara AI di atas arsitektur **Next.js + Bun v1.4.4 + Rust WebAssembly (`wasm32-unknown-unknown`)** dengan dukungan **Adaptive PWA**._
 
 <br />
 
@@ -17,7 +17,7 @@ _Dikembangkan oleh **Rizqi Lasheva Purnama Putra ([Erzy.sh](https://erzysh.verce
 <img src="https://img.shields.io/badge/%F0%9F%9A%80_LIVE_DEMO-VERCEL_DEPLOYMENT_(SOON)-000000?style=for-the-badge&amp;logo=vercel&amp;logoColor=06B6D4" alt="Vercel Live Deployment" />
 </a>
 <a href="https://github.com/erzysh/IBDS/releases">
-<img src="https://img.shields.io/badge/RELEASE-v0.4.0--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
+<img src="https://img.shields.io/badge/RELEASE-v0.5.1--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
 </a>
 <a href="https://erzysh.vercel.app">
 <img src="https://img.shields.io/badge/AUTHOR-RIZQI_LASHEVA_(ERZY.SH)-06B6D4?style=for-the-badge&amp;logo=opsgenie&amp;logoColor=white" alt="Author Erzy.sh" />
@@ -52,7 +52,6 @@ _Dikembangkan oleh **Rizqi Lasheva Purnama Putra ([Erzy.sh](https://erzysh.verce
 > 🌐 **Akses Aplikasi & Portofolio:**
 >
 > - **Live Deployment (Vercel):** `https://[LINK-VERCEL-AKAN-DIISI-NANTI].vercel.app` _(Segera Hadir)_
-> - **Engineering Ecosystem:** [**erzysh.vercel.app**](https://erzysh.vercel.app) — oleh **Rizqi Lasheva Purnama Putra (`Erzy.sh`)**
 
 ## ✨ 8 Kapabilitas Rekayasa Utama
 
@@ -268,11 +267,10 @@ Buka **`http://localhost:3000`** di browser Desktop untuk mengakses **Full 3D Wo
 
 ## 👤 Identitas Pengembang (Author)
 
-| **Rizqi Lasheva Purnama Putra (`Erzy.sh`)**                                          |
-| :----------------------------------------------------------------------------------- |
-| 🎓 **Program Studi Teknik Sipil — Mata Kuliah Aplikasi Komputer**                    |
-| 🌐 Website & Engineering Toolkit: [**erzysh.vercel.app**](https://erzysh.vercel.app) |
-| 💻 GitHub: [@erzysh](https://www.google.com/search?q=https://github.com/erzysh)      |
+| **Rizqi Lasheva Purnama Putra (`Erzy.sh`)**                                     |
+| :------------------------------------------------------------------------------ |
+| 🎓 **Program Studi Teknik Sipil — Mata Kuliah Aplikasi Komputer**               |
+| 💻 GitHub: [@erzysh](https://www.google.com/search?q=https://github.com/erzysh) |
 
 <div align="center">
 <br />

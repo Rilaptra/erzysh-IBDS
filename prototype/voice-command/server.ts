@@ -1,6 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
-import { join } from "node:path";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+import { GoogleGenAI } from "@google/genai";
 
 const PORT = Number(process.env.PORT || 3000);
 const apiKey = process.env.GEMINI_API_KEY || "";
@@ -72,12 +73,7 @@ const server = Bun.serve({
     if (url.pathname === "/api/stream" && req.method === "POST") {
       try {
         const body = await req.json();
-        const {
-          prompt,
-          model = "gemini-2.5-flash",
-          systemPrompt,
-          history = [],
-        } = body;
+        const { prompt, model = "gemini-2.5-flash", systemPrompt, history = [] } = body;
 
         const actualModel = model.includes("live") ? "gemini-2.5-flash" : model;
 
@@ -107,18 +103,14 @@ const server = Bun.serve({
               for await (const chunk of responseStream) {
                 const text = chunk.text || "";
                 if (text) {
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ text })}\n\n`),
-                  );
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
                 }
               }
               controller.enqueue(encoder.encode("data: [DONE]\n\n"));
               controller.close();
             } catch (streamErr: any) {
               controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ error: streamErr.message })}\n\n`,
-                ),
+                encoder.encode(`data: ${JSON.stringify({ error: streamErr.message })}\n\n`),
               );
               controller.close();
             }
@@ -138,10 +130,7 @@ const server = Bun.serve({
     }
 
     // 4. Static Files
-    let filePath = join(
-      publicDir,
-      url.pathname === "/" ? "index.html" : url.pathname,
-    );
+    let filePath = join(publicDir, url.pathname === "/" ? "index.html" : url.pathname);
     if (!existsSync(filePath)) {
       filePath = join(publicDir, "index.html");
     }
@@ -237,16 +226,13 @@ const server = Bun.serve({
       const session = activeSessions.get(ws);
       if (!session) return;
 
-      const strMessage =
-        typeof message === "string" ? message : message.toString();
+      const strMessage = typeof message === "string" ? message : message.toString();
 
       if (session.isOpen && session.geminiWs.readyState === WebSocket.OPEN) {
         session.geminiWs.send(strMessage);
       } else {
         // Queue message until upstream socket is open
-        console.log(
-          "⏳ Upstream Gemini socket still handshaking... Queued message.",
-        );
+        console.log("⏳ Upstream Gemini socket still handshaking... Queued message.");
         session.queue.push(strMessage);
       }
     },

@@ -175,9 +175,7 @@ export interface HandClassificationResult {
 }
 
 // Uses MCP Knuckles (landmarks 5 & 9) as cursor anchor so bending fingertips to pinch NEVER dips the cursor
-export function analyzeHandLandmarks(
-  landmarks: readonly Landmark2D[],
-): HandClassificationResult {
+export function analyzeHandLandmarks(landmarks: readonly Landmark2D[]): HandClassificationResult {
   const wrist = landmarks[0]!;
   const thumbTip = landmarks[4]!;
   const indexMcp = landmarks[5]!;
@@ -198,17 +196,13 @@ export function analyzeHandLandmarks(
   const isPrePinching = pinchRatio < 0.62;
 
   const isIndexExt = dist2D(indexTip, wrist) > dist2D(indexPip, wrist) * 1.13;
-  const isMiddleExt =
-    dist2D(middleTip, wrist) > dist2D(middlePip, wrist) * 1.13;
+  const isMiddleExt = dist2D(middleTip, wrist) > dist2D(middlePip, wrist) * 1.13;
   const isRingExt = dist2D(ringTip, wrist) > dist2D(ringPip, wrist) * 1.11;
   const isPinkyExt = dist2D(pinkyTip, wrist) > dist2D(pinkyPip, wrist) * 1.11;
 
   let raw: GestureType = "PALM";
 
-  if (
-    pinchRatio < 0.42 &&
-    (isMiddleExt || dist2D(indexTip, wrist) > palmSize * 0.8)
-  ) {
+  if (pinchRatio < 0.42 && (isMiddleExt || dist2D(indexTip, wrist) > palmSize * 0.8)) {
     raw = "PINCH";
   } else if (!isIndexExt && !isMiddleExt && !isRingExt && !isPinkyExt) {
     raw = "FIST";
@@ -282,15 +276,11 @@ export function solveBeamMechanics(): {
     const V = x < a ? Ra - q * x : Ra - q * x - P;
     sfdBuf[i] = V;
 
-    const M =
-      x <= a
-        ? Ra * x - (q * x * x) / 2
-        : Ra * x - (q * x * x) / 2 - P * (x - a);
+    const M = x <= a ? Ra * x - (q * x * x) / 2 : Ra * x - (q * x * x) / 2 - P * (x - a);
     bmdBuf[i] = M;
     if (M > maxM) maxM = M;
 
-    const wUniform =
-      ((q * x * (L * L * L - 2 * L * x * x + x * x * x)) / (24 * EI)) * 1000;
+    const wUniform = ((q * x * (L * L * L - 2 * L * x * x + x * x * x)) / (24 * EI)) * 1000;
     let wPoint = 0;
     if (x <= a) {
       wPoint = ((P * b * x * (L * L - b * b - x * x)) / (6 * L * EI)) * 1000;
@@ -361,15 +351,9 @@ export function solveBeamMechanics(): {
 
 function sap2000Color(ratio: number): string {
   const t = Math.min(Math.max(ratio, 0), 1);
-  const r = Math.round(
-    255 * Math.min(Math.max(1.5 - Math.abs(4 * t - 3), 0), 1),
-  );
-  const g = Math.round(
-    255 * Math.min(Math.max(1.5 - Math.abs(4 * t - 2), 0), 1),
-  );
-  const b = Math.round(
-    255 * Math.min(Math.max(1.5 - Math.abs(4 * t - 1), 0), 1),
-  );
+  const r = Math.round(255 * Math.min(Math.max(1.5 - Math.abs(4 * t - 3), 0), 1));
+  const g = Math.round(255 * Math.min(Math.max(1.5 - Math.abs(4 * t - 2), 0), 1));
+  const b = Math.round(255 * Math.min(Math.max(1.5 - Math.abs(4 * t - 1), 0), 1));
   return `rgb(${r},${g},${b})`;
 }
 
@@ -430,17 +414,13 @@ export function routeVoiceTranscript(transcript: string): CommandId | null {
   if (t.includes("iwf")) return "set.steel.filter.iwf";
   if (t.includes("box") || t.includes("hollow")) return "set.steel.filter.box";
   if (t.includes("baja") || t.includes("steel")) return "set.material.steel";
-  if (t.includes("gaya dalam") || t.includes("internal"))
-    return "set.loadmode.internal";
-  if (t.includes("eksternal") || t.includes("external"))
-    return "set.loadmode.external";
+  if (t.includes("gaya dalam") || t.includes("internal")) return "set.loadmode.internal";
+  if (t.includes("eksternal") || t.includes("external")) return "set.loadmode.external";
   if (t.includes("momen") || t.includes("bmd")) return "toggle.diagram.bmd";
   if (t.includes("geser") || t.includes("lintang") || t.includes("sfd"))
     return "toggle.diagram.sfd";
-  if (t.includes("optimasi") || t.includes("ekonomis"))
-    return "toggle.mode.optimize";
-  if (t.includes("gestur") || t.includes("kamera"))
-    return "toggle.window.gesture";
+  if (t.includes("optimasi") || t.includes("ekonomis")) return "toggle.mode.optimize";
+  if (t.includes("gestur") || t.includes("kamera")) return "toggle.window.gesture";
   if (t.includes("beban") || t.includes("window")) return "toggle.window.load";
   return null;
 }
@@ -453,9 +433,7 @@ export function initWorkstation(): void {
   const cursorTag = document.getElementById("cursor-tag") as HTMLSpanElement;
   const logBanner = document.getElementById("cmd-toast") as HTMLDivElement;
   const videoEl = document.getElementById("webcam-video") as HTMLVideoElement;
-  const handCanvas = document.getElementById(
-    "hand-skeleton",
-  ) as HTMLCanvasElement;
+  const handCanvas = document.getElementById("hand-skeleton") as HTMLCanvasElement;
   const handCtx = handCanvas.getContext("2d")!;
 
   let cursorX = window.innerWidth * 0.5;
@@ -491,25 +469,17 @@ export function initWorkstation(): void {
       const cmd = btn.dataset.cmd as CommandId;
       let active = false;
       if (cmd === "set.material.rc" && state.material === "RC") active = true;
-      if (cmd === "set.material.steel" && state.material === "STEEL")
-        active = true;
-      if (cmd === "set.steel.filter.iwf" && state.steelFilter === "IWF")
-        active = true;
-      if (cmd === "set.steel.filter.box" && state.steelFilter === "BOX")
-        active = true;
-      if (cmd === "set.steel.filter.all" && state.steelFilter === "ALL")
-        active = true;
+      if (cmd === "set.material.steel" && state.material === "STEEL") active = true;
+      if (cmd === "set.steel.filter.iwf" && state.steelFilter === "IWF") active = true;
+      if (cmd === "set.steel.filter.box" && state.steelFilter === "BOX") active = true;
+      if (cmd === "set.steel.filter.all" && state.steelFilter === "ALL") active = true;
       if (cmd === "toggle.diagram.bmd" && state.showBMD) active = true;
       if (cmd === "toggle.diagram.sfd" && state.showSFD) active = true;
       btn.classList.toggle("active-chip", active);
     });
   }
 
-  function processVirtualInteraction(
-    x: number,
-    y: number,
-    gesture: GestureType,
-  ): void {
+  function processVirtualInteraction(x: number, y: number, gesture: GestureType): void {
     if (gesture !== prevGesture) {
       const meta = GESTURE_MAP[gesture];
       cursorSym.textContent = meta.symbol;
@@ -565,20 +535,14 @@ export function initWorkstation(): void {
     const beamRight = canvas.width * 0.84;
     const beamWidthPx = beamRight - beamLeft;
     if (gesture === "FIST" && state.loadMode === "EXTERNAL") {
-      const normX = Math.min(
-        Math.max((x - beamLeft) / beamWidthPx, 0.05),
-        0.95,
-      );
+      const normX = Math.min(Math.max((x - beamLeft) / beamWidthPx, 0.05), 0.95);
       const normY = Math.min(
         Math.max((y - canvas.height * 0.15) / (canvas.height * 0.45), 0.05),
         1.0,
       );
       const nextX = (normX * state.spanL) as Meter;
       const nextP = Math.round(25 + normY * 225) as Kilonewton;
-      if (
-        Math.abs(nextX - state.pointLoadX) > 0.01 ||
-        nextP !== state.pointLoadP
-      ) {
+      if (Math.abs(nextX - state.pointLoadX) > 0.01 || nextP !== state.pointLoadP) {
         state.pointLoadX = nextX;
         state.pointLoadP = nextP;
         isCanvasDirty = true;
@@ -671,27 +635,23 @@ export function initWorkstation(): void {
     try {
       camBtn.textContent = "⏳ Loading MediaPipe Eco Model...";
       if (!handLandmarker) {
-        const mpUrl =
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
+        const mpUrl = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
         const visionPkg = await import(mpUrl);
         const fileset = await visionPkg.FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
         );
-        handLandmarker = await visionPkg.HandLandmarker.createFromOptions(
-          fileset,
-          {
-            baseOptions: {
-              modelAssetPath:
-                "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-              delegate: "GPU",
-            },
-            runningMode: "VIDEO",
-            numHands: 1,
-            minHandDetectionConfidence: 0.55,
-            minHandPresenceConfidence: 0.55,
-            minTrackingConfidence: 0.55,
+        handLandmarker = await visionPkg.HandLandmarker.createFromOptions(fileset, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+            delegate: "GPU",
           },
-        );
+          runningMode: "VIDEO",
+          numHands: 1,
+          minHandDetectionConfidence: 0.55,
+          minHandPresenceConfidence: 0.55,
+          minTrackingConfidence: 0.55,
+        });
       }
 
       // Request 240x180 (4:3) at 15fps to minimize webcam & GPU texture bandwidth
@@ -702,9 +662,7 @@ export function initWorkstation(): void {
       await videoEl.play();
       cameraRunning = true;
       camBtn.textContent = "🛑 Stop Hand Camera";
-      showToast(
-        "Eco Hand Tracking Active! Cursor anchored to Knuckle (No Pinch-Dip)",
-      );
+      showToast("Eco Hand Tracking Active! Cursor anchored to Knuckle (No Pinch-Dip)");
     } catch {
       cameraRunning = false;
       camBtn.textContent = "📷 Activate Hand Camera (Eco 16 FPS)";
@@ -714,8 +672,7 @@ export function initWorkstation(): void {
 
   const voiceBtn = document.getElementById("btn-voice") as HTMLButtonElement;
   const SpeechRecognition =
-    (window as any).SpeechRecognition ||
-    (window as any).webkitSpeechRecognition;
+    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   let recognition: any = null;
 
   if (SpeechRecognition) {
@@ -766,10 +723,7 @@ export function initWorkstation(): void {
     const x1 = canvas.width * 0.84;
     const spanPx = x1 - x0;
     const yBase = canvas.height * 0.44;
-    const deflVisualScale = Math.min(
-      110 / Math.max(summary.allowDeflMm, 1),
-      9.5,
-    );
+    const deflVisualScale = Math.min(110 / Math.max(summary.allowDeflMm, 1), 9.5);
 
     // 1. Reference Neutral Axis
     ctx.setLineDash([6, 6]);
@@ -933,11 +887,7 @@ export function initWorkstation(): void {
         isPrePinching = analysis.isPrePinching;
 
         // Only update target coordinates if NOT in pre-pinch freeze zone
-        if (
-          !isPrePinching ||
-          activeGesture === "FIST" ||
-          activeGesture === "TWO_FINGER"
-        ) {
+        if (!isPrePinching || activeGesture === "FIST" || activeGesture === "TWO_FINGER") {
           targetX = analysis.anchorX * window.innerWidth;
           targetY = analysis.anchorY * window.innerHeight;
         }
@@ -971,8 +921,7 @@ export function initWorkstation(): void {
     }
 
     // Magnetic damping when pre-pinching so cursor stays locked on buttons
-    const smoothingFactor =
-      isPrePinching && activeGesture !== "FIST" ? 0.04 : 0.26;
+    const smoothingFactor = isPrePinching && activeGesture !== "FIST" ? 0.04 : 0.26;
     cursorX += (targetX - cursorX) * smoothingFactor;
     cursorY += (targetY - cursorY) * smoothingFactor;
     cursorEl.style.transform = `translate3d(${cursorX - 22}px, ${cursorY - 22}px, 0)`;

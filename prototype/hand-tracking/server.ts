@@ -257,6 +257,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(
-  `🚀 Eco-Mode Multimodal Simulator running at http://localhost:${server.port}`,
-);
+console.log(`🚀 Eco-Mode Multimodal Simulator running at http://localhost:${server.port}`);

@@ -1,0 +1,163 @@
+[
+  {
+    "name": "BOX 100 x 100 x 4.5",
+    "H": 100,
+    "B": 100,
+    "t": 4.5,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 100 x 100 x 6.0",
+    "H": 100,
+    "B": 100,
+    "t": 6,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 125 x 125 x 6.0",
+    "H": 125,
+    "B": 125,
+    "t": 6,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 150 x 100 x 6.0",
+    "H": 150,
+    "B": 100,
+    "t": 6,
+    "shapeType": "RECTANGULAR"
+  },
+  {
+    "name": "BOX 150 x 150 x 6.0",
+    "H": 150,
+    "B": 150,
+    "t": 6,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 150 x 150 x 9.0",
+    "H": 150,
+    "B": 150,
+    "t": 9,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 200 x 100 x 6.0",
+    "H": 200,
+    "B": 100,
+    "t": 6,
+    "shapeType": "RECTANGULAR"
+  },
+  {
+    "name": "BOX 200 x 150 x 9.0",
+    "H": 200,
+    "B": 150,
+    "t": 9,
+    "shapeType": "RECTANGULAR"
+  },
+  {
+    "name": "BOX 200 x 200 x 9.0",
+    "H": 200,
+    "B": 200,
+    "t": 9,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 200 x 200 x 12.0",
+    "H": 200,
+    "B": 200,
+    "t": 12,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 250 x 150 x 9.0",
+    "H": 250,
+    "B": 150,
+    "t": 9,
+    "shapeType": "RECTANGULAR"
+  },
+  {
+    "name": "BOX 250 x 250 x 9.0",
+    "H": 250,
+    "B": 250,
+    "t": 9,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 250 x 250 x 12.0",
+    "H": 250,
+    "B": 250,
+    "t": 12,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 300 x 200 x 9.0",
+    "H": 300,
+    "B": 200,
+    "t": 9,
+    "shapeType": "RECTANGULAR"
+  },
+  {
+    "name": "BOX 300 x 200 x 12.0",
+    "H": 300,
+    "B": 200,
+    "t": 12,
+    "shapeType": "RECTANGULAR"
+  },
+  {
+    "name": "BOX 300 x 300 x 12.0",
+    "H": 300,
+    "B": 300,
+    "t": 12,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 350 x 350 x 12.0",
+    "H": 350,
+    "B": 350,
+    "t": 12,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 350 x 350 x 16.0",
+    "H": 350,
+    "B": 350,
+    "t": 16,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 400 x 200 x 12.0",
+    "H": 400,
+    "B": 200,
+    "t": 12,
+    "shapeType": "RECTANGULAR"
+  },
+  {
+    "name": "BOX 400 x 400 x 12.0",
+    "H": 400,
+    "B": 400,
+    "t": 12,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 400 x 400 x 16.0",
+    "H": 400,
+    "B": 400,
+    "t": 16,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 500 x 500 x 16.0",
+    "H": 500,
+    "B": 500,
+    "t": 16,
+    "shapeType": "SQUARE"
+  },
+  {
+    "name": "BOX 500 x 500 x 22.0",
+    "H": 500,
+    "B": 500,
+    "t": 22,
+    "shapeType": "SQUARE"
+  }
+]

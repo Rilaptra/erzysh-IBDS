@@ -7,9 +7,7 @@ if (!apiKey) {
 const uri = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
 console.log("==================================================");
-console.log(
-  "Connecting to Gemini Live WebSocket (gemini-3.8-live Audio-Native)...",
-);
+console.log("Connecting to Gemini Live WebSocket (gemini-3.8-live Audio-Native)...");
 console.log("==================================================");
 
 const ws = new WebSocket(uri);
@@ -59,9 +57,7 @@ ws.onmessage = async (event) => {
   try {
     const data = JSON.parse(text);
     if (data.setupComplete) {
-      console.log(
-        "✅ [SetupComplete] Handshake Berhasil! Mengirim input percakapan user...\n",
-      );
+      console.log("✅ [SetupComplete] Handshake Berhasil! Mengirim input percakapan user...\n");
       const clientMessage = {
         clientContent: {
           turns: [
@@ -78,9 +74,7 @@ ws.onmessage = async (event) => {
         },
       };
       ws.send(JSON.stringify(clientMessage));
-      console.log(
-        "🎙️ Menunggu streaming audio balasan dari Gemini 3.8 Live...\n",
-      );
+      console.log("🎙️ Menunggu streaming audio balasan dari Gemini 3.8 Live...\n");
     }
 
     if (data.serverContent) {
@@ -103,9 +97,7 @@ ws.onmessage = async (event) => {
       if (data.serverContent.turnComplete) {
         console.log(`\n\n🏁 Turn Selesai!`);
         console.log(`📊 Total Audio Chunks: ${audioChunksReceived}`);
-        console.log(
-          `🔊 Total Audio Data: ${totalAudioBytes} bytes (PCM 24kHz)`,
-        );
+        console.log(`🔊 Total Audio Data: ${totalAudioBytes} bytes (PCM 24kHz)`);
         ws.close();
         process.exit(0);
       }
@@ -116,9 +108,7 @@ ws.onmessage = async (event) => {
 };
 
 ws.onclose = (event) => {
-  console.log(
-    `\n🔴 Connection Closed (Code: ${event.code}, Reason: "${event.reason}")`,
-  );
+  console.log(`\n🔴 Connection Closed (Code: ${event.code}, Reason: "${event.reason}")`);
 };
 
 ws.onerror = (err) => {

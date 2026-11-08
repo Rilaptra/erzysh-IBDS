@@ -11,8 +11,7 @@
   --status-green: #3fb950;
   --status-yellow: #d29922;
   --status-red: #f85149;
-  --font-sans:
-    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
 

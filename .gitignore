@@ -53,3 +53,10 @@ Thumbs.db
 .vercel/
 
 .tmp-step-context/
+
+# Rust / Cargo Build Artifacts
+target/
+crates/**/target/
+AI_MODEL_STRATEGY_NOTES.md
+*.ps1
+

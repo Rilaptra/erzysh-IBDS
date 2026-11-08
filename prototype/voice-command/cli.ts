@@ -1,6 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
-import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import * as readline from "node:readline/promises";
+
+import { GoogleGenAI } from "@google/genai";
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
@@ -55,9 +56,7 @@ async function main() {
       console.log("\nPerintah yang tersedia:");
       console.log("  /exit          - Keluar dari CLI");
       console.log("  /clear         - Bersihkan riwayat percakapan");
-      console.log(
-        "  /model <name>  - Ganti model (misal: /model gemini-2.5-pro)",
-      );
+      console.log("  /model <name>  - Ganti model (misal: /model gemini-2.5-pro)");
       console.log("  /models        - Lihat daftar model populer\n");
       continue;
     }
@@ -71,9 +70,7 @@ async function main() {
 
     if (trimmed.toLowerCase() === "/models") {
       console.log("\nRekomendasi model:");
-      console.log(
-        "  • gemini-2.5-flash        (Sangat cepat, multimodal, default)",
-      );
+      console.log("  • gemini-2.5-flash        (Sangat cepat, multimodal, default)");
       console.log("  • gemini-2.5-pro          (Kemampuan reasoning tinggi)");
       console.log("  • gemini-2.5-flash-lite   (Paling ringan & hemat token)");
       console.log("  • gemini-3.5-flash        (Next-gen flash)\n");
@@ -104,9 +101,7 @@ async function main() {
       }
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-      process.stdout.write(
-        `\n\x1b[90m[${elapsed}s | ${responseText.length} chars]\x1b[0m\n\n`,
-      );
+      process.stdout.write(`\n\x1b[90m[${elapsed}s | ${responseText.length} chars]\x1b[0m\n\n`);
 
       // Add model turn to history
       chatHistory.push({
