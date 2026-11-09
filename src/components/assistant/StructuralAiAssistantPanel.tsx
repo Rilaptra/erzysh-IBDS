@@ -135,7 +135,7 @@ export function StructuralAiAssistantPanel({
     {
       id: "initial-msg",
       sender: "assistant",
-      text: "Halo engineer! Saya **Asisten Rekayasa Struktur IBDS**. Saya dapat membantu memeriksa kepatuhan SNI 2847/1729, optimasi profil balok, dan analisis gaya dalam. Silakan ketik pertanyaan Anda.",
+      text: "Halo engineer! Aku **Ucuy**, asisten rekayasa struktur dan pemandu cerdas kamu di IBDS. Aku siap membantu analisis lendutan, kepatuhan SNI 2847/1729, optimasi profil balok, hingga menjelaskan seluruh fitur aplikasi ini. Silakan tanya apa saja!",
       timestamp: Date.now(),
     },
   ]);

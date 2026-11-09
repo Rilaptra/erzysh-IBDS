@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.5] - 2026-11-09
+
+### ✨ Added
+
+- Introduce **"Ucuy"**, the friendly and intelligent structural engineering AI assistant persona for IBDS.
+- Add dedicated wake-word recognition and voice command triggers for "Ucuy" ("halo ucuy", "oi ucuy", "ucuy").
+- Add comprehensive deterministic consultant advice and app feature explanations for Ucuy.
+- Implement robust multi-model fallback (`gemini-2.5-flash` and `gemini-1.5-flash`) for AI intent routing and structural consulting.
+
+### 🛠️ Maintenance
+
+- Update voice command transcripts and default assistant greeting messages to reflect the new Ucuy persona.
+
+## [0.6.4] - 2026-11-09
+
+### ✨ Added
+
+- Add `AI_CONSULTATION` intent for interactive structural engineering Q&A and design advice via voice commands.
+- Expand voice muting and unmuting command triggers for robust audio control.
+
 ## [0.6.3] - 2026-11-09
 
 ### ✨ Added

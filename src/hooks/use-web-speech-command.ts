@@ -14,12 +14,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { BrowserClapDetector } from "@/core/audio/clap-detector";
 import { buildDxfFromSimulatorState } from "@/core/exporters/dxf-autocad-exporter";
 import { buildIdeaOpenModelXmlFromSimulatorState } from "@/core/exporters/ideastatica-exporter";
 import { buildIfc4FromSimulatorState } from "@/core/exporters/ifc4-bim-revit-exporter";
 import { buildS2kFromSimulatorState } from "@/core/exporters/s2k-sap2000-exporter";
 import { buildStepAp214FromSimulatorState } from "@/core/exporters/step-solidworks-exporter";
 import { matchRuleBasedIntent } from "@/lib/command-matcher";
+import { matchWakeWord } from "@/lib/wake-word-detector";
 import { beamSimulatorActions, getBeamSimulatorSnapshot } from "@/state/beam-simulator-store";
 import { floatingWindowActions, type FloatingWindowId } from "@/state/floating-window-store";
 import type { DistributedLoad } from "@/types/beam-loading-modes";
@@ -2243,6 +2245,21 @@ export function executeRegistryCommand(
         };
       }
 
+      case "AI_CONSULTATION": {
+        const spoken =
+          typeof params?.spokenConfirmation === "string"
+            ? params.spokenConfirmation
+            : typeof params?.message === "string"
+              ? params.message
+              : "Konsultasi Asisten Rekayasa IBDS.";
+        return {
+          success: true,
+          commandId,
+          message: spoken,
+          timestamp,
+        };
+      }
+
       default:
         throw new CommandRegistryError(`CommandId '${commandId}' tidak dikenali.`, commandId);
     }
@@ -2351,12 +2368,13 @@ export function useWebSpeechCommand(
   const [feedbackMessage, setFeedbackMessage] = useState<string>(
     autoStart
       ? "🎙️ Selalu Mendengarkan... Siap menerima perintah suara."
-      : "Mikrofon dijeda (Mute). Klik 'Listen' untuk mengaktifkan kembali.",
+      : "Mikrofon dijeda (Mute). Katakan 'halo ucuy', 'halo cuy', 'oi ucuy' atau tepuk 2x untuk mengaktifkan.",
   );
   const [error, setError] = useState<string | null>(null);
 
   // We type recognition instance loosely as unknown since SpeechRecognition is non-standard across browsers
   const recognitionRef = useRef<unknown>(null);
+  const clapDetectorRef = useRef<BrowserClapDetector | null>(null);
   const isMutedRef = useRef<boolean>(!autoStart);
   const isRunningRef = useRef<boolean>(false);
   const isStartingRef = useRef<boolean>(false);
@@ -2484,7 +2502,7 @@ export function useWebSpeechCommand(
 
   // Safe starter wrapper avoiding browser race conditions and InvalidStateError
   const safeStart = useCallback((): void => {
-    if (!isMountedRef.current || isMutedRef.current) return;
+    if (!isMountedRef.current) return;
     if (isAcousticOutputActiveRef.current || isGeminiAudioCurrentlyPlaying()) return;
     const rec = recognitionRef.current as { start?: () => void } | null;
     if (!rec || typeof rec.start !== "function") return;
@@ -2507,7 +2525,6 @@ export function useWebSpeechCommand(
           if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
           retryStartTimerRef.current = setTimeout(() => {
             if (
-              !isMutedRef.current &&
               !isRunningRef.current &&
               !isStartingRef.current &&
               !isAcousticOutputActiveRef.current &&
@@ -2544,10 +2561,10 @@ export function useWebSpeechCommand(
   const resumeSttAfterPlayback = useCallback((): void => {
     isAcousticOutputActiveRef.current = false;
     lastAcousticOutputEndTimeRef.current = Date.now();
-    if (!isMutedRef.current && isMountedRef.current) {
+    if (isMountedRef.current) {
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       restartTimerRef.current = setTimeout(() => {
-        if (!isMutedRef.current && !isAcousticOutputActiveRef.current && isMountedRef.current) {
+        if (!isAcousticOutputActiveRef.current && isMountedRef.current) {
           safeStart();
         }
       }, 350);
@@ -2613,17 +2630,8 @@ export function useWebSpeechCommand(
         listeningGraceTimerRef.current = null;
       }
 
-      // If user muted before onstart could complete, immediately abort
+      // If user is in muted/standby mode, keep listening in background for wake words
       if (isMutedRef.current) {
-        try {
-          if (typeof recognition.abort === "function") {
-            recognition.abort();
-          } else {
-            recognition.stop();
-          }
-        } catch {
-          // Ignore
-        }
         setIsListening(false);
         return;
       }
@@ -2638,17 +2646,9 @@ export function useWebSpeechCommand(
       isRunningRef.current = false;
       isStartingRef.current = false;
 
-      // If user is muted or not in continuous mode, transition to idle/stopped immediately
-      if (!continuousListening || isMutedRef.current) {
+      // If continuous listening is disabled, transition to stopped immediately
+      if (!continuousListening) {
         setIsListening(false);
-        if (
-          isMutedRef.current &&
-          !didPlayStopToneRef.current &&
-          (optionsRef.current.playAudioFeedback ?? true)
-        ) {
-          synthesizeAudioTone("STOP");
-          didPlayStopToneRef.current = true;
-        }
         return;
       }
 
@@ -2659,11 +2659,10 @@ export function useWebSpeechCommand(
 
       // Continuous loop:
       // Chrome fires onend periodically on pauses in speech and after recognition results.
-      // CRITICAL FIX: Do NOT set isListening to false here to avoid high-frequency visual jitter!
-      // Schedule seamless silent restart so listening never shuts off.
+      // Schedule seamless silent restart in both active and standby wake-word modes.
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       restartTimerRef.current = setTimeout(() => {
-        if (!isMutedRef.current && !isAcousticOutputActiveRef.current && isMountedRef.current) {
+        if (!isAcousticOutputActiveRef.current && isMountedRef.current) {
           safeStart();
         }
       }, 150);
@@ -2737,8 +2736,67 @@ export function useWebSpeechCommand(
         return;
       }
 
-      // Anti-loop 3: Discard self-echo matching recent output or automated voice phrases
-      if (isSelfFeedbackEcho(text, lastSpokenTextRef.current)) {
+      // If in standby/muted mode: ONLY listen for wake words ("halo cuy", "oi cuy", "hey cuy", "woi cuy")
+      if (isMutedRef.current) {
+        const wake = matchWakeWord(text);
+        if (wake.matched) {
+          isMutedRef.current = false;
+          setIsMuted(false);
+          setIsListening(true);
+          didPlayStopToneRef.current = false;
+
+          if (optionsRef.current.playAudioFeedback ?? true) {
+            synthesizeAudioTone("START");
+          }
+
+          const wakeWordDisplay = wake.wakeWord ?? "halo ucuy";
+          const greeting = wakeWordDisplay.includes("ucuy")
+            ? wakeWordDisplay.includes("oi") || wakeWordDisplay.includes("woi")
+              ? "Oi! Ucuy siap bantu!"
+              : wakeWordDisplay.includes("hey")
+                ? "Hey! Ada apa nih?"
+                : "Halo! Ucuy di sini!"
+            : wakeWordDisplay === "oi cuy"
+              ? "Oi cuy!"
+              : wakeWordDisplay === "hey cuy"
+                ? "Hey cuy!"
+                : wakeWordDisplay === "woi cuy"
+                  ? "Woi cuy!"
+                  : "Halo cuy!";
+
+          setTranscript(text);
+
+          // If user uttered a compound instruction with wake word, e.g. "halo cuy ubah ke baja"
+          if (wake.remainingText) {
+            const remainingMatch = routeVoiceTranscriptToCommand(wake.remainingText);
+            if (remainingMatch) {
+              setSuggestions(
+                remainingMatch.suggestions && remainingMatch.suggestions.length > 0
+                  ? remainingMatch.suggestions
+                  : generateContextualSuggestions(remainingMatch.commandId),
+              );
+              const result = executeBatch(remainingMatch);
+              const replyText = `${greeting} ${remainingMatch.spokenConfirmation || result.message}`;
+              lastSpokenTextRef.current = replyText;
+              setFeedbackMessage(`🎙️ ${replyText}`);
+              void speakGeminiLiveResponse(replyText, pauseSttForPlayback, resumeSttAfterPlayback);
+              void refreshAiSuggestions(wake.remainingText);
+              return;
+            }
+          }
+
+          // Pure wake word activation
+          const confirmMsg = `${greeting} Voice command aktif, siap menerima perintah.`;
+          lastSpokenTextRef.current = confirmMsg;
+          setFeedbackMessage(`🎙️ ${confirmMsg}`);
+          void speakGeminiLiveResponse(confirmMsg, pauseSttForPlayback, resumeSttAfterPlayback);
+          setSuggestions([
+            "Beralih ke material baja",
+            "Ubah ke beton bertulang",
+            "Tampilkan diagram momen BMD",
+            "Atur panjang balok 6 meter",
+          ]);
+        }
         return;
       }
 
@@ -2782,15 +2840,28 @@ export function useWebSpeechCommand(
             });
             if (apiRes.ok) {
               const apiMatch = (await apiRes.json()) as IntentRouterResult;
-              if (apiMatch && apiMatch.confidence > 0.6) {
+              if (
+                apiMatch &&
+                (apiMatch.confidence > 0.6 ||
+                  apiMatch.commandId === "AI_CONSULTATION" ||
+                  Boolean(apiMatch.spokenConfirmation))
+              ) {
                 if (apiMatch.suggestions && apiMatch.suggestions.length > 0) {
                   setSuggestions(apiMatch.suggestions);
-                } else {
+                } else if (apiMatch.commandId) {
                   setSuggestions(generateContextualSuggestions(apiMatch.commandId));
                 }
-                const result = executeBatch(apiMatch);
-                const replyText = apiMatch.spokenConfirmation || result.message;
+
+                let replyText = apiMatch.spokenConfirmation;
+                if (apiMatch.commandId && apiMatch.commandId !== "AI_CONSULTATION") {
+                  const result = executeBatch(apiMatch);
+                  replyText = apiMatch.spokenConfirmation || result.message;
+                } else if (!replyText) {
+                  replyText = "Pertanyaan Anda telah dicatat oleh sistem IBDS.";
+                }
+
                 lastSpokenTextRef.current = replyText;
+                setFeedbackMessage(`💬 ${replyText}`);
                 void speakGeminiLiveResponse(
                   replyText,
                   pauseSttForPlayback,
@@ -2802,10 +2873,7 @@ export function useWebSpeechCommand(
               // Conversational/unmatched: update fluid suggestions from Gemini!
               if (apiMatch?.suggestions && apiMatch.suggestions.length > 0) {
                 setSuggestions(apiMatch.suggestions);
-                setFeedbackMessage(`Perintah tidak dikenali: "${text}"`);
-                if (optionsRef.current.playAudioFeedback ?? true) {
-                  synthesizeAudioTone("FAILURE");
-                }
+                setFeedbackMessage(`💬 ${apiMatch.message || text}`);
                 return;
               }
             }
@@ -2827,10 +2895,60 @@ export function useWebSpeechCommand(
 
     recognitionRef.current = recognition;
 
+    // Initialize Clap Detector for hands-free double clap activation
+    const clapDetector = new BrowserClapDetector();
+    clapDetectorRef.current = clapDetector;
+
+    const handleDoubleClap = (): void => {
+      if (!isMountedRef.current) return;
+      if (isAcousticOutputActiveRef.current || isGeminiAudioCurrentlyPlaying()) return;
+      if (Date.now() - lastAcousticOutputEndTimeRef.current < 1500) return;
+
+      // When voice command is off/muted: double clap activates it!
+      if (isMutedRef.current) {
+        isMutedRef.current = false;
+        setIsMuted(false);
+        setIsListening(true);
+        didPlayStopToneRef.current = false;
+
+        if (optionsRef.current.playAudioFeedback ?? true) {
+          synthesizeAudioTone("START");
+        }
+
+        const confirmMsg =
+          "Dua kali tepuk terdeteksi! Voice command aktif, siap menerima perintah.";
+        lastSpokenTextRef.current = confirmMsg;
+        setTranscript("👏 [Dua kali tepuk]");
+        setFeedbackMessage(`👏 ${confirmMsg}`);
+        void speakGeminiLiveResponse(confirmMsg, pauseSttForPlayback, resumeSttAfterPlayback);
+        setSuggestions([
+          "Beralih ke material baja",
+          "Ubah ke beton bertulang",
+          "Tampilkan diagram momen BMD",
+          "Atur bentang balok 8 meter",
+        ]);
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("app:voice-mute", { detail: { muted: false } }));
+        }
+      }
+    };
+
+    void clapDetector.start(
+      handleDoubleClap,
+      () => isAcousticOutputActiveRef.current || isGeminiAudioCurrentlyPlaying(),
+    );
+
     // Gesture fallback listener handlers defined so they can be cleaned up
     const onFirstInteraction = (): void => {
-      if (!isMutedRef.current && isMountedRef.current) {
+      if (isMountedRef.current) {
         safeStart();
+        if (clapDetectorRef.current && !clapDetectorRef.current.isActive) {
+          void clapDetectorRef.current.start(
+            handleDoubleClap,
+            () => isAcousticOutputActiveRef.current || isGeminiAudioCurrentlyPlaying(),
+          );
+        }
         const ctx = getAudioContext();
         if (ctx && ctx.state === "suspended") {
           void ctx.resume();
@@ -2842,13 +2960,10 @@ export function useWebSpeechCommand(
       }
     };
 
-    // Auto start on mount if enabled and not muted
-    if (autoStart && !isMutedRef.current) {
-      safeStart();
-
-      window.addEventListener("pointerdown", onFirstInteraction, { once: true });
-      window.addEventListener("keydown", onFirstInteraction, { once: true });
-    }
+    // Auto start on mount or interaction
+    safeStart();
+    window.addEventListener("pointerdown", onFirstInteraction, { once: true });
+    window.addEventListener("keydown", onFirstInteraction, { once: true });
 
     return () => {
       isMountedRef.current = false;
@@ -2857,6 +2972,11 @@ export function useWebSpeechCommand(
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (retryStartTimerRef.current) clearTimeout(retryStartTimerRef.current);
       if (listeningGraceTimerRef.current) clearTimeout(listeningGraceTimerRef.current);
+
+      if (clapDetectorRef.current) {
+        clapDetectorRef.current.destroy();
+        clapDetectorRef.current = null;
+      }
 
       const rec = recognitionRef.current as { abort?: () => void; stop?: () => void } | null;
       if (rec) {
@@ -2881,7 +3001,7 @@ export function useWebSpeechCommand(
     safeStart,
   ]);
 
-  // Set mute state handler with immediate abort and single STOP tone
+  // Set mute state handler with standby wake-word support
   const setMuted = useCallback(
     (muted: boolean): void => {
       if (!isSupported) {
@@ -2890,12 +3010,6 @@ export function useWebSpeechCommand(
         );
         return;
       }
-
-      const rec = recognitionRef.current as {
-        start?: () => void;
-        stop?: () => void;
-        abort?: () => void;
-      } | null;
 
       isMutedRef.current = muted;
       setIsMuted(muted);
@@ -2915,20 +3029,12 @@ export function useWebSpeechCommand(
           didPlayStopToneRef.current = true;
         }
 
-        // Use abort() so browser immediately drops microphone hardware
-        if (rec) {
-          try {
-            if (typeof rec.abort === "function") {
-              rec.abort();
-            } else if (typeof rec.stop === "function") {
-              rec.stop();
-            }
-          } catch {
-            // Ignore browser race
-          }
-        }
+        setFeedbackMessage(
+          "Mikrofon dijeda (Mute). Katakan 'halo ucuy', 'halo cuy', 'oi ucuy' atau tepuk 2x untuk mengaktifkan.",
+        );
 
-        setFeedbackMessage("Mikrofon dijeda (Mute). Klik 'Listen' untuk mengaktifkan kembali.");
+        // Keep STT running in background standby mode so it can capture wake words!
+        safeStart();
       } else {
         didPlayStopToneRef.current = false;
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
@@ -3005,13 +3111,28 @@ export function useWebSpeechCommand(
             });
             if (apiRes.ok) {
               const apiMatch = (await apiRes.json()) as IntentRouterResult;
-              if (apiMatch && apiMatch.confidence > 0.6) {
+              if (
+                apiMatch &&
+                (apiMatch.confidence > 0.6 ||
+                  apiMatch.commandId === "AI_CONSULTATION" ||
+                  Boolean(apiMatch.spokenConfirmation))
+              ) {
                 if (apiMatch.suggestions && apiMatch.suggestions.length > 0) {
                   setSuggestions(apiMatch.suggestions);
+                } else if (apiMatch.commandId) {
+                  setSuggestions(generateContextualSuggestions(apiMatch.commandId));
                 }
-                const res = executeBatch(apiMatch);
-                const replyText = apiMatch.spokenConfirmation || res.message;
+
+                let replyText = apiMatch.spokenConfirmation;
+                if (apiMatch.commandId && apiMatch.commandId !== "AI_CONSULTATION") {
+                  const res = executeBatch(apiMatch);
+                  replyText = apiMatch.spokenConfirmation || res.message;
+                } else if (!replyText) {
+                  replyText = "Pertanyaan Anda telah dicatat oleh sistem IBDS.";
+                }
+
                 lastSpokenTextRef.current = replyText;
+                setFeedbackMessage(`💬 ${replyText}`);
                 void speakGeminiLiveResponse(
                   replyText,
                   pauseSttForPlayback,
@@ -3021,6 +3142,8 @@ export function useWebSpeechCommand(
               }
               if (apiMatch?.suggestions && apiMatch.suggestions.length > 0) {
                 setSuggestions(apiMatch.suggestions);
+                setFeedbackMessage(`💬 ${apiMatch.message || trimmed}`);
+                return;
               }
             }
           } catch {

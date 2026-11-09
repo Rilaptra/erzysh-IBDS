@@ -9,6 +9,7 @@
  * 4. Contextual suggestion generation.
  */
 
+import { matchWakeWord } from "@/lib/wake-word-detector";
 import type { FloatingWindowId } from "@/state/floating-window-store";
 import type {
   CommandId,
@@ -112,6 +113,13 @@ export function generateContextualSuggestions(
         "Buka jendela asisten AI",
         "Fit tampilan balok",
       ];
+    case "AI_CONSULTATION":
+      return [
+        "Tanya saran optimasi balok",
+        "Hitung optimasi profil",
+        "Tampilkan diagram momen BMD",
+        "Buka jendela dimensi dan parameter",
+      ];
     default:
       return [
         "Beralih ke material baja",
@@ -134,6 +142,119 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
   const lower = raw.toLowerCase();
 
   if (!lower) return null;
+
+  // 0. Wake Words ("halo cuy", "halo ucuy", "ucuy", "oi cuy", dsb.) & Double Clap
+  const wakeMatch = matchWakeWord(raw);
+  if (wakeMatch.matched) {
+    const isUcuy = wakeMatch.wakeWord?.includes("ucuy") ?? false;
+    let greetingLabel = isUcuy ? "Halo! Ucuy di sini!" : "Halo cuy!";
+    if (wakeMatch.wakeWord === "oi ucuy" || wakeMatch.wakeWord === "oi cuy") {
+      greetingLabel = isUcuy ? "Oi! Ucuy siap bantu!" : "Oi cuy!";
+    } else if (wakeMatch.wakeWord === "hey ucuy" || wakeMatch.wakeWord === "hey cuy") {
+      greetingLabel = isUcuy ? "Hey! Ucuy siap!" : "Hey cuy!";
+    } else if (wakeMatch.wakeWord === "woi ucuy" || wakeMatch.wakeWord === "woi cuy") {
+      greetingLabel = isUcuy ? "Woi! Ucuy mendengarkan!" : "Woi cuy!";
+    } else if (wakeMatch.wakeWord === "ucuy") {
+      greetingLabel = "Iya, Ucuy di sini!";
+    }
+
+    if (wakeMatch.remainingText) {
+      const subIntent = matchSingleRuleIntent(wakeMatch.remainingText);
+      if (subIntent) {
+        return {
+          ...subIntent,
+          rawTranscript: raw,
+          spokenConfirmation: subIntent.spokenConfirmation
+            ? `${greetingLabel} ${subIntent.spokenConfirmation}`
+            : `${greetingLabel} Perintah dijalankan.`,
+        };
+      }
+    }
+
+    return {
+      commandId: "UNMUTE_VOICE_COMMAND",
+      confidence: 0.98,
+      extractedParameters: { wakeWord: wakeMatch.wakeWord },
+      rawTranscript: raw,
+      spokenConfirmation: isUcuy
+        ? `${greetingLabel} Siap menerima perintah atau pertanyaan seputar simulasi balok.`
+        : `${greetingLabel} Voice command aktif, siap menerima perintah.`,
+      suggestions: [
+        "Beralih ke material baja",
+        "Tampilkan diagram momen BMD",
+        "Atur bentang balok 8 meter",
+      ],
+    };
+  }
+
+  // 0b. Persona & App Explanations for Ucuy
+  if (
+    lower.includes("siapa kamu") ||
+    lower.includes("nama kamu") ||
+    lower.includes("kamu siapa") ||
+    lower.includes("tentang ucuy") ||
+    lower === "ucuy"
+  ) {
+    return {
+      commandId: "AI_CONSULTATION",
+      confidence: 0.98,
+      extractedParameters: { topic: "IDENTITY" },
+      rawTranscript: raw,
+      spokenConfirmation:
+        "Halo! Aku Ucuy, asisten rekayasa struktur cerdas kamu di IBDS. Aku siap bantu simulasi, optimasi balok, dan cek kepatuhan SNI!",
+      suggestions: [
+        "Jelaskan fitur aplikasi ini",
+        "Hitung optimasi profil balok",
+        "Tampilkan diagram momen BMD",
+        "Buka jendela asisten AI",
+      ],
+    };
+  }
+
+  if (
+    lower.includes("jelaskan aplikasi ini") ||
+    lower.includes("aplikasi apa ini") ||
+    lower.includes("apa itu ibds") ||
+    lower.includes("fitur aplikasi") ||
+    lower.includes("cara pakai aplikasi") ||
+    lower.includes("bisa apa saja") ||
+    lower.includes("panduan aplikasi")
+  ) {
+    return {
+      commandId: "AI_CONSULTATION",
+      confidence: 0.98,
+      extractedParameters: { topic: "APP_EXPLANATION" },
+      rawTranscript: raw,
+      spokenConfirmation:
+        "IBDS adalah simulator interaktif lendutan balok baja dan beton bertulang real-time, lengkap dengan diagram gaya dalam, visual 3D, dan ekspor CAD BIM.",
+      suggestions: [
+        "Beralih ke material baja",
+        "Ubah ke beton bertulang",
+        "Lihat tampak depan 2D",
+        "Buka jendela asisten AI",
+      ],
+    };
+  }
+
+  if (
+    lower.includes("dua kali tepuk") ||
+    lower.includes("tepuk dua kali") ||
+    lower.includes("tepuk tangan") ||
+    lower.includes("double clap")
+  ) {
+    return {
+      commandId: "UNMUTE_VOICE_COMMAND",
+      confidence: 0.98,
+      extractedParameters: { source: "DOUBLE_CLAP" },
+      rawTranscript: raw,
+      spokenConfirmation: "Tepuk tangan terdeteksi. Voice command aktif, siap menerima perintah.",
+      suggestions: [
+        "Beralih ke material baja",
+        "Tampilkan diagram momen BMD",
+        "Atur bentang balok 8 meter",
+      ],
+    };
+  }
 
   // 1. Camera & 3D Viewport Controls (All Viewport Toolbar Buttons)
   if (
@@ -1047,21 +1168,59 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
   }
 
   // 15. Mic Mute Controls
-  if (lower.includes("jeda suara") || lower.includes("mute mikrofon") || lower === "mute") {
+  if (
+    lower.includes("jeda suara") ||
+    lower.includes("mute mikrofon") ||
+    lower.includes("matikan voice") ||
+    lower.includes("matikan suara") ||
+    lower.includes("matikan mic") ||
+    lower.includes("matikan mikrofon") ||
+    lower.includes("matikan audio") ||
+    lower.includes("matikan perintah suara") ||
+    lower.includes("nonaktifkan suara") ||
+    lower.includes("nonaktifkan voice") ||
+    lower.includes("nonaktifkan mikrofon") ||
+    lower.includes("stop voice") ||
+    lower.includes("stop listening") ||
+    lower.includes("berhenti mendengarkan") ||
+    lower.includes("tutup suara") ||
+    lower.includes("tutup mikrofon") ||
+    lower === "mute" ||
+    lower === "mute voice" ||
+    lower === "silent" ||
+    lower === "diam"
+  ) {
     return {
       commandId: "MUTE_VOICE_COMMAND",
       confidence: 0.96,
       extractedParameters: {},
       rawTranscript: raw,
-      spokenConfirmation: "Mikrofon dijeda. Klik tombol Listen di toast saat ingin bicara kembali.",
+      spokenConfirmation:
+        "Mikrofon dijeda. Katakan 'halo cuy', 'oi cuy', 'hey cuy', 'woi cuy' atau tepuk 2x untuk mengaktifkan kembali.",
       suggestions: ["Buka jendela beban", "Tampilkan diagram momen BMD", "Hitung optimasi"],
     };
   }
   if (
     lower.includes("dengarkan suara") ||
     lower.includes("unmute mikrofon") ||
+    lower.includes("nyalakan voice") ||
+    lower.includes("nyalakan suara") ||
+    lower.includes("nyalakan mic") ||
+    lower.includes("nyalakan mikrofon") ||
+    lower.includes("nyalakan audio") ||
+    lower.includes("aktifkan suara") ||
+    lower.includes("aktifkan voice") ||
+    lower.includes("aktifkan mikrofon") ||
+    lower.includes("aktifkan perintah suara") ||
+    lower.includes("hidupkan voice") ||
+    lower.includes("hidupkan suara") ||
+    lower.includes("hidupkan mic") ||
+    lower.includes("hidupkan mikrofon") ||
+    lower.includes("mulai mendengarkan") ||
     lower === "unmute" ||
-    lower === "listen"
+    lower === "unmute voice" ||
+    lower === "listen" ||
+    lower === "start voice"
   ) {
     return {
       commandId: "UNMUTE_VOICE_COMMAND",
@@ -1216,6 +1375,21 @@ export function splitCompoundClauses(transcript: string): string[] {
 export function matchRuleBasedIntent(transcript: string): IntentRouterResult | null {
   const raw = transcript.trim();
   if (!raw) return null;
+
+  // Intercept wake word prefix with compound commands, e.g. "halo cuy ubah ke beton dan buka jendela beban"
+  const wake = matchWakeWord(raw);
+  if (wake.matched && wake.remainingText) {
+    const compoundSub = matchRuleBasedIntent(wake.remainingText);
+    if (compoundSub) {
+      return {
+        ...compoundSub,
+        rawTranscript: raw,
+        spokenConfirmation: compoundSub.spokenConfirmation
+          ? `Halo cuy! ${compoundSub.spokenConfirmation}`
+          : "Halo cuy! Perintah dijalankan.",
+      };
+    }
+  }
 
   // 1. Try single-intent match first for completely simple utterances
   const single = matchSingleRuleIntent(raw);
