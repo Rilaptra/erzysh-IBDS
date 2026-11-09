@@ -75,6 +75,78 @@ export function generateDeterministicConsultantAdvice(
   const profileName = state?.steelProfileName ?? "IWF 300x150x6.5x9";
   const material = state?.materialKind ?? "STEEL";
 
+  // 0. Persona Ucuy & Penjelasan Aplikasi IBDS
+  if (
+    query.includes("ucuy") ||
+    query.includes("siapa kamu") ||
+    query.includes("siapa anda") ||
+    query.includes("kamu siapa") ||
+    query.includes("kenalan") ||
+    query.includes("namamu")
+  ) {
+    const text = [
+      `👋 **Halo engineer! Aku Ucuy!**`,
+      `Aku adalah asisten rekayasa struktur AI dan pemandu pintar kamu di aplikasi **IBDS (Interactive Beam Deflection Simulator)**. Karakterku ramah, komunikatif, dan siap mendampingi kamu menganalisis balok secara interaktif.`,
+      `**Apa saja yang bisa Ucuy bantu?**`,
+      `1. **Analisis Struktur & Lendutan:** Memeriksa kesesuaian batas lendutan izin ($L/240$, $L/360$), rasio kapasitas lentur/geser ($DCR$), dan keamanan balok.`,
+      `2. **Standar Nasional Indonesia (SNI):** Konsultasi teknis mendalam sesuai **SNI 2847:2019** (Beton Bertulang) dan **SNI 1729:2020** (Baja Struktural).`,
+      `3. **Pemandu Fitur IBDS:** Menjelaskan cara kerja 6 jendela kerja, kontrol gestur tangan webcam MediaPipe, perintah suara (*voice commands*), hingga ekspor CAD/BIM.`,
+      `Ada yang ingin kamu diskusikan atau tanyakan tentang balok saat ini?`,
+    ].join("\n\n");
+
+    return {
+      reply: text,
+      text,
+      response: text,
+      message: text,
+      sources: ["Asisten Rekayasa AI IBDS - Ucuy"],
+      codeCompliance: {
+        standardConcrete: "SNI 2847:2019",
+        standardSteel: "SNI 1729:2020",
+        deflectionCompliant: deflPass,
+      },
+    };
+  }
+
+  if (
+    query.includes("aplikasi") ||
+    query.includes("ibds") ||
+    query.includes("tentang") ||
+    query.includes("fitur") ||
+    query.includes("cara pakai") ||
+    query.includes("simulator")
+  ) {
+    const text = [
+      `🏗️ **Tentang IBDS (Interactive Beam Deflection Simulator):**`,
+      `IBDS adalah platform simulasi dan analisis lendutan balok interaktif berbasis web generasi baru yang menggabungkan presisi mekanika rekayasa teknik sipil dengan visualisasi 3D real-time dan kendali AI multimodal.`,
+      `**Fitur-Fitur Utama IBDS:**`,
+      `1. **Simulasi Lendutan Real-Time:** Menghitung elastisitas kurva lendutan, bidang gaya lintang ($SFD$), momen lentur ($BMD$), dan reaksi tumpuan seketika saat parameter diubah.`,
+      `2. **Kesesuaian Standar SNI:** Standar ketat **SNI 2847:2019** (Beton Bertulang) dan **SNI 1729:2020** (Baja Struktural IWF, Box, dll).`,
+      `3. **3D Viewport Tiga Dimensi:** Tampilan 3D isometrik, tampak depan 2D, mode solid + potongan beton, serta wireframe tulangan lentur dan sengkang secara detail.`,
+      `4. **6 Jendela Kerja Terpadu:** Material & Beban, Tumpuan Balok, Dimensi Penampang & Tulangan, Optimasi Profil, Diagram Gaya Dalam, serta Asisten AI & Gestur.`,
+      `5. **Interaksi Multimodal Modern:** Mendukung perintah suara hands-free dengan wake-word *"halo ucuy"*, deteksi tepuk tangan 2x (*double-clap*), dan *Hand Tracking* webcam MediaPipe.`,
+      `6. **Ekspor CAD & Rekayasa:** Ekspor seketika ke AutoCAD DXF, SAP2000 (.s2k), Revit IFC4, IDEA StatiCa XML, dan SolidWorks STEP.`,
+      `Silakan katakan atau ketik pertanyaan seputar analisis balok atau fitur yang ingin kamu coba!`,
+    ].join("\n\n");
+
+    return {
+      reply: text,
+      text,
+      response: text,
+      message: text,
+      sources: [
+        "SNI 2847:2019",
+        "SNI 1729:2020",
+        "Dokumentasi IBDS (Interactive Beam Deflection Simulator)",
+      ],
+      codeCompliance: {
+        standardConcrete: "SNI 2847:2019",
+        standardSteel: "SNI 1729:2020",
+        deflectionCompliant: deflPass,
+      },
+    };
+  }
+
   // 1. Comparison of IWF vs BOX / Hollow Profiles
   if (
     query.includes("iwf") ||
@@ -225,8 +297,15 @@ async function callGeminiConsultant(
   state: StructuralConsultantRequestBody["simulatorState"] | undefined,
   apiKey: string,
 ): Promise<string | null> {
-  const model = appConfig.ai.consultantModel;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const isTest = process.env.NODE_ENV === "test" || Bun.env?.NODE_ENV === "test";
+  if (isTest) {
+    return null;
+  }
+
+  const primaryModel = appConfig.ai.consultantModel;
+  const candidateModels = Array.from(
+    new Set([primaryModel, "gemini-2.5-flash", "gemini-1.5-flash"]),
+  );
 
   const span = state?.spanLengthM ? Number(state.spanLengthM) : 6.0;
   const defl = Math.abs(state?.maxDeflectionMm ?? 0);
@@ -236,22 +315,43 @@ async function callGeminiConsultant(
   const material = state?.materialKind ?? "STEEL";
   const profileName = state?.steelProfileName ?? "IWF 300x150";
 
-  const systemInstruction = `You are the Lead Structural Engineering Consultant for IBDS (Interactive Beam Deflection Simulator).
-You are an expert in Indonesian National Standards:
-- SNI 2847:2019 (Persyaratan Beton Struktural untuk Bangunan Gedung)
-- SNI 1729:2020 (Spesifikasi untuk Bangunan Gedung Baja Struktural)
+  const systemInstruction = `Kamu adalah Ucuy, Asisten & Konsultan Rekayasa Struktur AI resmi di aplikasi IBDS (Interactive Beam Deflection Simulator).
+Nama Kamu: Ucuy.
+Karakter: Ramah, komunikatif, bersahabat, santai namun sangat cerdas, teliti, dan berwawasan teknis rekayasa struktur sipil yang mendalam. Kamu adalah rekan diskusi teknik sipil yang solutif bagi mahasiswa, dosen, maupun praktisi perencana struktur.
 
-CURRENT BEAM SIMULATOR TELEMETRY:
-- Material: ${material}
-- Active Profile: ${profileName}
-- Span Length L: ${span.toFixed(2)} m
-- Factored Design Moment Mu: ${mu.toFixed(2)} kNm
-- Factored Design Shear Vu: ${vu.toFixed(2)} kN
-- Maximum Deflection -Delta_max: -${defl.toFixed(2)} mm
-- Deflection Limit (L/${denom}): ${((span * 1000) / denom).toFixed(2)} mm
+PENGETAHUAN LENGKAP TENTANG APLIKASI IBDS:
+- IBDS adalah platform simulasi dan analisis lendutan balok interaktif berbasis web generasi baru yang mengintegrasikan perhitungan mekanika struktur dengan visualisasi 3D real-time dan kendali AI multimodal.
+- Standar Desain Nasional Indonesia:
+  1. SNI 2847:2019 (Persyaratan Beton Struktural untuk Bangunan Gedung)
+  2. SNI 1729:2020 (Spesifikasi untuk Bangunan Gedung Baja Struktural)
+- Fitur-Fitur Utama IBDS yang kamu kuasai secara mendalam:
+  1. 3D Viewport Tiga Dimensi Three.js: Tampilan 3D Isometrik, Tampak Depan 2D ortogonal, Beton Solid + Potongan, Wireframe Tulangan 3D lentur dan sengkang, serta sistem koordinat Z-Up (Sipil) dan Y-Up (CAD).
+  2. Diagram Gaya Dalam Real-time: Bidang Geser/Lintang (SFD), Bidang Momen Lentur (BMD), Bidang Normal (NFD), dan Bidang Torsi (TFD) dalam mode In-Place 3D atau Stacked.
+  3. 6 Jendela Kerja Fleksibel (Floating Windows):
+     - Window 1: Material & Mode Pembebanan (Baja SNI 1729:2020 / Beton SNI 2847:2019, Mode A Beban Eksternal / Mode B Gaya Dalam Langsung).
+     - Window 2: Beban & Tumpuan Balok (Sendi-Rol, Jepit-Bebas Cantilever, Jepit-Jepit, Jepit-Sendi, Beban Titik P, Beban Merata q).
+     - Window 3: Parameter Penampang & Tulangan (Katalog Baja IWF / Box, Mutu BJ 34-55, Dimensi Beton b x h, Mutu fc', Tulangan Tarik/Tekan, Sengkang Av).
+     - Window 4: Optimasi Profil Balok Otomatis.
+     - Window 5: Diagram Gaya Dalam (SFD, BMD, Kurva Lendutan Defleksi Elastis).
+     - Window 6: Gestur Tangan & Asisten Rekayasa AI (MediaPipe Webcam Hand Tracking: pinch pan/zoom/rotasi, Voice Command pintar dengan wake-word "halo ucuy" atau tepukan tangan 2x, dan Chatbot Konsultan Struktur bersama Ucuy).
+  4. Ekspor CAD & Rekayasa: AutoCAD DXF, SAP2000 (.s2k), Revit IFC4 BIM, IDEA StatiCa XML, SolidWorks STEP.
 
-Provide precise, technically rigorous, professional engineering guidance in Indonesian.
-Use LaTeX math format ($...$ and $$...$$) for formulas. Give clear conclusions (AMAN / PERLU REVISI).`;
+TELEMETRI SIMULATOR BALOK SAAT INI:
+- Material Aktif: ${material}
+- Profil Aktif: ${profileName}
+- Panjang Bentang L: ${span.toFixed(2)} m
+- Momen Lentur Desain Terfaktor Mu: ${mu.toFixed(2)} kNm
+- Gaya Geser Desain Terfaktor Vu: ${vu.toFixed(2)} kN
+- Lendutan Terhitung Maksimum: -${defl.toFixed(2)} mm
+- Batas Izin Lendutan (L/${denom}): ${((span * 1000) / denom).toFixed(2)} mm
+
+PANDUAN MERESPONS:
+1. Sapa pengguna dengan hangat, ramah, dan bersahabat ("Halo engineer!", "Siap, Ucuy bantu ya!").
+2. Jika pengguna bertanya tentang siapa kamu atau menyapa, perkenalkan dirimu sebagai Ucuy dengan ceria.
+3. Jika pengguna bertanya tentang fitur aplikasi IBDS atau cara kerjanya, jelaskan secara jelas, runtut, dan antusias.
+4. Jika pengguna berkonsultasi mengenai teknis struktur atau lendutan, berikan bimbingan teknis yang presisi, mendalam, dan aplikatif sesuai SNI 2847:2019 / SNI 1729:2020.
+5. Gunakan format LaTeX ($...$ untuk rumus sebaris dan $$...$$ untuk rumus blok display) untuk setiap formula atau notasi teknis.
+6. Berikan kesimpulan status yang tegas dan jelas (AMAN / PERLU REVISI / OVERDEFLECTION) disertai saran optimasi penampang yang konkret.`;
 
   const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
 
@@ -280,28 +380,37 @@ Use LaTeX math format ($...$ and $$...$$) for formulas. Give clear conclusions (
     },
   };
 
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(2500),
-    });
+  for (const model of candidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(3500),
+      });
 
-    if (!response.ok) return null;
+      if (!response.ok) continue;
 
-    const result = (await response.json()) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{ text?: string }>;
-        };
-      }>;
-    };
+      const result = (await response.json()) as {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+      };
 
-    return result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
-  } catch {
-    return null;
+      const replyText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      if (replyText) {
+        return replyText;
+      }
+    } catch {
+      // Continue to next candidate model
+      continue;
+    }
   }
+
+  return null;
 }
 
 // ============================================================================

@@ -143,9 +143,21 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
 
   if (!lower) return null;
 
-  // 0. Wake Words ("halo cuy", "oi cuy", "hey cuy", "woi cuy") & Double Clap ("dua kali tepuk")
+  // 0. Wake Words ("halo cuy", "halo ucuy", "ucuy", "oi cuy", dsb.) & Double Clap
   const wakeMatch = matchWakeWord(raw);
   if (wakeMatch.matched) {
+    const isUcuy = wakeMatch.wakeWord?.includes("ucuy") ?? false;
+    let greetingLabel = isUcuy ? "Halo! Ucuy di sini!" : "Halo cuy!";
+    if (wakeMatch.wakeWord === "oi ucuy" || wakeMatch.wakeWord === "oi cuy") {
+      greetingLabel = isUcuy ? "Oi! Ucuy siap bantu!" : "Oi cuy!";
+    } else if (wakeMatch.wakeWord === "hey ucuy" || wakeMatch.wakeWord === "hey cuy") {
+      greetingLabel = isUcuy ? "Hey! Ucuy siap!" : "Hey cuy!";
+    } else if (wakeMatch.wakeWord === "woi ucuy" || wakeMatch.wakeWord === "woi cuy") {
+      greetingLabel = isUcuy ? "Woi! Ucuy mendengarkan!" : "Woi cuy!";
+    } else if (wakeMatch.wakeWord === "ucuy") {
+      greetingLabel = "Iya, Ucuy di sini!";
+    }
+
     if (wakeMatch.remainingText) {
       const subIntent = matchSingleRuleIntent(wakeMatch.remainingText);
       if (subIntent) {
@@ -153,30 +165,73 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
           ...subIntent,
           rawTranscript: raw,
           spokenConfirmation: subIntent.spokenConfirmation
-            ? `Halo cuy! ${subIntent.spokenConfirmation}`
-            : "Halo cuy! Perintah dijalankan.",
+            ? `${greetingLabel} ${subIntent.spokenConfirmation}`
+            : `${greetingLabel} Perintah dijalankan.`,
         };
       }
     }
-    const greetingLabel =
-      wakeMatch.wakeWord === "oi cuy"
-        ? "Oi cuy!"
-        : wakeMatch.wakeWord === "hey cuy"
-          ? "Hey cuy!"
-          : wakeMatch.wakeWord === "woi cuy"
-            ? "Woi cuy!"
-            : "Halo cuy!";
 
     return {
       commandId: "UNMUTE_VOICE_COMMAND",
       confidence: 0.98,
       extractedParameters: { wakeWord: wakeMatch.wakeWord },
       rawTranscript: raw,
-      spokenConfirmation: `${greetingLabel} Voice command aktif, siap menerima perintah.`,
+      spokenConfirmation: isUcuy
+        ? `${greetingLabel} Siap menerima perintah atau pertanyaan seputar simulasi balok.`
+        : `${greetingLabel} Voice command aktif, siap menerima perintah.`,
       suggestions: [
         "Beralih ke material baja",
         "Tampilkan diagram momen BMD",
         "Atur bentang balok 8 meter",
+      ],
+    };
+  }
+
+  // 0b. Persona & App Explanations for Ucuy
+  if (
+    lower.includes("siapa kamu") ||
+    lower.includes("nama kamu") ||
+    lower.includes("kamu siapa") ||
+    lower.includes("tentang ucuy") ||
+    lower === "ucuy"
+  ) {
+    return {
+      commandId: "AI_CONSULTATION",
+      confidence: 0.98,
+      extractedParameters: { topic: "IDENTITY" },
+      rawTranscript: raw,
+      spokenConfirmation:
+        "Halo! Aku Ucuy, asisten rekayasa struktur cerdas kamu di IBDS. Aku siap bantu simulasi, optimasi balok, dan cek kepatuhan SNI!",
+      suggestions: [
+        "Jelaskan fitur aplikasi ini",
+        "Hitung optimasi profil balok",
+        "Tampilkan diagram momen BMD",
+        "Buka jendela asisten AI",
+      ],
+    };
+  }
+
+  if (
+    lower.includes("jelaskan aplikasi ini") ||
+    lower.includes("aplikasi apa ini") ||
+    lower.includes("apa itu ibds") ||
+    lower.includes("fitur aplikasi") ||
+    lower.includes("cara pakai aplikasi") ||
+    lower.includes("bisa apa saja") ||
+    lower.includes("panduan aplikasi")
+  ) {
+    return {
+      commandId: "AI_CONSULTATION",
+      confidence: 0.98,
+      extractedParameters: { topic: "APP_EXPLANATION" },
+      rawTranscript: raw,
+      spokenConfirmation:
+        "IBDS adalah simulator interaktif lendutan balok baja dan beton bertulang real-time, lengkap dengan diagram gaya dalam, visual 3D, dan ekspor CAD BIM.",
+      suggestions: [
+        "Beralih ke material baja",
+        "Ubah ke beton bertulang",
+        "Lihat tampak depan 2D",
+        "Buka jendela asisten AI",
       ],
     };
   }

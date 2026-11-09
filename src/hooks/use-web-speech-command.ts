@@ -2368,7 +2368,7 @@ export function useWebSpeechCommand(
   const [feedbackMessage, setFeedbackMessage] = useState<string>(
     autoStart
       ? "🎙️ Selalu Mendengarkan... Siap menerima perintah suara."
-      : "Mikrofon dijeda (Mute). Katakan 'halo cuy', 'oi cuy', 'hey cuy', 'woi cuy' atau tepuk 2x untuk mengaktifkan.",
+      : "Mikrofon dijeda (Mute). Katakan 'halo ucuy', 'halo cuy', 'oi ucuy' atau tepuk 2x untuk mengaktifkan.",
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -2749,9 +2749,14 @@ export function useWebSpeechCommand(
             synthesizeAudioTone("START");
           }
 
-          const wakeWordDisplay = wake.wakeWord ?? "halo cuy";
-          const greeting =
-            wakeWordDisplay === "oi cuy"
+          const wakeWordDisplay = wake.wakeWord ?? "halo ucuy";
+          const greeting = wakeWordDisplay.includes("ucuy")
+            ? wakeWordDisplay.includes("oi") || wakeWordDisplay.includes("woi")
+              ? "Oi! Ucuy siap bantu!"
+              : wakeWordDisplay.includes("hey")
+                ? "Hey! Ada apa nih?"
+                : "Halo! Ucuy di sini!"
+            : wakeWordDisplay === "oi cuy"
               ? "Oi cuy!"
               : wakeWordDisplay === "hey cuy"
                 ? "Hey cuy!"
@@ -3025,7 +3030,7 @@ export function useWebSpeechCommand(
         }
 
         setFeedbackMessage(
-          "Mikrofon dijeda (Mute). Katakan 'halo cuy', 'oi cuy', 'hey cuy', 'woi cuy' atau tepuk 2x untuk mengaktifkan.",
+          "Mikrofon dijeda (Mute). Katakan 'halo ucuy', 'halo cuy', 'oi ucuy' atau tepuk 2x untuk mengaktifkan.",
         );
 
         // Keep STT running in background standby mode so it can capture wake words!
