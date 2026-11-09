@@ -116,7 +116,7 @@ export function VoiceCommandStatusToast({
           onClick={onToggleListening}
           title={
             isMutedState
-              ? "Klik untuk mulai mendengarkan (Unmute)"
+              ? "Klik untuk mulai mendengarkan (Unmute), katakan 'Halo cuy', atau tepuk 2x"
               : "Klik untuk menjeda mikrofon (Mute)"
           }
           className={cn(

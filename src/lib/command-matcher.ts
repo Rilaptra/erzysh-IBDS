@@ -9,6 +9,7 @@
  * 4. Contextual suggestion generation.
  */
 
+import { matchWakeWord } from "@/lib/wake-word-detector";
 import type { FloatingWindowId } from "@/state/floating-window-store";
 import type {
   CommandId,
@@ -134,6 +135,64 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
   const lower = raw.toLowerCase();
 
   if (!lower) return null;
+
+  // 0. Wake Words ("halo cuy", "oi cuy", "hey cuy", "woi cuy") & Double Clap ("dua kali tepuk")
+  const wakeMatch = matchWakeWord(raw);
+  if (wakeMatch.matched) {
+    if (wakeMatch.remainingText) {
+      const subIntent = matchSingleRuleIntent(wakeMatch.remainingText);
+      if (subIntent) {
+        return {
+          ...subIntent,
+          rawTranscript: raw,
+          spokenConfirmation: subIntent.spokenConfirmation
+            ? `Halo cuy! ${subIntent.spokenConfirmation}`
+            : "Halo cuy! Perintah dijalankan.",
+        };
+      }
+    }
+    const greetingLabel =
+      wakeMatch.wakeWord === "oi cuy"
+        ? "Oi cuy!"
+        : wakeMatch.wakeWord === "hey cuy"
+          ? "Hey cuy!"
+          : wakeMatch.wakeWord === "woi cuy"
+            ? "Woi cuy!"
+            : "Halo cuy!";
+
+    return {
+      commandId: "UNMUTE_VOICE_COMMAND",
+      confidence: 0.98,
+      extractedParameters: { wakeWord: wakeMatch.wakeWord },
+      rawTranscript: raw,
+      spokenConfirmation: `${greetingLabel} Voice command aktif, siap menerima perintah.`,
+      suggestions: [
+        "Beralih ke material baja",
+        "Tampilkan diagram momen BMD",
+        "Atur bentang balok 8 meter",
+      ],
+    };
+  }
+
+  if (
+    lower.includes("dua kali tepuk") ||
+    lower.includes("tepuk dua kali") ||
+    lower.includes("tepuk tangan") ||
+    lower.includes("double clap")
+  ) {
+    return {
+      commandId: "UNMUTE_VOICE_COMMAND",
+      confidence: 0.98,
+      extractedParameters: { source: "DOUBLE_CLAP" },
+      rawTranscript: raw,
+      spokenConfirmation: "Tepuk tangan terdeteksi. Voice command aktif, siap menerima perintah.",
+      suggestions: [
+        "Beralih ke material baja",
+        "Tampilkan diagram momen BMD",
+        "Atur bentang balok 8 meter",
+      ],
+    };
+  }
 
   // 1. Camera & 3D Viewport Controls (All Viewport Toolbar Buttons)
   if (
@@ -1053,7 +1112,8 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
       confidence: 0.96,
       extractedParameters: {},
       rawTranscript: raw,
-      spokenConfirmation: "Mikrofon dijeda. Klik tombol Listen di toast saat ingin bicara kembali.",
+      spokenConfirmation:
+        "Mikrofon dijeda. Katakan 'halo cuy', 'oi cuy', 'hey cuy', 'woi cuy' atau tepuk 2x untuk mengaktifkan kembali.",
       suggestions: ["Buka jendela beban", "Tampilkan diagram momen BMD", "Hitung optimasi"],
     };
   }
@@ -1216,6 +1276,21 @@ export function splitCompoundClauses(transcript: string): string[] {
 export function matchRuleBasedIntent(transcript: string): IntentRouterResult | null {
   const raw = transcript.trim();
   if (!raw) return null;
+
+  // Intercept wake word prefix with compound commands, e.g. "halo cuy ubah ke beton dan buka jendela beban"
+  const wake = matchWakeWord(raw);
+  if (wake.matched && wake.remainingText) {
+    const compoundSub = matchRuleBasedIntent(wake.remainingText);
+    if (compoundSub) {
+      return {
+        ...compoundSub,
+        rawTranscript: raw,
+        spokenConfirmation: compoundSub.spokenConfirmation
+          ? `Halo cuy! ${compoundSub.spokenConfirmation}`
+          : "Halo cuy! Perintah dijalankan.",
+      };
+    }
+  }
 
   // 1. Try single-intent match first for completely simple utterances
   const single = matchSingleRuleIntent(raw);
