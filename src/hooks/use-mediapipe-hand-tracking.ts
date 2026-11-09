@@ -140,19 +140,29 @@ export function computeKnuckleAnchor(
   const wrist = landmarks[HAND_LANDMARK_INDICES.WRIST]!;
   const thumbTip = landmarks[HAND_LANDMARK_INDICES.THUMB_TIP]!;
   const indexMcp = landmarks[HAND_LANDMARK_INDICES.INDEX_FINGER_MCP]!;
+  const indexPip = landmarks[HAND_LANDMARK_INDICES.INDEX_FINGER_PIP]!;
   const indexTip = landmarks[HAND_LANDMARK_INDICES.INDEX_FINGER_TIP]!;
   const middleMcp = landmarks[HAND_LANDMARK_INDICES.MIDDLE_FINGER_MCP]!;
+  const middlePip = landmarks[HAND_LANDMARK_INDICES.MIDDLE_FINGER_PIP]!;
+  const middleTip = landmarks[HAND_LANDMARK_INDICES.MIDDLE_FINGER_TIP]!;
 
-  // Palm reference size (Wrist to Middle MCP), clamped to prevent division by zero
+  // Palm reference size (Wrist to Middle MCP), clamped to prevent division by zero (from prototype/hand-tracking/engine.ts)
   const palmSize = Math.max(euclideanDistance2D(wrist, middleMcp), 0.01);
   const pinchDistance = euclideanDistance2D(thumbTip, indexTip);
   const pinchRatio = pinchDistance / palmSize;
 
-  // Pre-pinch freeze zone dampens micro-drift when approaching touch contact
-  const isPrePinching = pinchRatio < 0.62 || pinchDistance < config.prePinchFreezeThreshold;
-  const isPinching = pinchRatio < 0.42 || pinchDistance < config.clickPinchThreshold;
+  const isIndexExt =
+    euclideanDistance2D(indexTip, wrist) > euclideanDistance2D(indexPip, wrist) * 1.13;
+  const isMiddleExt =
+    euclideanDistance2D(middleTip, wrist) > euclideanDistance2D(middlePip, wrist) * 1.13;
 
-  // Knuckle anchor blending (blendWeight: 0.5 for equal index/middle MCP balance)
+  // Pre-pinch freeze zone dampens micro-drift when approaching touch contact (from prototype/hand-tracking/engine.ts)
+  const isPrePinching = pinchRatio < 0.62 || pinchDistance < config.prePinchFreezeThreshold;
+  const isPinching =
+    (pinchRatio < 0.42 || pinchDistance < config.clickPinchThreshold) &&
+    (isMiddleExt || isIndexExt || euclideanDistance2D(indexTip, wrist) > palmSize * 0.8);
+
+  // Knuckle anchor blending (blendWeight: 0.5 default, or 0.65/0.35 in prototype)
   const blendWeight = Math.min(Math.max(config.anchorBlendWeight, 0.0), 1.0);
   const rawAnchorX = 1 - (indexMcp.x * (1 - blendWeight) + middleMcp.x * blendWeight);
   const rawAnchorY = indexMcp.y * (1 - blendWeight) + middleMcp.y * blendWeight;
@@ -174,7 +184,8 @@ export function computeKnuckleAnchor(
 }
 
 /**
- * Classifies 5 discrete engineering gestures from MediaPipe landmarks:
+ * Classifies 5 discrete engineering gestures from MediaPipe landmarks
+ * (Directly adapted from analyzeHandLandmarks in prototype/hand-tracking/engine.ts):
  * 1. OPEN_PALM (◎): All fingers open; free cursor navigation and camera orbit.
  * 2. PINCH_CLICK (⌖): Index and thumb tips touching; click without coordinate dip.
  * 3. FIST_LOAD (▼): All fingers closed into fist; adjust magnitude and position of beam point loads.
@@ -185,7 +196,6 @@ export function computeKnuckleAnchor(
  * @param prevGesture Optional previous gesture for hysteresis stability.
  * @param config Optional anchor configuration thresholds.
  * @returns Classified {@link HandGestureType}.
- * @throws {@link HandTrackingError} If landmark array contains fewer than 21 elements.
  */
 export function classifyHandGesture(
   landmarks: readonly NormalizedLandmark[],
@@ -212,22 +222,25 @@ export function classifyHandGesture(
   const pinchDistance = euclideanDistance2D(thumbTip, indexTip);
   const pinchRatio = pinchDistance / palmSize;
 
-  // Finger extension tests based on tip vs PIP distance from wrist
+  // Finger extension tests based on tip vs PIP distance from wrist (exact multipliers from prototype/hand-tracking/engine.ts)
   const isIndexExt =
-    euclideanDistance2D(indexTip, wrist) > euclideanDistance2D(indexPip, wrist) * 1.12;
+    euclideanDistance2D(indexTip, wrist) > euclideanDistance2D(indexPip, wrist) * 1.13;
   const isMiddleExt =
-    euclideanDistance2D(middleTip, wrist) > euclideanDistance2D(middlePip, wrist) * 1.12;
-  const isRingExt = euclideanDistance2D(ringTip, wrist) > euclideanDistance2D(ringPip, wrist) * 1.1;
+    euclideanDistance2D(middleTip, wrist) > euclideanDistance2D(middlePip, wrist) * 1.13;
+  const isRingExt =
+    euclideanDistance2D(ringTip, wrist) > euclideanDistance2D(ringPip, wrist) * 1.11;
   const isPinkyExt =
-    euclideanDistance2D(pinkyTip, wrist) > euclideanDistance2D(pinkyPip, wrist) * 1.1;
+    euclideanDistance2D(pinkyTip, wrist) > euclideanDistance2D(pinkyPip, wrist) * 1.11;
 
   // Hysteresis threshold: if previously pinching, require higher distance to release
   const pinchThreshold =
     prevGesture === "PINCH_CLICK" ? config.clickReleaseThreshold : config.clickPinchThreshold;
-  const isPinchActive = pinchRatio < 0.42 || pinchDistance < pinchThreshold;
+  const isPinchActive =
+    (pinchRatio < 0.42 || pinchDistance < pinchThreshold) &&
+    (isMiddleExt || euclideanDistance2D(indexTip, wrist) > palmSize * 0.8);
 
-  // 1. PINCH_CLICK (⌖): Index + Thumb pinch while middle remains extended or hand is open
-  if (isPinchActive && (isMiddleExt || euclideanDistance2D(indexTip, wrist) > palmSize * 0.75)) {
+  // 1. PINCH_CLICK (⌖): Index + Thumb tips touch while not in a closed fist (prototype/hand-tracking/engine.ts line 205)
+  if (isPinchActive) {
     return "PINCH_CLICK";
   }
 
@@ -246,12 +259,71 @@ export function classifyHandGesture(
     return "POINT_PRECISION";
   }
 
-  // 5. OPEN_PALM (◎): Three or more fingers extended
-  if (isIndexExt && isMiddleExt && (isRingExt || isPinkyExt)) {
-    return "OPEN_PALM";
+  // 5. OPEN_PALM (◎): Default open palm navigation
+  return "OPEN_PALM";
+}
+
+/**
+ * Synthesizes and dispatches an authentic browser click event at the specified viewport pixel coordinates.
+ * Resolves interactive ancestor elements (buttons, inputs, links, tabs, dialog controls)
+ * and dispatches pointerdown, mousedown, pointerup, mouseup, and click events.
+ *
+ * @param x Viewport horizontal client coordinate in pixels.
+ * @param y Viewport vertical client coordinate in pixels.
+ * @returns boolean True if an interactive element was targeted and clicked.
+ */
+export function triggerVirtualClick(x: number, y: number): boolean {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return false;
   }
 
-  return "OPEN_PALM";
+  const clampedX = Math.max(0, Math.min(window.innerWidth - 1, x));
+  const clampedY = Math.max(0, Math.min(window.innerHeight - 1, y));
+
+  const rawTarget = document.elementFromPoint(clampedX, clampedY);
+  if (!rawTarget) return false;
+
+  // Find nearest interactive target or fallback to the direct element
+  const clickable =
+    rawTarget.closest<HTMLElement>(
+      'button, a, input, select, textarea, [role="button"], [role="checkbox"], [role="tab"], [role="menuitem"], [data-clickable], [data-cmd], summary, label',
+    ) ?? (rawTarget as HTMLElement);
+
+  try {
+    clickable.focus?.({ preventScroll: true });
+  } catch {
+    // Ignore focus error
+  }
+
+  const eventInit: MouseEventInit = {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    clientX: clampedX,
+    clientY: clampedY,
+    screenX: clampedX,
+    screenY: clampedY,
+  };
+
+  try {
+    clickable.dispatchEvent(
+      new PointerEvent("pointerdown", { ...eventInit, isPrimary: true, pointerId: 1, button: 0 }),
+    );
+    clickable.dispatchEvent(new MouseEvent("mousedown", { ...eventInit, button: 0 }));
+    clickable.dispatchEvent(
+      new PointerEvent("pointerup", { ...eventInit, isPrimary: true, pointerId: 1, button: 0 }),
+    );
+    clickable.dispatchEvent(new MouseEvent("mouseup", { ...eventInit, button: 0 }));
+    clickable.click();
+    return true;
+  } catch {
+    try {
+      clickable.click();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 /**
@@ -346,6 +418,10 @@ export interface UseMediapipeHandTrackingResult {
   readonly state: HandTrackingState;
   /** Starts or stops webcam tracking stream. */
   readonly toggleRunning: () => Promise<void>;
+  /** Explicitly starts webcam tracking stream. */
+  readonly startTracking: () => Promise<void>;
+  /** Explicitly stops webcam tracking stream and hardware LED. */
+  readonly stopTracking: () => void;
   /** Toggles thermal eco-mode (16 FPS throttling vs 30+ FPS). */
   readonly toggleEcoMode: () => void;
   /** React ref to attach to the hidden or preview <video> element. */
@@ -408,19 +484,34 @@ export function useMediapipeHandTracking(
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
   const isMountedRef = useRef<boolean>(true);
+  const isRunningRef = useRef<boolean>(false);
+  const isStartingCameraRef = useRef<boolean>(false);
 
   // References for animation frame and model instances
-  // Using explicit unknown typing cast through dynamic module loading
   const handLandmarkerRef = useRef<unknown>(null);
   const animationFrameIdRef = useRef<number | null>(null);
   const lastInferenceTimeRef = useRef<number>(0);
+  const lastDetectTimestampRef = useRef<number>(0);
   const frameCountRef = useRef<number>(0);
   const lastFpsCalcTimeRef = useRef<number>(0);
-  const gestureHistoryRef = useRef<HandGestureType[]>(["NONE", "NONE", "NONE"]);
+  const gestureHistoryRef = useRef<HandGestureType[]>(["OPEN_PALM", "OPEN_PALM", "OPEN_PALM"]);
   const prevGestureRef = useRef<HandGestureType>("NONE");
+  const isEcoModeRef = useRef<boolean>(isEcoMode);
+  isEcoModeRef.current = isEcoMode;
+  const currentFpsRef = useRef<number>(0);
+  const targetCoordsRef = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
+  const smoothedCoordsRef = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
+  const wasPinchingRef = useRef<boolean>(false);
+  const lastClickTimeRef = useRef<number>(0);
 
-  // Dynamic Knuckle Config
-  const mergedConfig: KnuckleAnchorConfig = {
+  // Stable refs for options and config so callbacks never recreate on parent re-renders
+  const optionsRef = useRef<UseMediapipeHandTrackingOptions>(options);
+  optionsRef.current = options;
+  const configRef = useRef<KnuckleAnchorConfig>({
+    ...DEFAULT_KNUCKLE_ANCHOR_CONFIG,
+    ...options.config,
+  });
+  configRef.current = {
     ...DEFAULT_KNUCKLE_ANCHOR_CONFIG,
     ...options.config,
   };
@@ -488,6 +579,9 @@ export function useMediapipeHandTracking(
    * Stops camera stream tracks and clears animation loops.
    */
   const stopTracking = useCallback((): void => {
+    isRunningRef.current = false;
+    isStartingCameraRef.current = false;
+
     if (animationFrameIdRef.current !== null) {
       cancelAnimationFrame(animationFrameIdRef.current);
       animationFrameIdRef.current = null;
@@ -544,15 +638,33 @@ export function useMediapipeHandTracking(
   }, []);
 
   /**
-   * Main camera inference animation loop.
+   * Main camera inference animation loop (directly adapted from prototype/hand-tracking/engine.ts).
    */
   const startInferenceLoop = useCallback((): void => {
+    if (animationFrameIdRef.current !== null) {
+      cancelAnimationFrame(animationFrameIdRef.current);
+      animationFrameIdRef.current = null;
+    }
+
     const loop = (now: number): void => {
-      // Inference throttling: Eco-mode targets ~16 FPS (62ms gap), normal mode targets ~33 FPS (30ms gap)
-      const targetInterval = isEcoMode ? 62 : 30;
-      const elapsed = now - lastInferenceTimeRef.current;
+      if (!isRunningRef.current || !isMountedRef.current) return;
 
       const video = videoRef.current;
+
+      // Guarantee persistent stream attachment even if floating window remounts <video>
+      if (video && activeStreamRef.current) {
+        if (video.srcObject !== activeStreamRef.current) {
+          video.srcObject = activeStreamRef.current;
+          void video.play().catch(() => {});
+        } else if (video.paused && video.readyState >= 1) {
+          void video.play().catch(() => {});
+        }
+      }
+
+      // Inference throttling: Eco-mode targets ~16 FPS (62ms gap), normal mode targets ~33 FPS (30ms gap)
+      const targetInterval = isEcoModeRef.current ? 62 : 30;
+      const elapsed = now - lastInferenceTimeRef.current;
+
       const landmarker = handLandmarkerRef.current as {
         detectForVideo: (
           video: HTMLVideoElement,
@@ -574,26 +686,33 @@ export function useMediapipeHandTracking(
           );
           frameCountRef.current = 0;
           lastFpsCalcTimeRef.current = now;
+          currentFpsRef.current = actualFps;
 
           setTrackingState((curr) => ({ ...curr, fps: actualFps }));
         }
 
         try {
-          const result = landmarker.detectForVideo(video, now);
+          // Ensure strictly monotonically increasing timestamp for MediaPipe detectForVideo
+          const detectTimestamp = Math.max(Math.floor(now), lastDetectTimestampRef.current + 1);
+          lastDetectTimestampRef.current = detectTimestamp;
+
+          const result = landmarker.detectForVideo(video, detectTimestamp);
 
           if (result.landmarks && result.landmarks.length > 0) {
             const rawLandmarks = result.landmarks[0]!;
-            const anchor = computeKnuckleAnchor(rawLandmarks, mergedConfig);
+            const currentConfig = configRef.current;
+            const anchor = computeKnuckleAnchor(rawLandmarks, currentConfig);
             const classified = classifyHandGesture(
               rawLandmarks,
               prevGestureRef.current,
-              mergedConfig,
+              currentConfig,
             );
 
-            // Temporal 3-frame voting filter to stabilize gesture transitions
+            // Temporal voting filter (3-frame sliding window, identical to prototype/hand-tracking/engine.ts lines 217-237)
             gestureHistoryRef.current.shift();
             gestureHistoryRef.current.push(classified);
 
+            let stableGesture: HandGestureType = classified;
             const voteCounts: Record<HandGestureType, number> = {
               OPEN_PALM: 0,
               PINCH_CLICK: 0,
@@ -607,7 +726,6 @@ export function useMediapipeHandTracking(
               voteCounts[g] = (voteCounts[g] || 0) + 1;
             }
 
-            let stableGesture = classified;
             let maxVotes = 0;
             (Object.keys(voteCounts) as HandGestureType[]).forEach((g) => {
               if (voteCounts[g] > maxVotes) {
@@ -616,18 +734,66 @@ export function useMediapipeHandTracking(
               }
             });
 
-            prevGestureRef.current = stableGesture;
+            // Fast pinch-click responsiveness
+            if (classified === "PINCH_CLICK") {
+              stableGesture = "PINCH_CLICK";
+            }
 
             const handednessStr =
               result.handedness && result.handedness[0] && result.handedness[0][0]
                 ? (result.handedness[0][0].displayName as "Left" | "Right") || "Right"
                 : "Right";
 
+            // Only update target coordinates if NOT in pre-pinch freeze zone, OR if in FIST / TWO_FINGER / POINT mode
+            // (Directly adapted from prototype/hand-tracking/engine.ts lines 890-926)
+            if (
+              !anchor.isPrePinching ||
+              stableGesture === "FIST_LOAD" ||
+              stableGesture === "TWO_FINGER_GRAB" ||
+              stableGesture === "POINT_PRECISION"
+            ) {
+              targetCoordsRef.current = { x: anchor.normalizedX, y: anchor.normalizedY };
+            }
+
+            // Magnetic damping when pre-pinching so cursor stays locked on buttons
+            const smoothingFactor =
+              anchor.isPrePinching &&
+              stableGesture !== "FIST_LOAD" &&
+              stableGesture !== "TWO_FINGER_GRAB" &&
+              stableGesture !== "POINT_PRECISION"
+                ? 0.04
+                : 0.26;
+
+            const normX =
+              smoothedCoordsRef.current.x +
+              (targetCoordsRef.current.x - smoothedCoordsRef.current.x) * smoothingFactor;
+            const normY =
+              smoothedCoordsRef.current.y +
+              (targetCoordsRef.current.y - smoothedCoordsRef.current.y) * smoothingFactor;
+            smoothedCoordsRef.current = { x: normX, y: normY };
+
             // Screen pixel mapping
             const screenW = typeof window !== "undefined" ? window.innerWidth : 1920;
             const screenH = typeof window !== "undefined" ? window.innerHeight : 1080;
-            const screenX = Math.round(anchor.normalizedX * screenW);
-            const screenY = Math.round(anchor.normalizedY * screenH);
+            const screenX = Math.round(normX * screenW);
+            const screenY = Math.round(normY * screenH);
+
+            const isPinchNow = stableGesture === "PINCH_CLICK";
+
+            // Trigger virtual DOM click on rising edge of pinch
+            if (isPinchNow && !wasPinchingRef.current) {
+              const triggerNow = performance.now();
+              if (triggerNow - lastClickTimeRef.current >= 320) {
+                lastClickTimeRef.current = triggerNow;
+                triggerVirtualClick(screenX, screenY);
+              }
+              wasPinchingRef.current = true;
+            } else if (!isPinchNow) {
+              wasPinchingRef.current = false;
+            }
+
+            const prevGesture = prevGestureRef.current;
+            prevGestureRef.current = stableGesture;
 
             const nextState: HandTrackingState = {
               isRunning: true,
@@ -635,16 +801,16 @@ export function useMediapipeHandTracking(
               activeGesture: stableGesture,
               cursorSymbol: GESTURE_SYMBOLS[stableGesture] || "",
               screenCoordinates: { x: screenX, y: screenY },
-              normalizedCoordinates: { x: anchor.normalizedX, y: anchor.normalizedY },
-              isPinching: anchor.isPinching,
+              normalizedCoordinates: { x: normX, y: normY },
+              isPinching: isPinchNow,
               pinchDistance: anchor.pinchDistance,
-              fps: trackingState.fps,
-              isEcoMode,
+              fps: currentFpsRef.current || 16,
+              isEcoMode: isEcoModeRef.current,
             };
 
             setTrackingState(nextState);
-            if (options.onGestureChange && stableGesture !== trackingState.activeGesture) {
-              options.onGestureChange(stableGesture, nextState);
+            if (optionsRef.current.onGestureChange && stableGesture !== prevGesture) {
+              optionsRef.current.onGestureChange(stableGesture, nextState);
             }
 
             // Draw skeleton on canvas preview if canvas ref is attached
@@ -661,7 +827,9 @@ export function useMediapipeHandTracking(
               const ctx = canvasRef.current.getContext("2d");
               if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
             }
-            if (trackingState.activeGesture !== "NONE") {
+            if (prevGestureRef.current !== "NONE") {
+              prevGestureRef.current = "NONE";
+              wasPinchingRef.current = false;
               setTrackingState((curr) => ({
                 ...curr,
                 activeGesture: "NONE",
@@ -680,26 +848,35 @@ export function useMediapipeHandTracking(
     };
 
     animationFrameIdRef.current = requestAnimationFrame(loop);
-  }, [isEcoMode, mergedConfig, options, trackingState.activeGesture, trackingState.fps]);
+  }, []);
 
   /**
-   * Starts or stops camera tracking.
+   * Starts camera tracking explicitly.
    */
-  const toggleRunning = useCallback(async (): Promise<void> => {
+  const startTracking = useCallback(async (): Promise<void> => {
     if (!isDesktopSupported) {
       const err = new HandTrackingError(
-        "toggleRunning",
+        "startTracking",
         "Hand tracking is disabled on non-workstation platforms.",
       );
       setLastError(err.message);
       return;
     }
 
-    if (isRunning) {
-      stopTracking();
+    if (isRunningRef.current || isStartingCameraRef.current) {
+      // If already running, just ensure videoRef has activeStreamRef attached
+      if (
+        videoRef.current &&
+        activeStreamRef.current &&
+        videoRef.current.srcObject !== activeStreamRef.current
+      ) {
+        videoRef.current.srcObject = activeStreamRef.current;
+        void videoRef.current.play().catch(() => {});
+      }
       return;
     }
 
+    isStartingCameraRef.current = true;
     try {
       setLastError(null);
       await loadMediaPipeBundle();
@@ -716,18 +893,16 @@ export function useMediapipeHandTracking(
         activeStreamRef.current = null;
       }
 
-      // Request modest 240x180 resolution to conserve memory bandwidth and CPU thermal load
+      // Request 240x180 (4:3) at 15-20 FPS (identical to prototype/hand-tracking/engine.ts line 659)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 240 },
-          height: { ideal: 180 },
-          frameRate: { ideal: 20, max: 30 },
-          facingMode: "user",
+          width: 240,
+          height: 180,
+          frameRate: { ideal: 15, max: 20 },
         },
         audio: false,
       });
 
-      // If unmounted while waiting for camera permissions, abort and stop tracks immediately
       if (!isMountedRef.current) {
         stream.getTracks().forEach((track) => {
           try {
@@ -736,6 +911,7 @@ export function useMediapipeHandTracking(
             // Ignore error
           }
         });
+        isStartingCameraRef.current = false;
         return;
       }
 
@@ -743,19 +919,43 @@ export function useMediapipeHandTracking(
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        await videoRef.current.play().catch(() => {});
       }
 
+      isRunningRef.current = true;
+      isStartingCameraRef.current = false;
       setIsRunning(true);
-      setTrackingState((curr) => ({ ...curr, isRunning: true }));
+      setTrackingState((curr) => ({ ...curr, isRunning: true, fps: 16 }));
       startInferenceLoop();
     } catch (camErr) {
+      isStartingCameraRef.current = false;
       const errMsg = camErr instanceof Error ? camErr.message : String(camErr);
-      const trackingErr = new HandTrackingError("toggleRunning", `Webcam access denied: ${errMsg}`);
+      const trackingErr = new HandTrackingError("startTracking", `Webcam access denied: ${errMsg}`);
       setLastError(trackingErr.message);
       stopTracking();
     }
-  }, [isDesktopSupported, isRunning, loadMediaPipeBundle, startInferenceLoop, stopTracking]);
+  }, [isDesktopSupported, loadMediaPipeBundle, startInferenceLoop, stopTracking]);
+
+  /**
+   * Starts or stops camera tracking.
+   */
+  const toggleRunning = useCallback(async (): Promise<void> => {
+    if (isRunningRef.current) {
+      stopTracking();
+    } else {
+      await startTracking();
+    }
+  }, [startTracking, stopTracking]);
+
+  // Ensure stream stays bound to videoRef across any component re-renders
+  useEffect(() => {
+    if (isRunning && activeStreamRef.current && videoRef.current) {
+      if (videoRef.current.srcObject !== activeStreamRef.current) {
+        videoRef.current.srcObject = activeStreamRef.current;
+        void videoRef.current.play().catch(() => {});
+      }
+    }
+  });
 
   // Cleanup on unmount
   useEffect(() => {
@@ -769,6 +969,8 @@ export function useMediapipeHandTracking(
   return {
     state: trackingState,
     toggleRunning,
+    startTracking,
+    stopTracking,
     toggleEcoMode,
     videoRef,
     canvasRef,

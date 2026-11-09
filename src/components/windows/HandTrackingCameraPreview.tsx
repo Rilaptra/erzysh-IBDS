@@ -123,9 +123,12 @@ export function HandTrackingCameraPreview({
           alignSelf: "center",
         }}
       >
-        {/* Mirrored Hidden/Visible Video element */}
+        {/* Mirrored Hidden/Visible Video element (adapted from prototype/hand-tracking/server.ts) */}
         <video
           ref={videoRef}
+          width={240}
+          height={180}
+          autoPlay
           playsInline
           muted
           style={{
@@ -134,9 +137,9 @@ export function HandTrackingCameraPreview({
             left: 0,
             width: "100%",
             height: "100%",
-            objectFit: "cover",
+            objectFit: "fill",
             transform: "scaleX(-1)", // Mirror horizontal for natural human intuition
-            opacity: isRunning ? 0.35 : 0,
+            opacity: isRunning ? 0.65 : 0,
             transition: "opacity 300ms ease",
           }}
         />

@@ -10,10 +10,9 @@
 
 "use client";
 
-import { Volume2, X } from "lucide-react";
+import { X } from "lucide-react";
 import React, { type CSSProperties, type ReactElement, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CommandExecutionResult } from "@/types/command-registry-types";
@@ -38,8 +37,10 @@ export interface VoiceCommandStatusToastProps {
   readonly error?: string | null;
   /** Callback to toggle microphone listening state. */
   readonly onToggleListening: () => void;
-  /** Optional callback to trigger an audio chime test. */
-  readonly onTestAudio?: () => void;
+  /** Optional command suggestions when transcript is unrecognized. */
+  readonly suggestions?: readonly string[];
+  /** Optional callback when user clicks a suggested command chip. */
+  readonly onSelectSuggestion?: (suggestion: string) => void;
   /** Optional custom CSS class name. */
   readonly className?: string;
   /** Optional custom style overrides. */
@@ -61,7 +62,8 @@ export function VoiceCommandStatusToast({
   lastExecution,
   error,
   onToggleListening,
-  onTestAudio,
+  suggestions,
+  onSelectSuggestion,
   className,
   style,
 }: VoiceCommandStatusToastProps): ReactElement | null {
@@ -96,7 +98,7 @@ export function VoiceCommandStatusToast({
   return (
     <div
       className={cn(
-        "fixed bottom-6 left-1/2 z-[9998] flex w-[520px] max-w-[90vw] -translate-x-1/2 items-center justify-between gap-3 rounded-xl border bg-slate-900/90 p-2.5 px-3.5 text-slate-100 shadow-2xl backdrop-blur-xl transition-all duration-200",
+        "fixed bottom-6 left-1/2 z-[9998] flex w-[540px] max-w-[92vw] -translate-x-1/2 flex-col rounded-xl border bg-slate-900/95 p-3 text-slate-100 shadow-2xl backdrop-blur-xl transition-all duration-200",
         className,
       )}
       style={{
@@ -107,97 +109,106 @@ export function VoiceCommandStatusToast({
       role="status"
       aria-live="polite"
     >
-      {/* Mic Status & Icon Toggle */}
-      <button
-        type="button"
-        onClick={onToggleListening}
-        title={
-          isMutedState
-            ? "Klik untuk mulai mendengarkan (Unmute)"
-            : "Klik untuk menjeda mikrofon (Mute)"
-        }
-        className={cn(
-          "flex size-[38px] shrink-0 cursor-pointer items-center justify-center rounded-full text-base transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none",
-        )}
-        style={{
-          border: `1.5px solid ${accentColor}`,
-          background: !isMutedState
-            ? "linear-gradient(135deg, #0284C7 0%, #0369A1 100%)"
-            : "rgba(30, 41, 59, 0.8)",
-          color: "#FFFFFF",
-          animation: !isMutedState && isListening ? "micPulseGlow 1.4s infinite" : "none",
-        }}
-      >
-        {!isMutedState ? "🎙️" : "🎤"}
-      </button>
-
-      {/* Transcript & Execution Message Content */}
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        {/* Status Title & Transcript */}
-        <div className="flex items-center gap-1.5 text-[11px] font-bold">
-          <span className="tracking-wider uppercase" style={{ color: accentColor }}>
-            {isMutedState ? "Mikrofon Dijeda" : isListening ? "Mendengarkan..." : "Voice Command"}
-          </span>
-          {transcript && (
-            <span className="truncate font-medium text-slate-400">"{transcript}"</span>
-          )}
-        </div>
-
-        {/* Execution Feedback Action Text */}
-        <div
+      <div className="flex w-full items-center justify-between gap-3">
+        {/* Mic Status & Icon Toggle */}
+        <button
+          type="button"
+          onClick={onToggleListening}
+          title={
+            isMutedState
+              ? "Klik untuk mulai mendengarkan (Unmute)"
+              : "Klik untuk menjeda mikrofon (Mute)"
+          }
           className={cn(
-            "truncate text-xs leading-tight",
-            error ? "text-red-300" : "text-slate-200",
+            "flex size-[38px] shrink-0 cursor-pointer items-center justify-center rounded-full text-base transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none",
           )}
+          style={{
+            border: `1.5px solid ${accentColor}`,
+            background: !isMutedState
+              ? "linear-gradient(135deg, #0284C7 0%, #0369A1 100%)"
+              : "rgba(30, 41, 59, 0.8)",
+            color: "#FFFFFF",
+            animation: !isMutedState && isListening ? "micPulseGlow 1.4s infinite" : "none",
+          }}
         >
-          {error ? `⚠️ ${error}` : feedbackMessage}
-        </div>
-      </div>
+          {!isMutedState ? "🎙️" : "🎤"}
+        </button>
 
-      {/* Action & Dismiss Controls */}
-      <div className="flex items-center gap-1.5">
-        {onTestAudio && (
+        {/* Transcript & Execution Message Content */}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          {/* Status Title & Transcript */}
+          <div className="flex items-center gap-1.5 text-[11px] font-bold">
+            <span className="tracking-wider uppercase" style={{ color: accentColor }}>
+              {isMutedState ? "Mikrofon Dijeda" : isListening ? "Mendengarkan..." : "Voice Command"}
+            </span>
+            {transcript && (
+              <span className="truncate font-medium text-slate-400">"{transcript}"</span>
+            )}
+          </div>
+
+          {/* Execution Feedback Action Text */}
+          <div
+            className={cn(
+              "truncate text-xs leading-tight",
+              error ? "text-red-300" : "text-slate-200",
+            )}
+          >
+            {error ? `⚠️ ${error}` : feedbackMessage}
+          </div>
+        </div>
+
+        {/* Action & Dismiss Controls */}
+        <div className="flex items-center gap-1.5">
           <Button
             type="button"
             variant="outline"
             size="xs"
-            onClick={onTestAudio}
-            title="Klik untuk menguji bunyi audio speaker"
-            className="border-emerald-500/30 bg-emerald-500/15 font-semibold text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300"
+            onClick={onToggleListening}
+            title={isMutedState ? "Aktifkan Mikrofon (Listen)" : "Bisukan Mikrofon (Mute)"}
+            className={cn(
+              "font-semibold",
+              isMutedState
+                ? "border-cyan-500/30 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 hover:text-cyan-200"
+                : "border-red-500/30 bg-red-500/20 text-red-200 hover:bg-red-500/30 hover:text-red-100",
+            )}
           >
-            <Volume2 className="size-3.5" data-icon="inline-start" />
-            🔊 Uji Audio
+            {isMutedState ? "Listen" : "Mute"}
           </Button>
-        )}
 
-        <Button
-          type="button"
-          variant="outline"
-          size="xs"
-          onClick={onToggleListening}
-          title={isMutedState ? "Aktifkan Mikrofon (Listen)" : "Bisukan Mikrofon (Mute)"}
-          className={cn(
-            "font-semibold",
-            isMutedState
-              ? "border-cyan-500/30 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 hover:text-cyan-200"
-              : "border-red-500/30 bg-red-500/20 text-red-200 hover:bg-red-500/30 hover:text-red-100",
-          )}
-        >
-          {isMutedState ? "Listen" : "Mute"}
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => setIsDismissed(true)}
-          title="Tutup Toast"
-          className="text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-        >
-          <X className="size-3.5" />
-          <span className="sr-only">Tutup</span>
-        </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setIsDismissed(true)}
+            title="Tutup Toast"
+            className="text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          >
+            <X className="size-3.5" />
+            <span className="sr-only">Tutup</span>
+          </Button>
+        </div>
       </div>
+
+      {/* Suggested Commands Reference */}
+      {suggestions && suggestions.length > 0 && (
+        <div className="mt-2.5 flex w-full flex-col gap-1.5 border-t border-slate-700/60 pt-2">
+          <span className="text-[11px] font-semibold text-amber-300">
+            💡 Mungkin yang Anda maksud:
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => onSelectSuggestion?.(suggestion)}
+                className="cursor-pointer rounded-md border border-cyan-500/30 bg-cyan-950/50 px-2 py-0.5 text-[11px] font-medium text-cyan-200 transition-colors hover:border-cyan-400 hover:bg-cyan-900/70 hover:text-white"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

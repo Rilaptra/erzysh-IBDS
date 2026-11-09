@@ -60,11 +60,16 @@ export function DraggableFloatingWindow({
   } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  if (!windowState || !windowState.isOpen) {
+  if (!windowState) {
     return null;
   }
 
-  const { title, isMinimized, x, y, zIndex, width } = windowState;
+  // Keep GESTURE_AI_ASSISTANT mounted in DOM when closed so <video> and <canvas> refs never detach
+  if (!windowState.isOpen && id !== "GESTURE_AI_ASSISTANT") {
+    return null;
+  }
+
+  const { title, isMinimized, x, y, zIndex, width, isOpen } = windowState;
 
   const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
     // CRITICAL: Stop propagation to prevent 3D camera orbit/pan or background click
@@ -129,6 +134,7 @@ export function DraggableFloatingWindow({
         floatingWindowActions.bringToFront(id);
       }}
       style={{
+        display: isOpen ? undefined : "none",
         left: `${x}px`,
         top: `${y}px`,
         width: `${width || defaultWidth}px`,
@@ -180,11 +186,12 @@ export function DraggableFloatingWindow({
         </div>
       </CardHeader>
 
-      {/* Window Body */}
-      {!isMinimized ? (
+      {/* Window Body (kept mounted when minimized for GESTURE_AI_ASSISTANT to preserve webcam stream) */}
+      {!isMinimized || id === "GESTURE_AI_ASSISTANT" ? (
         <CardContent
           className="overflow-y-auto p-3 text-slate-300"
           style={{
+            display: isMinimized ? "none" : undefined,
             maxHeight: `${maxHeight}px`,
             scrollbarWidth: "thin",
           }}

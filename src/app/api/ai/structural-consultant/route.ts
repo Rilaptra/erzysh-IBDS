@@ -6,6 +6,7 @@
  * into Google Gemini LLM, with complete deterministic civil engineering heuristic fallback.
  */
 
+import { appConfig } from "@/config/app-config";
 import type { BeamSimulatorState } from "@/state/beam-simulator-store";
 
 /**
@@ -224,7 +225,7 @@ async function callGeminiConsultant(
   state: StructuralConsultantRequestBody["simulatorState"] | undefined,
   apiKey: string,
 ): Promise<string | null> {
-  const model = Bun.env.AI_COMMIT_MODEL?.trim() || "gemini-2.5-flash";
+  const model = appConfig.ai.consultantModel;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const span = state?.spanLengthM ? Number(state.spanLengthM) : 6.0;
@@ -324,7 +325,12 @@ export async function POST(req: Request): Promise<Response> {
     const history = body.messages ? body.messages.slice(0, -1) : [];
 
     // 1. Attempt Gemini call if API key configured
-    const apiKey = Bun.env.AI_PROVIDER_API_KEY?.trim();
+    const apiKey =
+      appConfig.ai.apiKey ||
+      Bun.env.AI_PROVIDER_API_KEY?.trim() ||
+      Bun.env.GEMINI_API_KEY?.trim() ||
+      process.env.AI_PROVIDER_API_KEY?.trim() ||
+      process.env.GEMINI_API_KEY?.trim();
     if (apiKey && apiKey !== "your_gemini_api_key_here") {
       try {
         const geminiReply = await callGeminiConsultant(

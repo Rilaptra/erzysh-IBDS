@@ -2229,6 +2229,15 @@ export function Beam3DExtrudedViewport(props: Beam3DExtrudedViewportProps): Reac
     rt.requestRender();
   }, []);
 
+  // Listen to external camera fit requests (e.g. from voice command / AI)
+  useEffect(() => {
+    const handleFit = (): void => {
+      fitToScene();
+    };
+    window.addEventListener("app:camera-fit", handleFit);
+    return () => window.removeEventListener("app:camera-fit", handleFit);
+  }, [fitToScene]);
+
   // WebGL2 lifecycle, input listeners, resize observer, and context loss recovery.
   useEffect(() => {
     const canvas = canvasRef.current;

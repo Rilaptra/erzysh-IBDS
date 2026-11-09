@@ -143,29 +143,30 @@ export function DynamicHandCursorOverlay({
         </div>
 
         {/* Minimal Tooltip Action Tag Floating Under Cursor */}
-        {label && (
-          <div
-            style={{
-              position: "absolute",
-              top: cursorRadius * 2 + 6,
-              left: "50%",
-              transform: "translateX(-50%)",
-              whiteSpace: "nowrap",
-              padding: "2px 8px",
-              borderRadius: 4,
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.02em",
-              color: "#F8FAFC",
-              background: "rgba(15, 23, 42, 0.88)",
-              border: `1px solid ${accentColor}60`,
-              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
-              pointerEvents: "none",
-            }}
-          >
-            {label}
-          </div>
-        )}
+        <div
+          style={{
+            position: "absolute",
+            top: cursorRadius * 2 + 6,
+            left: "50%",
+            transform: "translateX(-50%)",
+            whiteSpace: "nowrap",
+            padding: "2px 8px",
+            borderRadius: 4,
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            color: "#F8FAFC",
+            background: isPinching ? "rgba(16, 185, 129, 0.95)" : "rgba(15, 23, 42, 0.88)",
+            border: `1px solid ${isPinching ? "#10B981" : `${accentColor}60`}`,
+            boxShadow: isPinching
+              ? "0 0 12px rgba(16, 185, 129, 0.6)"
+              : "0 4px 12px rgba(0, 0, 0, 0.4)",
+            pointerEvents: "none",
+            transition: "all 150ms ease",
+          }}
+        >
+          {isPinching ? "KLIK! ⌖" : label}
+        </div>
       </div>
     </div>
   );
