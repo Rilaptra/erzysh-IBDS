@@ -113,6 +113,13 @@ export function generateContextualSuggestions(
         "Buka jendela asisten AI",
         "Fit tampilan balok",
       ];
+    case "AI_CONSULTATION":
+      return [
+        "Tanya saran optimasi balok",
+        "Hitung optimasi profil",
+        "Tampilkan diagram momen BMD",
+        "Buka jendela dimensi dan parameter",
+      ];
     default:
       return [
         "Beralih ke material baja",
@@ -1106,7 +1113,28 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
   }
 
   // 15. Mic Mute Controls
-  if (lower.includes("jeda suara") || lower.includes("mute mikrofon") || lower === "mute") {
+  if (
+    lower.includes("jeda suara") ||
+    lower.includes("mute mikrofon") ||
+    lower.includes("matikan voice") ||
+    lower.includes("matikan suara") ||
+    lower.includes("matikan mic") ||
+    lower.includes("matikan mikrofon") ||
+    lower.includes("matikan audio") ||
+    lower.includes("matikan perintah suara") ||
+    lower.includes("nonaktifkan suara") ||
+    lower.includes("nonaktifkan voice") ||
+    lower.includes("nonaktifkan mikrofon") ||
+    lower.includes("stop voice") ||
+    lower.includes("stop listening") ||
+    lower.includes("berhenti mendengarkan") ||
+    lower.includes("tutup suara") ||
+    lower.includes("tutup mikrofon") ||
+    lower === "mute" ||
+    lower === "mute voice" ||
+    lower === "silent" ||
+    lower === "diam"
+  ) {
     return {
       commandId: "MUTE_VOICE_COMMAND",
       confidence: 0.96,
@@ -1120,8 +1148,24 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
   if (
     lower.includes("dengarkan suara") ||
     lower.includes("unmute mikrofon") ||
+    lower.includes("nyalakan voice") ||
+    lower.includes("nyalakan suara") ||
+    lower.includes("nyalakan mic") ||
+    lower.includes("nyalakan mikrofon") ||
+    lower.includes("nyalakan audio") ||
+    lower.includes("aktifkan suara") ||
+    lower.includes("aktifkan voice") ||
+    lower.includes("aktifkan mikrofon") ||
+    lower.includes("aktifkan perintah suara") ||
+    lower.includes("hidupkan voice") ||
+    lower.includes("hidupkan suara") ||
+    lower.includes("hidupkan mic") ||
+    lower.includes("hidupkan mikrofon") ||
+    lower.includes("mulai mendengarkan") ||
     lower === "unmute" ||
-    lower === "listen"
+    lower === "unmute voice" ||
+    lower === "listen" ||
+    lower === "start voice"
   ) {
     return {
       commandId: "UNMUTE_VOICE_COMMAND",

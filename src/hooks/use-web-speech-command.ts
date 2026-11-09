@@ -2245,6 +2245,21 @@ export function executeRegistryCommand(
         };
       }
 
+      case "AI_CONSULTATION": {
+        const spoken =
+          typeof params?.spokenConfirmation === "string"
+            ? params.spokenConfirmation
+            : typeof params?.message === "string"
+              ? params.message
+              : "Konsultasi Asisten Rekayasa IBDS.";
+        return {
+          success: true,
+          commandId,
+          message: spoken,
+          timestamp,
+        };
+      }
+
       default:
         throw new CommandRegistryError(`CommandId '${commandId}' tidak dikenali.`, commandId);
     }
@@ -2820,15 +2835,28 @@ export function useWebSpeechCommand(
             });
             if (apiRes.ok) {
               const apiMatch = (await apiRes.json()) as IntentRouterResult;
-              if (apiMatch && apiMatch.confidence > 0.6) {
+              if (
+                apiMatch &&
+                (apiMatch.confidence > 0.6 ||
+                  apiMatch.commandId === "AI_CONSULTATION" ||
+                  Boolean(apiMatch.spokenConfirmation))
+              ) {
                 if (apiMatch.suggestions && apiMatch.suggestions.length > 0) {
                   setSuggestions(apiMatch.suggestions);
-                } else {
+                } else if (apiMatch.commandId) {
                   setSuggestions(generateContextualSuggestions(apiMatch.commandId));
                 }
-                const result = executeBatch(apiMatch);
-                const replyText = apiMatch.spokenConfirmation || result.message;
+
+                let replyText = apiMatch.spokenConfirmation;
+                if (apiMatch.commandId && apiMatch.commandId !== "AI_CONSULTATION") {
+                  const result = executeBatch(apiMatch);
+                  replyText = apiMatch.spokenConfirmation || result.message;
+                } else if (!replyText) {
+                  replyText = "Pertanyaan Anda telah dicatat oleh sistem IBDS.";
+                }
+
                 lastSpokenTextRef.current = replyText;
+                setFeedbackMessage(`💬 ${replyText}`);
                 void speakGeminiLiveResponse(
                   replyText,
                   pauseSttForPlayback,
@@ -2840,10 +2868,7 @@ export function useWebSpeechCommand(
               // Conversational/unmatched: update fluid suggestions from Gemini!
               if (apiMatch?.suggestions && apiMatch.suggestions.length > 0) {
                 setSuggestions(apiMatch.suggestions);
-                setFeedbackMessage(`Perintah tidak dikenali: "${text}"`);
-                if (optionsRef.current.playAudioFeedback ?? true) {
-                  synthesizeAudioTone("FAILURE");
-                }
+                setFeedbackMessage(`💬 ${apiMatch.message || text}`);
                 return;
               }
             }
@@ -3081,13 +3106,28 @@ export function useWebSpeechCommand(
             });
             if (apiRes.ok) {
               const apiMatch = (await apiRes.json()) as IntentRouterResult;
-              if (apiMatch && apiMatch.confidence > 0.6) {
+              if (
+                apiMatch &&
+                (apiMatch.confidence > 0.6 ||
+                  apiMatch.commandId === "AI_CONSULTATION" ||
+                  Boolean(apiMatch.spokenConfirmation))
+              ) {
                 if (apiMatch.suggestions && apiMatch.suggestions.length > 0) {
                   setSuggestions(apiMatch.suggestions);
+                } else if (apiMatch.commandId) {
+                  setSuggestions(generateContextualSuggestions(apiMatch.commandId));
                 }
-                const res = executeBatch(apiMatch);
-                const replyText = apiMatch.spokenConfirmation || res.message;
+
+                let replyText = apiMatch.spokenConfirmation;
+                if (apiMatch.commandId && apiMatch.commandId !== "AI_CONSULTATION") {
+                  const res = executeBatch(apiMatch);
+                  replyText = apiMatch.spokenConfirmation || res.message;
+                } else if (!replyText) {
+                  replyText = "Pertanyaan Anda telah dicatat oleh sistem IBDS.";
+                }
+
                 lastSpokenTextRef.current = replyText;
+                setFeedbackMessage(`💬 ${replyText}`);
                 void speakGeminiLiveResponse(
                   replyText,
                   pauseSttForPlayback,
@@ -3097,6 +3137,8 @@ export function useWebSpeechCommand(
               }
               if (apiMatch?.suggestions && apiMatch.suggestions.length > 0) {
                 setSuggestions(apiMatch.suggestions);
+                setFeedbackMessage(`💬 ${apiMatch.message || trimmed}`);
+                return;
               }
             }
           } catch {

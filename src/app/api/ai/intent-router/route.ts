@@ -33,10 +33,10 @@ async function classifyIntentViaGemini(
   currentState?: Record<string, unknown>,
 ): Promise<IntentRouterResult | null> {
   const preferredModel = appConfig.ai.intentModel;
-  const candidateModels = [preferredModel];
+  const candidateModels = [preferredModel, "gemini-2.5-flash", "gemini-1.5-flash"];
 
   const systemInstruction = `Kamu adalah AI Natural Language Intent Router & Suggestion Generator untuk simulator struktur teknik sipil IBDS (Interactive Beam Deflection Simulator).
-Pengguna dapat mengontrol SEMUA tombol, kontrol tampilan, parameter, beban, dan jendela di aplikasi menggunakan perintah suara santai atau formal dalam Bahasa Indonesia / Inggris.
+Pengguna dapat mengontrol SEMUA tombol, kontrol tampilan, parameter, beban, dan jendela di aplikasi menggunakan perintah suara santai atau formal dalam Bahasa Indonesia / Inggris, atau BERTANYA konsep rekayasa struktur / konsultasi desain balok.
 
 DAFTAR COMMAND ID YANG TERSEDIA:
 - MATERIAL: SWITCH_MATERIAL_CONCRETE, SWITCH_MATERIAL_STEEL
@@ -81,17 +81,21 @@ DAFTAR COMMAND ID YANG TERSEDIA:
   * MUTE_VOICE_COMMAND, UNMUTE_VOICE_COMMAND
 - TINDAKAN:
   * RUN_OPTIMIZATION, RESET_SIMULATION
+- PERTANYAAN TEKNIK & KONSULTASI INTERAKTIF (SANGAT PENTING):
+  * AI_CONSULTATION (Gunakan jika pengguna BERTANYA, meminta saran, konsultasi struktur sipil seperti "kenapa lendutannya merah?", "apa itu momen lentur?", "apa bedanya beton dan baja?", atau menyapa "halo/siapa kamu").
 
 TUGAS ANDA:
-1. Identifikasi maksud pengguna dan petakan ke CommandId yang paling cocok.
-2. DUKUNGAN MULTI-COMMAND (SANGAT PENTING): JIKA pengguna meminta BEBERAPA perintah sekaligus dalam satu kalimat (misal: "ganti ke beton dan munculkan jendela untuk mengatur dimensi dan gaya dalam" atau "ubah ke baja lalu set bentang 8 meter"), masukkan SEMUA aksi tersebut secara berurutan ke dalam array "actions" [{ "commandId": "...", "extractedParameters": { ... }, "label": "..." }].
+1. Identifikasi maksud pengguna:
+   - Jika pengguna meminta perintah kontrol simulator atau UI: petakan ke CommandId yang paling cocok.
+   - Jika pengguna BERTANYA atau berkonsultasi rekayasa struktur: petakan ke "AI_CONSULTATION", dan isi "spokenConfirmation" dengan jawaban lisan yang akurat, ramah, dan ringkas (maksimal 25 kata) agar enak didengarkan via audio Gemini Live.
+2. DUKUNGAN MULTI-COMMAND: JIKA pengguna meminta BEBERAPA perintah sekaligus dalam satu kalimat (misal: "ganti ke beton dan munculkan jendela untuk mengatur dimensi dan gaya dalam" atau "ubah ke baja lalu set bentang 8 meter"), masukkan SEMUA aksi tersebut secara berurutan ke dalam array "actions" [{ "commandId": "...", "extractedParameters": { ... }, "label": "..." }].
    Nilai "commandId" utama diisi dengan perintah pertama.
-3. Buat "spokenConfirmation": 1 kalimat padat, natural, ramah dalam Bahasa Indonesia yang merangkum SEMUA aksi yang dijalankan.
+3. Buat "spokenConfirmation": 1 kalimat padat, natural, ramah dalam Bahasa Indonesia yang merangkum aksi yang dijalankan atau menjawab pertanyaan pengguna secara ringkas.
 4. Buat "suggestions": TEPAT 3 sampai 4 rekomendasi perintah lanjutan yang fluid, cerdas, kontekstual, dan bervariasi dalam Bahasa Indonesia agar pengguna tinggal klik tanpa perlu menghafal perintah.
 
 OUTPUT FORMAT JSON SAJA:
 {
-  "commandId": "COMMAND_ID_UTAMA",
+  "commandId": "COMMAND_ID_UTAMA_ATAU_AI_CONSULTATION",
   "confidence": 0.95,
   "extractedParameters": {},
   "actions": [
@@ -99,14 +103,9 @@ OUTPUT FORMAT JSON SAJA:
       "commandId": "COMMAND_ID_1",
       "extractedParameters": {},
       "label": "Ringkasan aksi 1"
-    },
-    {
-      "commandId": "COMMAND_ID_2",
-      "extractedParameters": {},
-      "label": "Ringkasan aksi 2"
     }
   ],
-  "spokenConfirmation": "Kalimat konfirmasi padat ramah merangkum semua aksi...",
+  "spokenConfirmation": "Kalimat konfirmasi atau jawaban lisan ramah...",
   "suggestions": [
     "Saran aksi cerdas 1",
     "Saran aksi cerdas 2",
@@ -138,7 +137,7 @@ Transkrip Pengguna: "${transcript}"`;
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(2200),
+        signal: AbortSignal.timeout(4500),
       });
 
       if (!response.ok) {
@@ -232,7 +231,13 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
-    // 1. If Gemini API key is configured, invoke LLM for high-intelligence natural routing + fluid suggestions
+    // 1. High-speed deterministic rule matching engine (0ms local execution)
+    const ruleResult = matchRuleBasedIntent(transcript);
+    if (ruleResult) {
+      return Response.json(ruleResult, { status: 200 });
+    }
+
+    // 2. If Gemini API key is configured, invoke LLM for high-intelligence natural routing + conversational consultation
     const apiKey =
       appConfig.ai.apiKey ||
       Bun.env.AI_PROVIDER_API_KEY?.trim() ||
@@ -242,37 +247,91 @@ export async function POST(req: Request): Promise<Response> {
     if (apiKey && apiKey !== "your_gemini_api_key_here") {
       try {
         const geminiResult = await classifyIntentViaGemini(transcript, apiKey, body.currentState);
-        if (geminiResult && geminiResult.confidence >= 0.75) {
+        if (geminiResult && geminiResult.confidence >= 0.7) {
           return Response.json(geminiResult, { status: 200 });
         }
       } catch {
-        // Fall through to deterministic rule matching
+        // Fall through to keyword contextual suggestions
       }
     }
 
-    // 2. Deterministic high-speed rule matching engine (with compound multi-command support)
-    const ruleResult = matchRuleBasedIntent(transcript);
-    if (ruleResult) {
-      return Response.json(ruleResult, { status: 200 });
-    }
-
-    // 3. Fallback for unrecognized intent: generate smart next-action suggestions
-    const fallbackSuggestions = [
-      "Ganti material ke beton",
+    // 3. Fallback: generate dynamic next-action suggestions based on utterance keywords
+    const lower = transcript.toLowerCase();
+    let fallbackSuggestions = [
+      "Beralih ke material baja",
       "Lihat tampak depan 2D",
       "Tampilkan diagram momen BMD",
-      "Ekspor ke AutoCAD DXF",
+      "Hitung optimasi profil",
     ];
+
+    if (lower.includes("beton") || lower.includes("tulangan")) {
+      fallbackSuggestions = [
+        "Lihat wireframe tulangan balok",
+        "Atur mutu beton fc 30 MPa",
+        "Atur dimensi beton 300x600",
+        "Buka jendela dimensi dan parameter",
+      ];
+    } else if (
+      lower.includes("baja") ||
+      lower.includes("profil") ||
+      lower.includes("iwf") ||
+      lower.includes("box")
+    ) {
+      fallbackSuggestions = [
+        "Filter profil IWF baja",
+        "Pilih profil IWF 300x150",
+        "Hitung optimasi penampang",
+        "Ekspor ke AutoCAD DXF",
+      ];
+    } else if (
+      lower.includes("beban") ||
+      lower.includes("gaya") ||
+      lower.includes("titik") ||
+      lower.includes("merata")
+    ) {
+      fallbackSuggestions = [
+        "Tambah beban titik 50 kN",
+        "Tambah beban merata 20 kN/m",
+        "Buka jendela beban balok",
+        "Tampilkan diagram geser SFD",
+      ];
+    } else if (
+      lower.includes("lendut") ||
+      lower.includes("merah") ||
+      lower.includes("aman") ||
+      lower.includes("kenapa") ||
+      lower.includes("bagaimana") ||
+      lower.includes("apa")
+    ) {
+      fallbackSuggestions = [
+        "Hitung optimasi profil penampang",
+        "Tingkatkan dimensi balok",
+        "Ubah ke profil IWF 400x200",
+        "Buka jendela hasil optimasi",
+      ];
+    }
+
+    const isQuestion =
+      lower.includes("kenapa") ||
+      lower.includes("bagaimana") ||
+      lower.includes("apa") ||
+      lower.includes("mengapa") ||
+      lower.includes("bisa") ||
+      lower.includes("saran");
 
     return Response.json(
       {
-        commandId: null,
-        confidence: 0,
-        extractedParameters: {},
+        commandId: isQuestion ? "AI_CONSULTATION" : null,
+        confidence: isQuestion ? 0.8 : 0,
+        extractedParameters: { raw: transcript },
         rawTranscript: transcript,
-        spokenConfirmation: null,
+        spokenConfirmation: isQuestion
+          ? "Untuk evaluasi balok Anda, periksa lendutan izin atau jalankan optimasi profil pada jendela optimasi."
+          : null,
         suggestions: fallbackSuggestions,
-        message: "Perintah belum dapat dikenali oleh Intent Router.",
+        message: isQuestion
+          ? "Menjawab konsultasi teknik struktur."
+          : "Perintah belum dapat dikenali.",
       },
       { status: 200 },
     );

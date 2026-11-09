@@ -107,7 +107,10 @@ export type CommandId =
   | "CLOSE_ALL_WINDOWS"
   | "RESET_WINDOWS_LAYOUT"
   | "MUTE_VOICE_COMMAND"
-  | "UNMUTE_VOICE_COMMAND";
+  | "UNMUTE_VOICE_COMMAND"
+
+  // AI Consultation & Conversational Q&A
+  | "AI_CONSULTATION";
 
 // ============================================================================
 // Command Definition Contracts
@@ -182,6 +185,8 @@ export interface IntentRouterResult {
    * compound instructions (e.g. "ganti ke beton dan munculkan jendela dimensi dan gaya dalam").
    */
   readonly actions?: readonly IntentActionItem[];
+  /** Optional status or informational message. */
+  readonly message?: string;
 }
 
 // ============================================================================
@@ -300,6 +305,13 @@ export function generateContextualSuggestions(
         "Tutup video kamera",
         "Buka jendela asisten AI",
         "Fit tampilan balok",
+      ];
+    case "AI_CONSULTATION":
+      return [
+        "Tanya saran optimasi balok",
+        "Hitung optimasi profil",
+        "Tampilkan diagram momen BMD",
+        "Buka jendela dimensi dan parameter",
       ];
     default:
       return [

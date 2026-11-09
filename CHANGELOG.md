@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.4] - 2026-11-09
+
+### ✨ Added
+
+- Add `AI_CONSULTATION` intent for interactive structural engineering Q&A and design advice via voice commands.
+- Expand voice muting and unmuting command triggers for robust audio control.
+
 ## [0.6.3] - 2026-11-09
 
 ### ✨ Added
