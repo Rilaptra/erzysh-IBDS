@@ -12,11 +12,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import React, { type ReactElement, useState } from "react";
+import React, { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
 
 import { StructuralAiAssistantPanel } from "@/components/assistant/StructuralAiAssistantPanel";
 import { VoiceCommandStatusToast } from "@/components/assistant/VoiceCommandStatusToast";
-import type { ViewportProjectionSnapshot } from "@/components/canvas/Beam3DExtrudedViewport";
+import type {
+  CameraPreset,
+  ViewportProjectionSnapshot,
+} from "@/components/canvas/Beam3DExtrudedViewport";
 import { CoordinateAxisSwitcher } from "@/components/canvas/CoordinateAxisSwitcher";
 import { DeflectionHudAndColorbar } from "@/components/canvas/DeflectionHudAndColorbar";
 import { ErzyshDarkGridBackground } from "@/components/canvas/ErzyshDarkGridBackground";
@@ -49,6 +52,8 @@ import {
   type FloatingWindowId,
   useFloatingWindowStore,
 } from "@/state/floating-window-store";
+import type { PointLoad } from "@/types/beam-loading-modes";
+import type { Kilonewton, Meter } from "@/types/branded-units";
 
 // Dynamically import Beam3DExtrudedViewport with SSR disabled
 const DynamicBeam3DViewport = dynamic(() => import("@/components/canvas/Beam3DExtrudedViewport"), {
@@ -70,10 +75,232 @@ export function DesktopWorkstationView(): ReactElement {
   } = useStructuralSolverEngine();
 
   const [projection, setProjection] = useState<ViewportProjectionSnapshot | null>(null);
+  const [cameraPreset, setCameraPreset] = useState<CameraPreset>("ISOMETRIC_3D");
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
 
   const tracking = useMediapipeHandTracking();
   const voice = useWebSpeechCommand();
+
+  // Camera voice control event listener
+  useEffect(() => {
+    const handleCamera = (e: Event) => {
+      const detail = (e as CustomEvent<{ action: string }>).detail;
+      const act = detail?.action;
+      if (act === "STOP") {
+        tracking.stopTracking();
+      } else if (act === "START") {
+        void tracking.startTracking();
+      } else if (act === "TOGGLE") {
+        void tracking.toggleRunning();
+      }
+    };
+    window.addEventListener("app:camera-control", handleCamera);
+    return () => window.removeEventListener("app:camera-control", handleCamera);
+  }, [tracking]);
+
+  // Camera preset view listener (e.g. 3D Isometric or Front 2D from AI voice command)
+  useEffect(() => {
+    const handlePreset = (e: Event) => {
+      const detail = (e as CustomEvent<{ preset: CameraPreset }>).detail;
+      if (detail?.preset) {
+        setCameraPreset(detail.preset);
+      }
+    };
+    window.addEventListener("app:camera-preset", handlePreset);
+    return () => window.removeEventListener("app:camera-preset", handlePreset);
+  }, []);
+
+  // Export modal voice trigger listener
+  useEffect(() => {
+    const handleExport = () => {
+      setIsExportModalOpen((prev) => !prev);
+    };
+    window.addEventListener("app:toggle-export-modal", handleExport);
+    return () => window.removeEventListener("app:toggle-export-modal", handleExport);
+  }, []);
+
+  // Compute 2D screen projection and station along 3D beam axis (adapted from prototype/hand-tracking/engine.ts)
+  const beamInteraction = useMemo(() => {
+    const screenW = typeof window !== "undefined" ? window.innerWidth : 1920;
+    const screenH = typeof window !== "undefined" ? window.innerHeight : 1080;
+    const cx =
+      tracking.state.screenCoordinates.x >= 0 ? tracking.state.screenCoordinates.x : screenW * 0.5;
+    const cy =
+      tracking.state.screenCoordinates.y >= 0 ? tracking.state.screenCoordinates.y : screenH * 0.5;
+    const spanLength = (store.spanLengthM as number) ?? 6;
+
+    if (projection?.endAScreen && projection?.endBScreen) {
+      const ax = projection.endAScreen.x;
+      const ay = projection.endAScreen.y;
+      const bx = projection.endBScreen.x;
+      const by = projection.endBScreen.y;
+      const dx = bx - ax;
+      const dy = by - ay;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq >= 1) {
+        const tRaw = ((cx - ax) * dx + (cy - ay) * dy) / lenSq;
+        const t = Math.max(0.05, Math.min(0.95, tRaw));
+        const projX = ax + t * dx;
+        const projY = ay + t * dy;
+        const stationM = Math.round(t * spanLength * 100) / 100;
+        const normY = Math.min(Math.max((cy - screenH * 0.15) / (screenH * 0.45), 0.05), 1.0);
+        const magKn = Math.round(25 + normY * 225);
+
+        return {
+          t,
+          stationM,
+          magKn,
+          projX,
+          projY,
+        };
+      }
+    }
+
+    // Fallback screen-space beam mapping from prototype/hand-tracking/engine.ts lines 534-545
+    const beamLeft = screenW * 0.16;
+    const beamRight = screenW * 0.84;
+    const beamWidthPx = Math.max(beamRight - beamLeft, 100);
+    const t = Math.min(Math.max((cx - beamLeft) / beamWidthPx, 0.05), 0.95);
+    const normY = Math.min(Math.max((cy - screenH * 0.15) / (screenH * 0.45), 0.05), 1.0);
+    const stationM = Math.round(t * spanLength * 100) / 100;
+    const magKn = Math.round(25 + normY * 225);
+    const projX = beamLeft + t * beamWidthPx;
+    const projY = screenH * 0.45;
+
+    return {
+      t,
+      stationM,
+      magKn,
+      projX,
+      projY,
+    };
+  }, [projection, tracking.state.screenCoordinates, store.spanLengthM]);
+
+  // 1. TWO_FINGER_GRAB (▣): Grab & move floating window (adapted from prototype/hand-tracking/engine.ts lines 499-517)
+  const grabbedWindowRef = useRef<{
+    id: FloatingWindowId;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!tracking.state.isRunning || tracking.state.activeGesture !== "TWO_FINGER_GRAB") {
+      grabbedWindowRef.current = null;
+      return;
+    }
+
+    const x = tracking.state.screenCoordinates.x;
+    const y = tracking.state.screenCoordinates.y;
+    if (x < 0 || y < 0 || typeof document === "undefined" || typeof window === "undefined") return;
+
+    if (!grabbedWindowRef.current) {
+      const elUnder = document.elementFromPoint(x, y);
+      const winEl = elUnder?.closest<HTMLElement>("[data-window-id]");
+      const winId = winEl?.dataset.windowId as FloatingWindowId | undefined;
+      if (winEl && winId) {
+        const rect = winEl.getBoundingClientRect();
+        floatingWindowActions.bringToFront(winId);
+        grabbedWindowRef.current = {
+          id: winId,
+          offsetX: x - rect.left,
+          offsetY: y - rect.top,
+        };
+      }
+    } else {
+      const { id, offsetX, offsetY } = grabbedWindowRef.current;
+      const nextX = Math.max(8, Math.min(window.innerWidth - 260, x - offsetX));
+      const nextY = Math.max(8, Math.min(window.innerHeight - 80, y - offsetY));
+      floatingWindowActions.updatePosition(id, nextX, nextY);
+    }
+  }, [
+    tracking.state.isRunning,
+    tracking.state.activeGesture,
+    tracking.state.screenCoordinates.x,
+    tracking.state.screenCoordinates.y,
+  ]);
+
+  // 2. FIST_LOAD (▼): Real-time external point load manipulation (adapted from prototype/hand-tracking/engine.ts lines 534-550)
+  const lastFistUpdateRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (
+      !tracking.state.isRunning ||
+      tracking.state.activeGesture !== "FIST_LOAD" ||
+      !beamInteraction
+    ) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastFistUpdateRef.current < 60) return;
+    lastFistUpdateRef.current = now;
+
+    if (store.loadingMode !== "MODE_A_EXTERNAL_LOADS") {
+      beamSimulatorActions.setLoadingMode("MODE_A_EXTERNAL_LOADS");
+    }
+
+    const currentLoads = store.pointLoads;
+    const station = Math.max(
+      0.1,
+      Math.min(((store.spanLengthM as number) ?? 6) - 0.1, beamInteraction.stationM),
+    );
+    const mag = beamInteraction.magKn;
+
+    const existingIdx = currentLoads.findIndex((pl) => pl.id === "gesture-load" || pl.id === "P1");
+
+    if (existingIdx >= 0) {
+      const existing = currentLoads[existingIdx];
+      if (
+        existing &&
+        (Math.abs(existing.position - station) > 0.01 || existing.magnitude !== mag)
+      ) {
+        const updated = [...currentLoads];
+        updated[existingIdx] = {
+          id: existing.id,
+          position: station as Meter,
+          magnitude: mag as Kilonewton,
+        };
+        beamSimulatorActions.setPointLoads(updated);
+      }
+    } else {
+      const newLoad: PointLoad = {
+        id: "P1",
+        position: station as Meter,
+        magnitude: mag as Kilonewton,
+      };
+      beamSimulatorActions.setPointLoads([...currentLoads, newLoad]);
+    }
+  }, [
+    tracking.state.isRunning,
+    tracking.state.activeGesture,
+    beamInteraction,
+    store.loadingMode,
+    store.pointLoads,
+    store.spanLengthM,
+  ]);
+
+  // 3. POINT_PRECISION (▸): Precision node snapping & inspection (adapted from prototype/hand-tracking/engine.ts lines 553-563)
+  const pointInspection = useMemo(() => {
+    if (
+      !tracking.state.isRunning ||
+      tracking.state.activeGesture !== "POINT_PRECISION" ||
+      !beamInteraction ||
+      !stationViews ||
+      stationViews.stationsM.length === 0
+    ) {
+      return null;
+    }
+    const n = stationViews.stationsM.length;
+    const idx = Math.max(0, Math.min(n - 1, Math.round(beamInteraction.t * (n - 1))));
+    return {
+      xM: stationViews.stationsM[idx] ?? 0,
+      deflectionMm: stationViews.deflectionMm[idx] ?? 0,
+      momentKnm: stationViews.bendingMomentMajorKnm[idx] ?? 0,
+      shearKn: stationViews.shearForceKn[idx] ?? 0,
+      screenX: beamInteraction.projX,
+      screenY: beamInteraction.projY,
+    };
+  }, [tracking.state.isRunning, tracking.state.activeGesture, beamInteraction, stationViews]);
 
   return (
     <ErzyshDarkGridBackground className="h-screen w-screen">
@@ -87,6 +314,8 @@ export function DesktopWorkstationView(): ReactElement {
         onConcreteViewModeChange={beamSimulatorActions.setConcreteViewMode}
         coordinateMode={store.coordinateMode}
         customUpVector={store.customUpVector}
+        cameraPreset={cameraPreset}
+        onCameraPresetChange={setCameraPreset}
         onProjectionChange={setProjection}
       />
 
@@ -269,6 +498,60 @@ export function DesktopWorkstationView(): ReactElement {
       {/* 9. Dynamic Hand Cursor Overlay (Zero Pinch-Dip) */}
       <DynamicHandCursorOverlay state={tracking.state} />
 
+      {/* 9b. Beam Gesture Inspection HUD Overlay */}
+      {pointInspection && (
+        <div
+          className="pointer-events-none fixed z-[9999] -translate-x-1/2 -translate-y-full rounded-lg border border-cyan-400/80 bg-slate-950/92 px-3 py-1.5 shadow-2xl backdrop-blur-md"
+          style={{
+            left: `${pointInspection.screenX}px`,
+            top: `${pointInspection.screenY - 14}px`,
+          }}
+        >
+          <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-300">
+            <span>👉 Titik Balok: x = {pointInspection.xM.toFixed(2)} m</span>
+          </div>
+          <div className="mt-1 flex items-center gap-2.5 font-mono text-[11px] text-slate-200">
+            <span>
+              Δ ={" "}
+              <strong className="text-amber-300">
+                {pointInspection.deflectionMm.toFixed(2)} mm
+              </strong>
+            </span>
+            <span>
+              Mu ={" "}
+              <strong className="text-cyan-300">{pointInspection.momentKnm.toFixed(1)} kNm</strong>
+            </span>
+            <span>
+              Vu ={" "}
+              <strong className="text-emerald-300">{pointInspection.shearKn.toFixed(1)} kN</strong>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 9c. Beam Fist Load Placement HUD Overlay */}
+      {tracking.state.isRunning &&
+        tracking.state.activeGesture === "FIST_LOAD" &&
+        beamInteraction && (
+          <div
+            className="pointer-events-none fixed z-[9999] -translate-x-1/2 -translate-y-full rounded-lg border border-amber-400/80 bg-slate-950/92 px-3 py-1.5 shadow-2xl backdrop-blur-md"
+            style={{
+              left: `${beamInteraction.projX}px`,
+              top: `${beamInteraction.projY - 14}px`,
+            }}
+          >
+            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+              <span>
+                ✊ Beban P = {beamInteraction.magKn} kN @ x = {beamInteraction.stationM.toFixed(2)}{" "}
+                m
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-300">
+              Geser horizontal untuk posisi (x) · Geser vertikal untuk besar beban (P)
+            </div>
+          </div>
+        )}
+
       {/* 10. Voice Command Floating Status Toast */}
       <VoiceCommandStatusToast
         isListening={voice.isListening}
@@ -279,7 +562,8 @@ export function DesktopWorkstationView(): ReactElement {
         lastExecution={voice.lastExecution}
         error={voice.error}
         onToggleListening={voice.toggleListening}
-        onTestAudio={() => voice.testAudioTone("SUCCESS")}
+        suggestions={voice.suggestions}
+        onSelectSuggestion={voice.executeTranscript}
       />
     </ErzyshDarkGridBackground>
   );

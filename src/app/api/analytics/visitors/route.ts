@@ -306,8 +306,8 @@ export async function GET(): Promise<Response> {
       HARDCODED_START_DATE,
     );
 
-    // Sum api count with base epoch count if required, or take max
-    const totalVisitors = Math.max(apiCount, DEFAULT_FALLBACK_VISITOR_COUNT);
+    // Return real visitor count directly from Google Analytics Data API
+    const totalVisitors = apiCount;
 
     const freshResponse: VisitorCountResponse = {
       totalVisitors,

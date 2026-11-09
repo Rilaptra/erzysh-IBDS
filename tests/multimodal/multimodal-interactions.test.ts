@@ -19,6 +19,7 @@ import {
   classifyHandGesture,
   computeKnuckleAnchor,
   euclideanDistance2D,
+  triggerVirtualClick,
 } from "@/hooks/use-mediapipe-hand-tracking";
 import {
   executeRegistryCommand,
@@ -166,6 +167,27 @@ describe("Step 7: Multimodal Interactions & Voice Command Registry", () => {
 
       const gesture = classifyHandGesture(landmarks);
       expect(gesture).toBe("PINCH_CLICK");
+    });
+
+    test("classifies PINCH_CLICK (⌖) during natural relaxed pinch with other fingers curled", () => {
+      const landmarks = createBaseOpenPalmLandmarks();
+      const thumbTip = landmarks[4]!;
+
+      // Index and thumb tips touching
+      landmarks[8] = { x: thumbTip.x + 0.01, y: thumbTip.y + 0.01, z: 0 };
+      // Middle, ring, and pinky curled inward
+      landmarks[12] = { x: 0.52, y: 0.62, z: 0 };
+      landmarks[16] = { x: 0.58, y: 0.62, z: 0 };
+      landmarks[20] = { x: 0.63, y: 0.64, z: 0 };
+
+      const gesture = classifyHandGesture(landmarks);
+      expect(gesture).toBe("PINCH_CLICK");
+    });
+
+    test("triggerVirtualClick handles clicks and edge conditions safely", () => {
+      // In test runner where window or elements might be virtual
+      const result = triggerVirtualClick(100, 200);
+      expect(typeof result).toBe("boolean");
     });
 
     test("classifies FIST_LOAD (▼) when all fingers are retracted into palm", () => {

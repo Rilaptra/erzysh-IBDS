@@ -125,11 +125,11 @@ export interface HandTrackingState {
  * to prevent cursor drop during pinch clicks (zero pinch-dip).
  */
 export interface KnuckleAnchorConfig {
-  /** Distance threshold to enter pre-pinch freeze zone (default: 0.055). */
+  /** Distance threshold to enter pre-pinch freeze zone (default: 0.068). */
   readonly prePinchFreezeThreshold: number;
-  /** Distance threshold to register discrete click (default: 0.038). */
+  /** Distance threshold to register discrete click (default: 0.052). */
   readonly clickPinchThreshold: number;
-  /** Distance threshold to release click (default: 0.048). */
+  /** Distance threshold to release click (default: 0.068). */
   readonly clickReleaseThreshold: number;
   /** Weight of Index MCP (landmark 5) vs Middle MCP (landmark 9) for anchor point (default: 0.5). */
   readonly anchorBlendWeight: number;
@@ -139,9 +139,9 @@ export interface KnuckleAnchorConfig {
 
 /** Default configuration values for knuckle-anchored cursor tracking. */
 export const DEFAULT_KNUCKLE_ANCHOR_CONFIG: KnuckleAnchorConfig = {
-  prePinchFreezeThreshold: 0.055,
-  clickPinchThreshold: 0.038,
-  clickReleaseThreshold: 0.048,
+  prePinchFreezeThreshold: 0.068,
+  clickPinchThreshold: 0.052,
+  clickReleaseThreshold: 0.068,
   anchorBlendWeight: 0.5,
   smoothingAlpha: 0.35,
 };

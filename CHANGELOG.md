@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.3] - 2026-11-09
+
+### ✨ Added
+
+- 🎙️ Multi-command natural language parsing and compound intent execution in Gemini intent router.
+- 💡 Context-aware dynamic suggestion generator providing 3-4 smart follow-up action buttons.
+- ⚙️ Comprehensive `.env.example` documentation covering Gemini Live voice personas, SNI parameters, and MediaPipe hand tracking FPS.
+
 ## [0.6.2] - 2026-11-08
 
 ### ✨ Added

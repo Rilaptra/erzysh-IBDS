@@ -255,6 +255,32 @@ export const floatingWindowActions = {
     emitChange();
   },
 
+  openAllWindows(): void {
+    const updated = { ...currentState.windows };
+    for (const key of Object.keys(updated) as FloatingWindowId[]) {
+      updated[key] = { ...updated[key], isOpen: true, isMinimized: false };
+    }
+    currentState = {
+      ...currentState,
+      windows: updated,
+      activeWindowCount: Object.keys(updated).length,
+    };
+    emitChange();
+  },
+
+  closeAllWindows(): void {
+    const updated = { ...currentState.windows };
+    for (const key of Object.keys(updated) as FloatingWindowId[]) {
+      updated[key] = { ...updated[key], isOpen: false };
+    }
+    currentState = {
+      ...currentState,
+      windows: updated,
+      activeWindowCount: 0,
+    };
+    emitChange();
+  },
+
   resetLayout(): void {
     currentState = {
       windows: DEFAULT_WINDOWS,
@@ -279,4 +305,11 @@ export function useFloatingWindowStore(): FloatingWindowManagerState {
     () => currentState,
     () => currentState,
   );
+}
+
+/**
+ * Returns current snapshot of floating windows state outside React components.
+ */
+export function getFloatingWindowState(): FloatingWindowManagerState {
+  return currentState;
 }
