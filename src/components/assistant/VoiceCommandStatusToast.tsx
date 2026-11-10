@@ -11,7 +11,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import React, { type CSSProperties, type ReactElement, useState } from "react";
+import React, { type CSSProperties, type ReactElement, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -68,21 +68,23 @@ export function VoiceCommandStatusToast({
   style,
 }: VoiceCommandStatusToastProps): ReactElement | null {
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
+  const prevTranscriptRef = useRef(transcript);
 
-  // If not supported or dismissed when idle, render minimal trigger or null
-  if (!isSupported) {
+  // Auto restore visibility if new speech transcript arrives
+  useEffect(() => {
+    if (transcript && transcript !== prevTranscriptRef.current) {
+      setIsDismissed(false);
+    }
+    prevTranscriptRef.current = transcript;
+  }, [transcript]);
+
+  // If not supported or dismissed by user, do not render
+  if (!isSupported || isDismissed) {
     return null;
   }
 
   // Derive mute status with fallback to !isListening
   const isMutedState = isMuted !== undefined ? isMuted : !isListening;
-
-  // Auto restore visibility if new speech or active listening occurs
-  const isVisible = !isDismissed || !isMutedState || isListening || Boolean(transcript);
-
-  if (!isVisible) {
-    return null;
-  }
 
   const isSuccess = lastExecution ? lastExecution.success : true;
   const accentColor = error

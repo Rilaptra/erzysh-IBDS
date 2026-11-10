@@ -1,3 +1,4 @@
+// src/types/steel-sni1729-types.ts
 /**
  * @file steel-sni1729-types.ts
  * @description Type definitions for structural steel design and section optimization
@@ -96,6 +97,18 @@ export interface BoxPrimaryDimensions {
 export interface SteelSectionProperties {
   readonly name: string;
   readonly profileType: SteelProfileType;
+  /** Overall depth H in mm. */
+  readonly H: Millimeter;
+  /** Overall flange or box width B in mm. */
+  readonly B: Millimeter;
+  /** Web thickness tw in mm (equals wall thickness t for BOX sections). */
+  readonly tw: Millimeter;
+  /** Flange thickness tf in mm (equals wall thickness t for BOX sections). */
+  readonly tf: Millimeter;
+  /** Root fillet radius r in mm (applicable to IWF sections). */
+  readonly r?: Millimeter;
+  /** Uniform wall thickness t in mm (applicable to BOX sections). */
+  readonly t?: Millimeter;
   /** Gross cross-sectional area A in mm². */
   readonly area: MillimeterSquared;
   /** Nominal unit mass W in kg/m. */

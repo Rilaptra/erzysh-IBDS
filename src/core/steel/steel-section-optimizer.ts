@@ -1,3 +1,4 @@
+// src/core/steel/steel-section-optimizer.ts
 /**
  * @file steel-section-optimizer.ts
  * @description High-efficiency structural steel section optimizer (SNI 1729:2020).
@@ -5,25 +6,22 @@
  * JIS G 3466 (BOX) precomputed catalogs.
  * Evaluates Table B4.1b compactness, Chapter F LTB, Chapter G shear, Chapter H1 interaction,
  * Chapter H3 torsion, geometric constraints (H_max, B_max), and Smart Grade optimization
- * (BJ 34, BJ 37, BJ 41, BJ 50, BJ 55) with target efficiency 0.90 <= DCR <= 1.00.
+ * (BJ 34, BJ 37, BJ 41, BJ 50, BJ 55) with weight-first economic ranking.
  */
 
-import { evaluateDeflectionCompliance } from "@/config/deflection-limits-config";
 import type { DeflectionLimitKey } from "@/config/deflection-limits-config";
+import { evaluateDeflectionCompliance } from "@/config/deflection-limits-config";
 import rawSteelGrades from "@/data/steel-material-grades.json";
+import type { Kilonewton, KilonewtonMeter, Meter } from "@/types/branded-units";
 import { kilonewton, kilonewtonMeter, meter, utilizationRatio } from "@/types/branded-units";
-import type { Kilonewton, KilonewtonMeter, Meter, UtilizationRatio } from "@/types/branded-units";
-import { SteelDesignError } from "@/types/steel-sni1729-types";
 import type {
-  BiaxialInteractionResult,
-  LateralTorsionalBucklingResult,
-  SectionCompactnessResult,
   SteelGrade,
   SteelGradeProperties,
   SteelOptimizationCandidate,
   SteelProfileType,
   SteelSectionProperties,
 } from "@/types/steel-sni1729-types";
+import { SteelDesignError } from "@/types/steel-sni1729-types";
 
 import {
   getPrecomputedSortedBoxCatalog,
@@ -74,13 +72,13 @@ export interface SteelOptimizerInput {
   readonly maxDepthMm?: number;
   /** Maximum allowable flange/box width B in mm (optional geometric filter). */
   readonly maxWidthMm?: number;
-  /** Target minimum DCR for weight-optimal recommendation (default: 0.90). */
+  /** Target minimum DCR for efficiency highlight (default: 0.90). */
   readonly targetMinDcr?: number;
 }
 
 /** Complete optimization search deliverable. */
 export interface SteelOptimizationResult {
-  /** Best overall candidate section. */
+  /** Best overall candidate section (lightest compliant section). */
   readonly bestCandidate: SteelOptimizationCandidate;
   /** Alternative compliant candidates sorted ascending by unit weight. */
   readonly compliantCandidates: readonly SteelOptimizationCandidate[];
@@ -93,6 +91,9 @@ export interface SteelOptimizationResult {
 /**
  * Searches the sorted structural steel catalogs and determines the most material-efficient
  * compliant section matching load demands (Pu, Mux, Muy, Vu, Tu) per SNI 1729:2020.
+ *
+ * Candidates satisfying `governingDcr <= 1.0` and deflection limits are sorted primarily
+ * by `unitWeightKgPerM` ascending (lightest & most economical section wins).
  *
  * @param input Loads, span length, steel grade, and geometric filters.
  * @returns Complete SteelOptimizationResult with bestCandidate and compliant alternatives.
@@ -114,7 +115,7 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
   const tu = Math.abs(Number(input.factoredTorsionTu ?? 0));
   const lbMm = Number(input.unbracedLengthLbM) * 1000;
 
-  if (lbMm <= 0) {
+  if (!Number.isFinite(lbMm) || lbMm <= 0) {
     throw new SteelDesignError(
       "UNKNOWN",
       "optimizeSteelSection",
@@ -171,8 +172,12 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
       evaluatedCount++;
 
       // Geometric dimensional filtering (H_max, B_max)
-      const depthH = Number(section.h0); // approximate outer height
+      const depthH = Number(section.H ?? section.h0);
       if (input.maxDepthMm && depthH > input.maxDepthMm) {
+        continue;
+      }
+      const widthB = Number(section.B ?? 0);
+      if (input.maxWidthMm && widthB > 0 && widthB > input.maxWidthMm) {
         continue;
       }
 
@@ -240,10 +245,8 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
       );
 
       if (governingDcrValue <= 1.0 && deflectionCompliant) {
-        let status: "OPTIMAL" | "ACCEPTABLE" = "ACCEPTABLE";
-        if (governingDcrValue >= targetMinDcr && governingDcrValue <= 1.0) {
-          status = "OPTIMAL";
-        }
+        const status: "OPTIMAL" | "ACCEPTABLE" =
+          governingDcrValue >= targetMinDcr && governingDcrValue <= 1.0 ? "OPTIMAL" : "ACCEPTABLE";
 
         compliantCandidates.push({
           properties: section,
@@ -254,11 +257,6 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
           governingDcr: utilizationRatio(Number(governingDcrValue.toFixed(3))),
           status,
         });
-
-        // Found a safe candidate for this grade; continue scanning to find best DCR
-        if (status === "OPTIMAL") {
-          break;
-        }
       }
     }
   }
@@ -267,20 +265,28 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
     throw new SteelDesignError(
       "CATALOG_EXHAUSTED",
       "optimizeSteelSection",
-      `No compliant ${selectedProfileType} steel section could be found for demands (Mux=${mux} kNm, Lb=${lbMm / 1000} m). Consider relaxing geometric limits or increasing steel grade.`,
+      `Tidak ditemukan profil baja ${selectedProfileType} (${input.steelGrade ?? "Multi-Grade"}) di katalog yang mampu menahan kombinasi beban (Mux=${mux.toFixed(1)} kNm, Muy=${muy.toFixed(1)} kNm, Vu=${vu.toFixed(1)} kN, Pu=${pu.toFixed(1)} kN, Tu=${tu.toFixed(1)} kNm pada Lb=${(lbMm / 1000).toFixed(2)} m). Silakan naikkan mutu baja (misal ke BJ 50 / BJ 55), perbesar batas geometri Hmax/Bmax, atau kurangi beban/bentang.`,
     );
   }
 
-  // Sort candidates ascending by unit weight, prioritizing OPTIMAL status and lower weight
+  // Sort candidates primarily by lightest unit weight (kg/m ascending),
+  // breaking ties by higher governing DCR (closer to 1.0).
   compliantCandidates.sort((a, b) => {
-    if (a.status === "OPTIMAL" && b.status !== "OPTIMAL") {
-      return -1;
+    const weightDiff = a.properties.unitWeightKgPerM - b.properties.unitWeightKgPerM;
+    if (Math.abs(weightDiff) > 1e-6) {
+      return weightDiff;
     }
-    if (b.status === "OPTIMAL" && a.status !== "OPTIMAL") {
-      return 1;
-    }
-    return a.properties.unitWeightKgPerM - b.properties.unitWeightKgPerM;
+    return Number(b.governingDcr) - Number(a.governingDcr);
   });
+
+  // Mark the lightest compliant candidate as OPTIMAL so the top recommendation is always highlighted
+  const lightestCandidate = compliantCandidates[0]!;
+  if (lightestCandidate.status !== "OPTIMAL") {
+    compliantCandidates[0] = {
+      ...lightestCandidate,
+      status: "OPTIMAL",
+    };
+  }
 
   return {
     bestCandidate: compliantCandidates[0]!,

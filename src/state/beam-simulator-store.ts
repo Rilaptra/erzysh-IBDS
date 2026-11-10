@@ -1,3 +1,4 @@
+// src/state/beam-simulator-store.ts
 /**
  * @file beam-simulator-store.ts
  * @description Central reactive state store for the beam deflection and design simulator.
@@ -12,12 +13,7 @@ import type {
   ConcreteViewMode,
 } from "@/components/canvas/Beam3DExtrudedViewport";
 import type { SteelOptimizationResult } from "@/core/steel/steel-section-optimizer";
-import type {
-  BeamLoadingConfig,
-  DistributedLoad,
-  PointLoad,
-  SupportOrientation,
-} from "@/types/beam-loading-modes";
+import type { DistributedLoad, PointLoad, SupportOrientation } from "@/types/beam-loading-modes";
 import type {
   CoordinateSystemMode,
   Kilonewton,
@@ -57,6 +53,7 @@ export interface GoverningInternalForces {
   readonly maxPositiveMux: number;
   readonly maxNegativeMux: number;
   readonly absoluteMaxMux: number;
+  readonly absoluteMaxMuy: number;
   readonly absoluteMaxVu: number;
   readonly absoluteMaxPu: number;
   readonly absoluteMaxTu: number;
@@ -186,6 +183,7 @@ const INITIAL_STATE: BeamSimulatorState = {
     maxPositiveMux: 0,
     maxNegativeMux: 0,
     absoluteMaxMux: 0,
+    absoluteMaxMuy: 0,
     absoluteMaxVu: 0,
     absoluteMaxPu: 0,
     absoluteMaxTu: 0,
@@ -198,6 +196,9 @@ const INITIAL_STATE: BeamSimulatorState = {
 let currentState = INITIAL_STATE;
 const listeners = new Set<() => void>();
 
+/**
+ * Notifies all subscribed React components of a state transition.
+ */
 function emitChange(): void {
   for (const listener of listeners) {
     listener();
@@ -245,6 +246,12 @@ export const beamSimulatorActions = {
     emitChange();
   },
 
+  /**
+   * Updates Mode B direct internal forces and automatically activates
+   * `MODE_B_DIRECT_INTERNAL_FORCES` so the solver engine responds immediately.
+   *
+   * @param forces Partial set of direct factored internal forces and span length.
+   */
   setDirectForces(forces: {
     spanLengthM?: number;
     axialPuKn?: number;
@@ -255,6 +262,7 @@ export const beamSimulatorActions = {
   }): void {
     currentState = {
       ...currentState,
+      loadingMode: "MODE_B_DIRECT_INTERNAL_FORCES",
       directSpanLengthM:
         forces.spanLengthM !== undefined
           ? (forces.spanLengthM as Meter)
@@ -326,26 +334,35 @@ export const beamSimulatorActions = {
     maxWidthMm?: number;
     selectedProfileName?: string | null;
   }): void {
+    const nextProfileType = params.profileType ?? currentState.steelProfileType;
+    const profileTypeChanged = nextProfileType !== currentState.steelProfileType;
+
     currentState = {
       ...currentState,
-      steelProfileType: params.profileType ?? currentState.steelProfileType,
+      steelProfileType: nextProfileType,
       steelGrade: params.grade ?? currentState.steelGrade,
       steelUnbracedLengthLbM:
         params.unbracedLengthLbM !== undefined
           ? (params.unbracedLengthLbM as Meter)
           : currentState.steelUnbracedLengthLbM,
       steelMaxHeightMm:
-        params.maxHeightMm !== undefined
-          ? (params.maxHeightMm as Millimeter)
+        "maxHeightMm" in params
+          ? params.maxHeightMm !== undefined
+            ? (params.maxHeightMm as Millimeter)
+            : undefined
           : currentState.steelMaxHeightMm,
       steelMaxWidthMm:
-        params.maxWidthMm !== undefined
-          ? (params.maxWidthMm as Millimeter)
+        "maxWidthMm" in params
+          ? params.maxWidthMm !== undefined
+            ? (params.maxWidthMm as Millimeter)
+            : undefined
           : currentState.steelMaxWidthMm,
       selectedSteelProfileName:
         params.selectedProfileName !== undefined
           ? params.selectedProfileName
-          : currentState.selectedSteelProfileName,
+          : profileTypeChanged
+            ? null
+            : currentState.selectedSteelProfileName,
     };
     emitChange();
   },
@@ -402,10 +419,17 @@ export const beamSimulatorActions = {
     emitChange();
   },
 
+  /**
+   * Records a solver or design optimization error message so UI components
+   * can alert the engineer immediately.
+   *
+   * @param error Diagnostic error message string.
+   */
   setSolverError(error: string): void {
     currentState = {
       ...currentState,
       isSolving: false,
+      solverRevision: currentState.solverRevision + 1,
       solverError: error,
     };
     emitChange();
@@ -420,6 +444,8 @@ export const beamSimulatorActions = {
 /**
  * Direct non-reactive getter for the current simulator state snapshot.
  * Useful for non-React callers, exporters, and automated test suites.
+ *
+ * @returns Current immutable `BeamSimulatorState`.
  */
 export function getBeamSimulatorSnapshot(): BeamSimulatorState {
   return currentState;

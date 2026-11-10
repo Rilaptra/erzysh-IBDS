@@ -1,10 +1,11 @@
+// src/components/adaptive/AndroidCompanionView.tsx
 /**
  * @file AndroidCompanionView.tsx
  * @description Lightweight companion layout designed for mobile/field Android devices:
  * - Single-column scrollable responsive layout
  * - Bypasses heavy 3D WebGL canvas to preserve battery and eliminate thermal throttling
+ * - Automatically activates Mode B (`MODE_B_DIRECT_INTERNAL_FORCES`) when entering the Gaya Dalam tab
  * - Focuses on Mode B (Factored Internal Forces), SNI Optimizers, and 2D Cross-Section SVG preview
- * - Quick export and consultation capabilities
  */
 
 "use client";
@@ -24,12 +25,26 @@ import { CustomEpochVisitorFlexBadge } from "@/components/telemetry/CustomEpochV
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStructuralSolverEngine } from "@/hooks/use-structural-solver-engine";
-import { useBeamSimulatorStore } from "@/state/beam-simulator-store";
+import { beamSimulatorActions, useBeamSimulatorStore } from "@/state/beam-simulator-store";
 
+/**
+ * Renders the mobile-optimized Android Companion View with automatic Mode B activation
+ * when switching to the "Gaya Dalam" (`INPUT`) tab.
+ *
+ * @returns React element for the mobile companion interface.
+ * @example
+ * <AndroidCompanionView />
+ */
 export function AndroidCompanionView(): ReactElement {
   const store = useBeamSimulatorStore();
   const { compliance, concreteResult, steelResult } = useStructuralSolverEngine();
   const [isExportOpen, setIsExportOpen] = useState(false);
+
+  const handleTabChange = (tabValue: string): void => {
+    if (tabValue === "INPUT" && store.loadingMode !== "MODE_B_DIRECT_INTERNAL_FORCES") {
+      beamSimulatorActions.setLoadingMode("MODE_B_DIRECT_INTERNAL_FORCES");
+    }
+  };
 
   return (
     <ErzyshDarkGridBackground
@@ -54,7 +69,11 @@ export function AndroidCompanionView(): ReactElement {
       </div>
 
       {/* Main Tabs Navigation & Content */}
-      <Tabs defaultValue="RESULTS" className="flex w-full flex-1 flex-col gap-0">
+      <Tabs
+        defaultValue="RESULTS"
+        onValueChange={handleTabChange}
+        className="flex w-full flex-1 flex-col gap-0"
+      >
         <TabsList
           variant="line"
           className="border-border/30 bg-muted/20 h-11 w-full justify-around rounded-none border-b px-2"

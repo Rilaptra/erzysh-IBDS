@@ -1,3 +1,4 @@
+// src/core/steel/iwf-geometric-properties.ts
 /**
  * @file iwf-geometric-properties.ts
  * @description Exact cross-sectional geometry engine for structural steel profiles
@@ -6,11 +7,10 @@
  * JIS G 3192 / SNI 07-2054, and JIS G 3466.
  *
  * Implements exact fillet spandrel integration (af, c, If0) and calculates all primary
- * and derived properties: A, W, Ix, Iy, rx, ry, Sx, Sy, Zx, Zy, h0, hc, J, Cw, rts, and C.
+ * and derived properties: H, B, tw, tf, r, t, A, W, Ix, Iy, rx, ry, Sx, Sy, Zx, Zy, h0, hc, J, Cw, rts, and C.
  */
 
 import {
-  type Millimeter,
   millimeter,
   type MillimeterCubed,
   type MillimeterSquared,
@@ -108,21 +108,15 @@ export function computeIwfCornerFilletConstants(rcMm: number): IwfCornerFilletCo
     );
   }
 
-  // Convert mm to cm for stable numerical conditioning
   const rcCm = rcMm / 10;
 
   if (rcCm === 0) {
     return { rcCm: 0, af: 0, c: 0, If0: 0 };
   }
 
-  // af = (1 - π/4) * rc²
   const af = (1 - Math.PI / 4) * rcCm ** 2;
-
-  // c = ((10 - 3π) / (12 - 3π)) * rc
   const cFactor = (10 - 3 * Math.PI) / (12 - 3 * Math.PI);
   const c = cFactor * rcCm;
-
-  // If0 = [1 - 5π/16 - (1 - π/4) * cFactor²] * rc⁴
   const if0Factor = 1 - (5 * Math.PI) / 16 - (1 - Math.PI / 4) * cFactor ** 2;
   const If0 = if0Factor * rcCm ** 4;
 
@@ -156,9 +150,7 @@ export function computeIwfCornerFilletConstants(rcMm: number): IwfCornerFilletCo
  *   tf: millimeter(8.0),
  *   r: millimeter(10.0),
  * });
- * console.log(props.area); // 2189.84 mm² (~21.9 cm²)
- * console.log(props.unitWeightKgPerM); // ~17.19 kg/m
- * console.log(props.Ix); // 3826530 mm⁴ (~382.65 cm⁴)
+ * console.log(props.H, props.B, props.Ix);
  * ```
  */
 export function computeIwfSectionProperties(
@@ -167,7 +159,6 @@ export function computeIwfSectionProperties(
 ): SteelSectionProperties {
   const { name, H, B, tw, tf, r } = input;
 
-  // Input validation: assert finite positive numbers
   if (!Number.isFinite(H) || H <= 0) {
     throw new SteelDesignError(
       name,
@@ -204,7 +195,6 @@ export function computeIwfSectionProperties(
     );
   }
 
-  // Physical geometry consistency checks
   if (H <= 2 * tf) {
     throw new SteelDesignError(
       name,
@@ -228,35 +218,27 @@ export function computeIwfSectionProperties(
     );
   }
 
-  // Convert primary dimensions from mm to cm for numerical consistency with handbook tables
   const h = H / 10;
   const b = B / 10;
   const twCm = tw / 10;
   const tfCm = tf / 10;
-  const rcCm = r / 10;
 
-  // Fillet constants for 1 corner
   const { af, c, If0 } = computeIwfCornerFilletConstants(r);
 
   // 1. Cross-sectional Area A (cm²)
-  // A = 2 * b * tf + (h - 2*tf) * tw + 4 * af
   const areaCm2 = 2 * b * tfCm + (h - 2 * tfCm) * twCm + 4 * af;
 
-  // 2. Unit Weight W (kg/m) based on 7850 kg/m³
+  // 2. Unit Weight W (kg/m)
   const unitWeightKgPerM = areaCm2 * CM2_TO_KG_PER_M;
 
-  // 3. Strong-axis Moment of Inertia Ix (cm⁴) via Parallel Axis (Steiner) Theorem
-  // Rectangular components: 2 flanges + 1 web plate
+  // 3. Strong-axis Moment of Inertia Ix (cm⁴)
   const ixRect = (b * Math.pow(h, 3) - (b - twCm) * Math.pow(h - 2 * tfCm, 3)) / 12;
-  // 4 corner fillets contribution: 4 * [If0 + af * (h/2 - tf - c)²]
   const dFilletX = h / 2 - tfCm - c;
   const ixFillets = 4 * (If0 + af * Math.pow(dFilletX, 2));
   const ixCm4 = ixRect + ixFillets;
 
   // 4. Weak-axis Moment of Inertia Iy (cm⁴)
-  // Rectangular components: 2 flanges + 1 web plate
   const iyRect = (2 * tfCm * Math.pow(b, 3) + (h - 2 * tfCm) * Math.pow(twCm, 3)) / 12;
-  // 4 corner fillets contribution: 4 * [If0 + af * (tw/2 + c)²]
   const dFilletY = twCm / 2 + c;
   const iyFillets = 4 * (If0 + af * Math.pow(dFilletY, 2));
   const iyCm4 = iyRect + iyFillets;
@@ -270,9 +252,6 @@ export function computeIwfSectionProperties(
   const syCm3 = iyCm4 / (b / 2);
 
   // 7. Plastic Section Moduli Zx, Zy (cm³)
-  // Primary rectangular segments:
-  // Zx = b * tf * (h - tf) + 0.25 * tw * (h - 2*tf)²
-  // Zy = 0.5 * tf * b² + 0.25 * (h - 2*tf) * tw²
   const zxStdCm3 = b * tfCm * (h - tfCm) + 0.25 * twCm * Math.pow(h - 2 * tfCm, 2);
   const zyStdCm3 = 0.5 * tfCm * Math.pow(b, 2) + 0.25 * (h - 2 * tfCm) * Math.pow(twCm, 2);
 
@@ -280,37 +259,32 @@ export function computeIwfSectionProperties(
   let zyCm3 = zyStdCm3;
 
   if (options?.exactPlasticModulus) {
-    // Add 4 corner fillets plastic contribution
     zxCm3 += 4 * af * dFilletX;
     zyCm3 += 4 * af * dFilletY;
   }
 
-  // 8. Distance between flange centroids h0 and clear distance between web fillets hc (mm)
+  // 8. Distance between flange centroids h0 and clear web height hc (mm)
   const h0Mm = H - tf;
   const hcMm = H - 2 * tf - 2 * r;
 
-  // 9. St. Venant Torsional Constant J (cm⁴) - Standard thin-walled approximation
-  // J = [2 * b * tf³ + (h - 2*tf) * tw³] / 3
+  // 9. St. Venant Torsional Constant J (cm⁴)
   const jCm4 = (2 * b * Math.pow(tfCm, 3) + (h - 2 * tfCm) * Math.pow(twCm, 3)) / 3;
 
   // 10. Warping Torsional Constant Cw (cm⁶)
-  // Cw = (Iy * h0²) / 4 per SNI 1729:2020 Chapter F2 / AISC DG9 Eq. C.3-2
   const h0Cm = h - tfCm;
   const cwCm6 = (iyCm4 * Math.pow(h0Cm, 2)) / 4;
 
-  // 11. Effective Radius of Gyration for Lateral-Torsional Buckling rts (cm)
-  // rts = sqrt( (Iy * h0) / (2 * Sx) ) per SNI 1729:2020 Eq. (F2-7)
+  // 11. Effective Radius of Gyration rts (cm)
   const rtsCm = Math.sqrt((iyCm4 * h0Cm) / (2 * sxCm3));
 
-  // Convert cm-based properties to standard mm-based branded types:
-  // Area: cm² * 100 -> mm²
-  // Inertia: cm⁴ * 10000 -> mm⁴
-  // Modulus: cm³ * 1000 -> mm³
-  // Length: cm * 10 -> mm
-  // Cw: cm⁶ * 1000000 -> mm⁶
   return {
     name,
     profileType: "IWF",
+    H: millimeter(H),
+    B: millimeter(B),
+    tw: millimeter(tw),
+    tf: millimeter(tf),
+    r: millimeter(r),
     area: (areaCm2 * 100) as MillimeterSquared,
     unitWeightKgPerM,
     Ix: (ixCm4 * 10000) as MillimeterToFourth,
@@ -338,10 +312,6 @@ export function computeIwfSectionProperties(
  * section (BOX / SHS / RHS) from its primary dimensions (H, B, t, shapeType) according to
  * JIS G 3466 and SNI 1729:2020 (Chapters B4, F7, and H3).
  *
- * Implements standard corner fillet reduction (r_out = 2*t, r_in = t) for gross area,
- * St. Venant torsional constant J using Bredt's first formula, and the HSS torsional
- * section property C per SNI 1729:2020 Eq. (H3-1).
- *
  * @param input Primary dimensions container containing name, H, B, t, and shapeType.
  * @returns Exhaustive geometric properties matching `BoxSectionProperties`.
  * @throws {SteelDesignError} When dimensions are non-positive, physically invalid, or non-finite.
@@ -355,16 +325,12 @@ export function computeIwfSectionProperties(
  *   t: millimeter(4.5),
  *   shapeType: "SQUARE",
  * });
- * console.log(box.area); // ~1666.85 mm²
- * console.log(box.unitWeightKgPerM); // ~13.08 kg/m
- * console.log(box.J); // ~3919500 mm⁴
- * console.log(box.C); // ~81730 mm³
+ * console.log(box.H, box.B, box.t);
  * ```
  */
 export function computeBoxSectionProperties(input: BoxPrimaryDimensions): BoxSectionProperties {
   const { name, H, B, t } = input;
 
-  // Input validation: assert finite positive numbers
   if (!Number.isFinite(H) || H <= 0) {
     throw new SteelDesignError(
       name,
@@ -387,7 +353,6 @@ export function computeBoxSectionProperties(input: BoxPrimaryDimensions): BoxSec
     );
   }
 
-  // Physical geometry consistency checks
   if (H <= 2 * t) {
     throw new SteelDesignError(
       name,
@@ -410,21 +375,17 @@ export function computeBoxSectionProperties(input: BoxPrimaryDimensions): BoxSec
     );
   }
 
-  // Convert mm to cm for calculation stability
   const h = H / 10;
   const b = B / 10;
   const tw = t / 10;
 
-  // 1. Cross-sectional Area A (cm²) with standard corner curvature (rout = 2*tw, rin = tw)
-  // A = 2 * tw * (b + h - 2*tw) - (4 - π)*(rout² - rin²)
-  // rout² - rin² = (2*tw)² - tw² = 3 * tw²
+  // 1. Cross-sectional Area A (cm²)
   const areaCm2 = 2 * tw * (b + h - 2 * tw) - 3 * (4 - Math.PI) * Math.pow(tw, 2);
 
   // 2. Unit Weight W (kg/m)
   const unitWeightKgPerM = areaCm2 * CM2_TO_KG_PER_M;
 
   // 3. Strong-axis and Weak-axis Moments of Inertia Ix, Iy (cm⁴)
-  // Outer rectangle minus inner void rectangle
   const ixCm4 = (b * Math.pow(h, 3) - (b - 2 * tw) * Math.pow(h - 2 * tw, 3)) / 12;
   const iyCm4 = (h * Math.pow(b, 3) - (h - 2 * tw) * Math.pow(b - 2 * tw, 3)) / 12;
 
@@ -436,36 +397,34 @@ export function computeBoxSectionProperties(input: BoxPrimaryDimensions): BoxSec
   const sxCm3 = ixCm4 / (h / 2);
   const syCm3 = iyCm4 / (b / 2);
 
-  // 6. Plastic Section Moduli Zx, Zy (cm³) per Section 4.2
-  // Zx = [b*h² - (b - 2*tw)*(h - 2*tw)²] / 4
-  // Zy = [h*b² - (h - 2*tw)*(b - 2*tw)²] / 4
+  // 6. Plastic Section Moduli Zx, Zy (cm³)
   const zxCm3 = (b * Math.pow(h, 2) - (b - 2 * tw) * Math.pow(h - 2 * tw, 2)) / 4;
   const zyCm3 = (h * Math.pow(b, 2) - (h - 2 * tw) * Math.pow(b - 2 * tw, 2)) / 4;
 
   // 7. Flange centroid distance h0 and clear flat web height hc (mm)
-  // h0 = H - t (distance between flange centerlines)
-  // hc = H - 3*t (clear flat width per SNI 1729 Table B4.1b Note d)
   const h0Mm = H - t;
   const hcMm = H - 3 * t;
 
-  // 8. St. Venant Torsional Constant J (cm⁴) per Bredt's first formula (Section 4.3)
-  // J = [2 * tw * (b - tw)² * (h - tw)²] / (b + h - 2*tw)
+  // 8. St. Venant Torsional Constant J (cm⁴)
   const jCm4 = (2 * tw * Math.pow(b - tw, 2) * Math.pow(h - tw, 2)) / (b + h - 2 * tw);
 
-  // 9. HSS Torsional Constant C (cm³) per SNI 1729:2020 Chapter H3.1 Eq. (H3-1)
-  // C = 2 * (b - tw) * (h - tw) * tw - 4.5 * (4 - π) * tw³
+  // 9. HSS Torsional Constant C (cm³)
   const cCm3 = 2 * (b - tw) * (h - tw) * tw - 4.5 * (4 - Math.PI) * Math.pow(tw, 3);
 
-  // 10. Warping constant Cw for closed hollow sections is negligible (Cw ≈ 0)
+  // 10. Warping constant Cw
   const cw = 0;
 
-  // 11. Effective radius of gyration rts: closed sections resist torsion via St. Venant shear.
-  // Weak-axis radius of gyration ry represents the governing lateral stability dimension.
+  // 11. Effective radius of gyration rts
   const rtsMm = ryCm * 10;
 
   return {
     name,
     profileType: "BOX",
+    H: millimeter(H),
+    B: millimeter(B),
+    tw: millimeter(t),
+    tf: millimeter(t),
+    t: millimeter(t),
     area: (areaCm2 * 100) as MillimeterSquared,
     unitWeightKgPerM,
     Ix: (ixCm4 * 10000) as MillimeterToFourth,
