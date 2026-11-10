@@ -270,7 +270,7 @@ Buka **`http://localhost:3000`** di browser Desktop untuk mengakses **Full 3D Wo
 | **Rizqi Lasheva Purnama Putra (`Erzy.sh`)**                                     |
 | :------------------------------------------------------------------------------ |
 | 🎓 **Program Studi Teknik Sipil — Mata Kuliah Aplikasi Komputer**               |
-| 💻 GitHub: [@erzysh](https://www.google.com/search?q=https://github.com/erzysh) |
+| 💻 GitHub: [@erzysh](https://www.google.com/search?q=https://github.com/Rilaptra) |
 
 <div align="center">
 <br />
