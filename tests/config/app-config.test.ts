@@ -16,9 +16,12 @@ import {
   appConfig,
   AVAILABLE_GEMINI_VOICES,
   getGeminiApiKey,
+  getGeminiApiKeys,
+  getGeminiFallbackApiKeys,
   handTrackingConfig,
   serverConfig,
   simulationConfig,
+  stripSurroundingQuotes,
   SUPPORTED_GEMINI_MODELS,
   telemetryConfig,
 } from "@/config/app-config";
@@ -110,6 +113,62 @@ describe("Global Application Configuration (app-config.ts)", () => {
       if (apiKey !== null) {
         expect(typeof apiKey).toBe("string");
         expect(apiKey.length).toBeGreaterThan(5);
+      }
+    });
+
+    it("extracts full list of valid API keys using getGeminiApiKeys helper", () => {
+      const keys = getGeminiApiKeys();
+      expect(Array.isArray(keys)).toBe(true);
+      expect(Object.isFrozen(keys)).toBe(true);
+      expect(aiConfig.apiKeys).toEqual(keys);
+      expect(Array.isArray(aiConfig.fallbackApiKeys)).toBe(true);
+      expect(Object.isFrozen(aiConfig.fallbackApiKeys)).toBe(true);
+
+      const fallbackKeys = getGeminiFallbackApiKeys();
+      expect(Array.isArray(fallbackKeys)).toBe(true);
+      expect(fallbackKeys.length).toBe(Math.max(0, keys.length - 1));
+
+      for (const k of keys) {
+        expect(typeof k).toBe("string");
+        expect(k.length).toBeGreaterThanOrEqual(8);
+        expect(k).not.toBe("your_gemini_api_key_here");
+        expect(k).not.toBe("your_backup_gemini_api_key_here");
+      }
+    });
+
+    it("strips single and double quotes cleanly from candidate API keys", () => {
+      expect(stripSurroundingQuotes('"AIzaSyD-QuotedDouble12345"')).toBe(
+        "AIzaSyD-QuotedDouble12345",
+      );
+      expect(stripSurroundingQuotes("'AIzaSyD-QuotedSingle12345'")).toBe(
+        "AIzaSyD-QuotedSingle12345",
+      );
+      expect(stripSurroundingQuotes('  "AIzaSyD-WhitespaceQuoted"  ')).toBe(
+        "AIzaSyD-WhitespaceQuoted",
+      );
+      expect(stripSurroundingQuotes("'\"AIzaSyD-NestedQuotes\"'")).toBe("AIzaSyD-NestedQuotes");
+      expect(stripSurroundingQuotes('"AIzaSyD-LeadingOnly12345')).toBe("AIzaSyD-LeadingOnly12345");
+      expect(stripSurroundingQuotes('AIzaSyD-TrailingOnly12345"')).toBe(
+        "AIzaSyD-TrailingOnly12345",
+      );
+      expect(stripSurroundingQuotes("AIzaSyD-UnquotedClean12345")).toBe(
+        "AIzaSyD-UnquotedClean12345",
+      );
+    });
+
+    it("parses and sanitizes quoted keys in environment variables without quote contamination", () => {
+      const origEnv = Bun.env.GEMINI_API_KEY_BACKUP_10;
+      try {
+        Bun.env.GEMINI_API_KEY_BACKUP_10 = '"AIzaSy_Quoted_Backup_Key_10_XYZ"';
+        const keys = getGeminiApiKeys();
+        expect(keys).toContain("AIzaSy_Quoted_Backup_Key_10_XYZ");
+        expect(keys.some((k) => k.startsWith('"') || k.endsWith('"'))).toBe(false);
+      } finally {
+        if (origEnv !== undefined) {
+          Bun.env.GEMINI_API_KEY_BACKUP_10 = origEnv;
+        } else {
+          delete Bun.env.GEMINI_API_KEY_BACKUP_10;
+        }
       }
     });
   });

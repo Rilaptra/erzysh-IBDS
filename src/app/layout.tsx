@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 import { GoogleAnalyticsScriptLoader } from "@/components/telemetry/GoogleAnalyticsScriptLoader";
+import { CoreThemeStyle } from "@/components/ui/core";
 import "./globals.css";
 import { Geist } from "next/font/google";
 
@@ -29,7 +30,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={cn("font-sans", geist.variable)}>
+    <html lang="id" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
+      <head>
+        <CoreThemeStyle />
+      </head>
       <body>
         <GoogleAnalyticsScriptLoader />
         {children}

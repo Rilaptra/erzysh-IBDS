@@ -30,8 +30,12 @@ export type BeamMaterialKind = "STEEL" | "CONCRETE";
  * Global AI models and credentials configuration.
  */
 export interface AiConfig {
-  /** Google Gemini API Key (server-side only, null if unconfigured). */
+  /** Google Gemini Primary API Key (server-side only, null if unconfigured). */
   readonly apiKey: string | null;
+  /** All configured Google Gemini API Keys in failover priority order (primary + backups). */
+  readonly apiKeys: readonly string[];
+  /** Backup / fallback Google Gemini API Keys (excluding primary). */
+  readonly fallbackApiKeys: readonly string[];
   /** Primary model for Voice Command Intent Router & dynamic suggestion chips. */
   readonly intentModel: string;
   /** Primary model for Civil Engineering AI Assistant & Chatbot. */
@@ -175,15 +179,120 @@ function getEnvBool(key: string, defaultValue: boolean): boolean {
 }
 
 /**
- * Retrieves the active Google Gemini API Key from environment variables.
+ * Strips surrounding single or double quotes and trims whitespace from a key candidate.
+ * Handles cases where .env variables are wrapped in quotes (e.g. GEMINI_API_KEY="...").
+ */
+export function stripSurroundingQuotes(val: string): string {
+  let cleaned = val.trim();
+  while (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned.replace(/^["']|["']$/g, "").trim();
+}
+
+/**
+ * Validates whether an API key candidate is a non-empty, non-placeholder credential.
+ */
+function isValidGeminiApiKey(key: unknown): key is string {
+  if (typeof key !== "string") return false;
+  const trimmed = stripSurroundingQuotes(key);
+  if (!trimmed) return false;
+
+  const placeholders = [
+    "your_gemini_api_key_here",
+    "your_backup_gemini_api_key_here",
+    "your_api_key_here",
+    "placeholder",
+    "undefined",
+    "null",
+  ];
+
+  if (placeholders.includes(trimmed.toLowerCase())) {
+    return false;
+  }
+
+  if (
+    trimmed.startsWith("your_") ||
+    trimmed.startsWith("YOUR_") ||
+    trimmed.startsWith("<") ||
+    trimmed.startsWith("[")
+  ) {
+    return false;
+  }
+
+  // Real Gemini API keys or tokens are typically at least 8-10 characters
+  return trimmed.length >= 8;
+}
+
+/**
+ * Retrieves all configured Google Gemini API Keys from environment variables.
+ * Resolves primary keys and backup keys, supporting:
+ * - GEMINI_API_KEYS / AI_PROVIDER_API_KEYS (comma or newline separated list)
+ * - GEMINI_API_KEY / AI_PROVIDER_API_KEY (single or comma-separated)
+ * - GEMINI_API_KEY_BACKUP / GEMINI_API_KEY_FALLBACK / GEMINI_BACKUP_API_KEY
+ * - AI_PROVIDER_API_KEY_BACKUP / AI_PROVIDER_API_KEY_FALLBACK
+ * - GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc.
+ *
+ * Removes duplicates and placeholder values while preserving priority order.
+ */
+export function getGeminiApiKeys(): readonly string[] {
+  const candidateKeys: string[] = [];
+
+  const addKeys = (raw: string | undefined | null) => {
+    if (!raw) return;
+    const strippedRaw = stripSurroundingQuotes(raw);
+    const parts = strippedRaw.split(/[,\n;]+/);
+    for (const part of parts) {
+      const sanitized = stripSurroundingQuotes(part);
+      if (isValidGeminiApiKey(sanitized) && !candidateKeys.includes(sanitized)) {
+        candidateKeys.push(sanitized);
+      }
+    }
+  };
+
+  // 1. Explicit multi-key list
+  addKeys(getEnvVar("GEMINI_API_KEYS"));
+  addKeys(getEnvVar("AI_PROVIDER_API_KEYS"));
+
+  // 2. Primary individual keys
+  addKeys(getEnvVar("AI_PROVIDER_API_KEY"));
+  addKeys(getEnvVar("GEMINI_API_KEY"));
+  addKeys(getEnvVar("NEXT_PUBLIC_GEMINI_API_KEY"));
+
+  // 3. Explicit backup / fallback keys
+  addKeys(getEnvVar("GEMINI_API_KEY_BACKUP"));
+  addKeys(getEnvVar("GEMINI_API_KEY_FALLBACK"));
+  addKeys(getEnvVar("GEMINI_BACKUP_API_KEY"));
+  addKeys(getEnvVar("AI_PROVIDER_API_KEY_BACKUP"));
+  addKeys(getEnvVar("AI_PROVIDER_API_KEY_FALLBACK"));
+
+  // 4. Indexed backup keys (GEMINI_API_KEY_1..10, GEMINI_API_KEY_BACKUP_1..10)
+  for (let i = 1; i <= 10; i++) {
+    addKeys(getEnvVar(`GEMINI_API_KEY_${i}`));
+    addKeys(getEnvVar(`GEMINI_API_KEY_BACKUP_${i}`));
+  }
+
+  return Object.freeze(candidateKeys);
+}
+
+/**
+ * Retrieves the primary active Google Gemini API Key from environment variables.
  * Returns null if unset, blank, or placeholder.
  */
 export function getGeminiApiKey(): string | null {
-  const key = getEnvVar("AI_PROVIDER_API_KEY") || getEnvVar("GEMINI_API_KEY");
-  if (!key || key === "your_gemini_api_key_here") {
-    return null;
-  }
-  return key;
+  const keys = getGeminiApiKeys();
+  return keys.length > 0 ? (keys[0] ?? null) : null;
+}
+
+/**
+ * Retrieves only the backup/fallback Gemini API keys (excluding the primary key).
+ */
+export function getGeminiFallbackApiKeys(): readonly string[] {
+  const keys = getGeminiApiKeys();
+  return Object.freeze(keys.slice(1));
 }
 
 // ============================================================================
@@ -314,9 +423,15 @@ function createAppConfig(): AppConfig {
   const liveVoice = resolveLiveVoice();
   const fallbackModels = resolveFallbackModels(intentModel);
 
+  const apiKeys = getGeminiApiKeys();
+  const apiKey = apiKeys.length > 0 ? (apiKeys[0] ?? null) : null;
+  const fallbackApiKeys = Object.freeze(apiKeys.slice(1));
+
   return Object.freeze({
     ai: Object.freeze({
-      apiKey: getGeminiApiKey(),
+      apiKey,
+      apiKeys,
+      fallbackApiKeys,
       intentModel,
       consultantModel,
       liveModel,

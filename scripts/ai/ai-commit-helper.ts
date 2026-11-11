@@ -6,6 +6,9 @@
 
 import { $ } from "bun";
 
+import { getGeminiApiKeys } from "@/config/app-config";
+import { markApiKeyRateLimited, maskApiKey, prioritizeApiKeys } from "@/lib/gemini-api-failover";
+
 /**
  * Generates an AI-assisted Conventional Commit message from staged git changes
  * and executes git commit with interactive or automated confirmation.
@@ -39,13 +42,15 @@ export async function generateAiCommitMessage(): Promise<void> {
   }
 
   // 4. Validate AI provider credentials
-  const apiKey = Bun.env.AI_PROVIDER_API_KEY?.trim();
-  if (!apiKey) {
+  const rawKeys = getGeminiApiKeys();
+  if (rawKeys.length === 0) {
     console.error(
-      "❌ Missing AI_PROVIDER_API_KEY environment variable. Set it in .env or your environment.",
+      "❌ Missing AI_PROVIDER_API_KEY / GEMINI_API_KEY environment variable. Set it in .env or your environment.",
     );
     process.exit(1);
   }
+
+  const keys = prioritizeApiKeys(rawKeys);
 
   const model = Bun.env.AI_COMMIT_MODEL?.trim() || "gemini-2.5-flash";
 
@@ -62,38 +67,83 @@ export async function generateAiCommitMessage(): Promise<void> {
     stagedDiff.slice(0, 16000),
   ].join("\n");
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 200,
-          },
-        }),
-      },
-    );
+  let commitMessage = "";
+  let lastErrorText = "";
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API returned status ${response.status}: ${errorText}`);
+  try {
+    for (let keyIdx = 0; keyIdx < keys.length; keyIdx++) {
+      const currentKey = keys[keyIdx]!;
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": currentKey,
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 200,
+              },
+            }),
+          },
+        );
+
+        if (!response.ok) {
+          lastErrorText = await response.text();
+          if (response.status === 429) {
+            markApiKeyRateLimited(currentKey);
+            if (keyIdx + 1 < keys.length) {
+              console.warn(
+                `⚠️ Kunci API (${maskApiKey(currentKey)}) terkena batas limit (HTTP 429). Mengalihkan ke kunci cadangan (${maskApiKey(keys[keyIdx + 1]!)})...`,
+              );
+              continue;
+            }
+          }
+          throw new Error(`Gemini API returned status ${response.status}: ${lastErrorText}`);
+        }
+
+        const payload = (await response.json()) as {
+          candidates?: Array<{
+            content?: {
+              parts?: Array<{ text?: string; thought?: boolean }>;
+            };
+          }>;
+        };
+
+        const parts = payload.candidates?.[0]?.content?.parts ?? [];
+        const nonThought = parts
+          .filter((p) => !p.thought && typeof p.text === "string")
+          .map((p) => p.text)
+          .join("");
+        const candidate = (
+          nonThought.trim() ||
+          parts
+            .filter((p) => typeof p.text === "string")
+            .map((p) => p.text)
+            .join("")
+        ).trim();
+
+        if (candidate) {
+          commitMessage = candidate;
+          break;
+        }
+      } catch (err) {
+        if (keyIdx + 1 < keys.length) {
+          console.warn(
+            `⚠️ Terjadi kendala pada kunci API (${maskApiKey(currentKey)}). Mencoba kunci cadangan...`,
+          );
+          continue;
+        }
+        throw err;
+      }
     }
 
-    const payload = (await response.json()) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{ text?: string }>;
-        };
-      }>;
-    };
-
-    const commitMessage = payload.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!commitMessage) {
-      throw new Error("Empty commit message candidate returned by Gemini API.");
+      throw new Error(`Empty commit message candidate returned by Gemini API. ${lastErrorText}`);
     }
 
     console.log("\n========================================");

@@ -11,6 +11,8 @@ import { join } from "node:path";
 import { c, Confirm, Notification, Select, ToastBuilder, write } from "@rilaptra/tui";
 import Bun from "bun";
 
+import { getGeminiApiKeys } from "../src/config/app-config";
+import { isQuotaOrAuthError, maskApiKey } from "../src/lib/gemini-api-failover";
 import { ZyLog } from "../src/lib/zylog";
 import { runVerification } from "./verify";
 
@@ -26,8 +28,13 @@ function resolveApiKey(): string | undefined {
   const fromEnv =
     process.env.GEMINI_API_KEY ||
     process.env.AI_PROVIDER_API_KEY ||
+    process.env.GEMINI_API_KEY_BACKUP ||
+    process.env.GEMINI_API_KEYS ||
     process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (fromEnv?.trim()) return fromEnv.trim();
+  if (fromEnv?.trim()) {
+    const firstKey = fromEnv.split(",")[0]?.trim();
+    if (firstKey && firstKey !== "your_gemini_api_key_here") return firstKey;
+  }
 
   const candidatePaths = [
     join(process.cwd(), ".env.local"),
@@ -41,9 +48,9 @@ function resolveApiKey(): string | undefined {
       try {
         const content = readFileSync(p, "utf-8");
         const match = content.match(
-          /^(?:GEMINI_API_KEY|AI_PROVIDER_API_KEY|NEXT_PUBLIC_GEMINI_API_KEY)\s*=\s*["']?([^"'\r\n]+)["']?/m,
+          /^(?:GEMINI_API_KEY|AI_PROVIDER_API_KEY|GEMINI_API_KEY_BACKUP|GEMINI_API_KEYS|NEXT_PUBLIC_GEMINI_API_KEY)\s*=\s*["']?([^"',\r\n]+)/m,
         );
-        if (match?.[1]?.trim()) {
+        if (match?.[1]?.trim() && match[1].trim() !== "your_gemini_api_key_here") {
           return match[1].trim();
         }
       } catch {
@@ -195,32 +202,47 @@ interface AiReleaseDecision {
 }
 
 const AIManager = {
-  API_KEY: resolveApiKey(),
+  getApiKeys(): readonly string[] {
+    const fromConfig = getGeminiApiKeys();
+    if (fromConfig.length > 0) return fromConfig;
+    const single = resolveApiKey();
+    return single ? [single] : [];
+  },
   MODEL: "gemini-3.5-flash-lite",
   availableModels: [] as string[],
 
   async fetchModels(): Promise<boolean> {
-    if (!this.API_KEY) return false;
+    const keys = this.getApiKeys();
+    if (keys.length === 0) return false;
 
     ui.startSpinner("Fetching available Gemini models...");
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${this.API_KEY}`,
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    for (const key of keys) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models`, {
+          headers: {
+            "x-goog-api-key": key,
+          },
+        });
+        if (!res.ok) {
+          if (res.status === 429 || res.status === 400 || res.status === 403) {
+            continue;
+          }
+          throw new Error(`HTTP ${res.status}`);
+        }
 
-      const data = (await res.json()) as { models?: GeminiModelEntry[] };
-      this.availableModels = (data.models ?? [])
-        .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
-        .map((m) => m.name.replace("models/", ""));
+        const data = (await res.json()) as { models?: GeminiModelEntry[] };
+        this.availableModels = (data.models ?? [])
+          .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+          .map((m) => m.name.replace("models/", ""));
 
-      ui.stopSpinner(true, `Found ${this.availableModels.length} available Gemini models.`);
-      return true;
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e);
-      ui.stopSpinner(false, `Failed to fetch models: ${message}`);
-      return false;
+        ui.stopSpinner(true, `Found ${this.availableModels.length} available Gemini models.`);
+        return true;
+      } catch {
+        continue;
+      }
     }
+    ui.stopSpinner(false, "Failed to fetch models: all API keys failed or rate-limited.");
+    return false;
   },
 
   async generateReleaseData(
@@ -228,7 +250,8 @@ const AIManager = {
     oldWasmVer: string,
     diff: string,
   ): Promise<AiReleaseDecision> {
-    if (!this.API_KEY) throw new Error("No GEMINI_API_KEY / AI_PROVIDER_API_KEY found.");
+    const keys = this.getApiKeys();
+    if (keys.length === 0) throw new Error("No GEMINI_API_KEY / AI_PROVIDER_API_KEY found.");
 
     const cleanDiff = diff.length > 30000 ? `${diff.substring(0, 30000)}\n... (truncated)` : diff;
     const today = new Date().toISOString().split("T")[0];
@@ -255,40 +278,99 @@ Diffs:
 ${cleanDiff}
 `.trim();
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${this.MODEL}:generateContent?key=${this.API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2 },
-        }),
-      },
-    );
+    let lastError: unknown = null;
+    for (let keyIdx = 0; keyIdx < keys.length; keyIdx++) {
+      const currentKey = keys[keyIdx]!;
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${this.MODEL}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": currentKey,
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.2 },
+            }),
+          },
+        );
 
-    const data = (await res.json()) as {
-      error?: { message?: string };
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    };
-    if (data.error) throw new Error(data.error.message ?? "Gemini API error");
+        if (!res.ok) {
+          const errorBody = await res.text().catch(() => "");
+          if (isQuotaOrAuthError(res.status, errorBody) && keyIdx + 1 < keys.length) {
+            const nextKey = keys[keyIdx + 1]!;
+            console.warn(
+              `⚠️ [Release AI Failover] Kunci API (${maskApiKey(currentKey)}) terkena batas limit/error (HTTP ${res.status}). Mengalihkan ke kunci cadangan (${maskApiKey(nextKey)})...`,
+            );
+            continue;
+          }
+          throw new Error(`HTTP ${res.status}: ${errorBody}`);
+        }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("AI did not return valid JSON");
+        const data = (await res.json()) as {
+          error?: { message?: string };
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
+        };
+        if (data.error) {
+          if (keyIdx + 1 < keys.length) {
+            const nextKey = keys[keyIdx + 1]!;
+            console.warn(
+              `⚠️ [Release AI Failover] Error dari Gemini API (${maskApiKey(currentKey)}): ${data.error.message}. Mengalihkan ke kunci cadangan (${maskApiKey(nextKey)})...`,
+            );
+            continue;
+          }
+          throw new Error(data.error.message ?? "Gemini API error");
+        }
 
-    const parsed = JSON.parse(match[0]) as Partial<AiReleaseDecision>;
-    if (!parsed.webVersion || !parsed.wasmVersion || !parsed.changelog || !parsed.commitMessage) {
-      throw new Error("Missing required fields in AI JSON response");
+        const parts = data.candidates?.[0]?.content?.parts ?? [];
+        const nonThought = parts
+          .filter((p) => !p.thought && typeof p.text === "string")
+          .map((p) => p.text)
+          .join("");
+        const text = (
+          nonThought.trim() ||
+          parts
+            .filter((p) => typeof p.text === "string")
+            .map((p) => p.text)
+            .join("")
+        ).trim();
+
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error("AI did not return valid JSON");
+
+        const parsed = JSON.parse(match[0]) as Partial<AiReleaseDecision>;
+        if (
+          !parsed.webVersion ||
+          !parsed.wasmVersion ||
+          !parsed.changelog ||
+          !parsed.commitMessage
+        ) {
+          throw new Error("Missing required fields in AI JSON response");
+        }
+
+        return {
+          webVersion: parsed.webVersion,
+          wasmVersion: parsed.wasmVersion,
+          commitMessage: ensureConventionalCommit(parsed.commitMessage),
+          changelog: `${parsed.changelog.trim()}\n\n`,
+          readmeBlocks: typeof parsed.readmeBlocks === "string" ? parsed.readmeBlocks.trim() : "",
+        };
+      } catch (err) {
+        lastError = err;
+        if (keyIdx + 1 < keys.length) {
+          const nextKey = keys[keyIdx + 1]!;
+          console.warn(
+            `⚠️ [Release AI Failover] Terjadi kendala pada kunci (${maskApiKey(currentKey)}). Mencoba kunci cadangan (${maskApiKey(nextKey)})...`,
+          );
+          continue;
+        }
+        throw err;
+      }
     }
 
-    return {
-      webVersion: parsed.webVersion,
-      wasmVersion: parsed.wasmVersion,
-      commitMessage: ensureConventionalCommit(parsed.commitMessage),
-      changelog: `${parsed.changelog.trim()}\n\n`,
-      readmeBlocks: typeof parsed.readmeBlocks === "string" ? parsed.readmeBlocks.trim() : "",
-    };
+    throw lastError ?? new Error("All API keys failed in generateReleaseData");
   },
 };
 
@@ -429,7 +511,7 @@ class ReleaseManager {
       ui.step(3, 8, "AI Model Configuration");
       let useAI = true;
 
-      if (AIManager.API_KEY) {
+      if (AIManager.getApiKeys().length > 0) {
         const modelsFetched = await AIManager.fetchModels();
         if (modelsFetched && AIManager.availableModels.length > 0) {
           if (AIManager.availableModels.includes(AIManager.MODEL)) {

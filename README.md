@@ -17,7 +17,7 @@ _Dikembangkan oleh **Rizqi Lasheva Purnama Putra** — Dikendalikan secara real-
 <img src="https://img.shields.io/badge/%F0%9F%9A%80_LIVE_DEMO-ERZYSH--IBDS.VERCEL.APP-000000?style=for-the-badge&amp;logo=vercel&amp;logoColor=06B6D4" alt="Vercel Live Deployment" />
 </a>
 <a href="https://github.com/Rilaptra/erzysh-IBDS/releases">
-<img src="https://img.shields.io/badge/RELEASE-v0.6.7--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
+<img src="https://img.shields.io/badge/RELEASE-v0.6.8--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
 </a>
 <a href="https://erzysh-ibds.vercel.app">
 <img src="https://img.shields.io/badge/AUTHOR-RIZQI_LASHEVA_(ERZY.SH)-06B6D4?style=for-the-badge&amp;logo=opsgenie&amp;logoColor=white" alt="Author Erzy.sh" />
@@ -264,6 +264,31 @@ Buka **`http://localhost:3000`** di browser Desktop untuk mengakses **Full 3D Wo
 | `bun run format` (`bun fmt`)                                            | Memformat seluruh kode `.ts`, `.tsx`, `.css`, `.json`, dan `.md` secara instan.                                            |
 | `bun test --parallel --check`                                           | Menjalankan seluruh pengujian unit SNI 2847, SNI 1729, dan benchmark SAP2000 secara paralel.                               |
 | `bun run commit:ai`                                                     | Membaca `git diff --staged`, menyusun _Conventional Commit_ via AI, dan mendukung _auto-bump_ tag rilis GitHub (`vX.Y.Z`). |
+
+### 5. Konfigurasi Google Gemini API & Sistem Failover Kunci Cadangan
+
+Fitur AI multimodal (Intent Router, Voice Assistant, AI Commit, Release Pipeline) mendukung **Failover Multi-Kunci Otomatis** jika kuota free-tier Google AI Studio (15 RPM) mencapai batas limit (HTTP 429 / `RESOURCE_EXHAUSTED` / 400 `API_KEY_INVALID`).
+
+Tambahkan kunci cadangan di file `.env`:
+
+```bash
+# Opsi 1: Kunci utama + Kunci cadangan tunggal (Recommended)
+GEMINI_API_KEY=AIzaSy_KunciUtama...
+GEMINI_API_KEY_BACKUP=AIzaSy_KunciCadangan...
+
+# Opsi 2: Daftar kunci dipisahkan koma
+GEMINI_API_KEYS=AIzaSy_Kunci1,AIzaSy_Kunci2,AIzaSy_Kunci3
+
+# Opsi 3: Penomoran kunci
+GEMINI_API_KEY_1=AIzaSy_Kunci1
+GEMINI_API_KEY_2=AIzaSy_Kunci2
+```
+
+Sistem mengirim token via header `x-goog-api-key` (bukan query string URL) untuk mencegah kebocoran kredensial, menerapkan _progressive backoff cooldown_, dan otomatis beralih ke kunci sehat berikutnya tanpa jeda. Uji sistem rotasi dengan:
+
+```bash
+bun test tests/config/app-config.test.ts tests/ai/gemini-api-failover.test.ts
+```
 
 ## 👤 Identitas Pengembang (Author)
 

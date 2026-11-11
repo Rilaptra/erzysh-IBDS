@@ -146,20 +146,50 @@ describe("Step 7: Analytics & Telemetry Engine Tests", () => {
 
   describe("GET /api/analytics/visitors Route Handler", () => {
     it("returns 200 with fallback visitor count in unconfigured environment", async () => {
+      const keysToClear = ["GA4_SERVICE_ACCOUNT_EMAIL", "GA4_PRIVATE_KEY", "GA4_PROPERTY_ID"];
+      const savedBun: Record<string, string | undefined> = {};
+      const savedProc: Record<string, string | undefined> = {};
+
+      for (const k of keysToClear) {
+        savedBun[k] = Bun.env[k];
+        savedProc[k] = process.env[k];
+        delete Bun.env[k];
+        delete process.env[k];
+      }
+
+      try {
+        const response = await visitorsGetHandler();
+        expect(response.status).toBe(200);
+
+        const json = (await response.json()) as {
+          totalVisitors: number;
+          startDate: string;
+          formattedBadge: string;
+          status: string;
+        };
+
+        expect(json.totalVisitors).toBe(DEFAULT_FALLBACK_VISITOR_COUNT);
+        expect(json.startDate).toBe(HARDCODED_START_DATE);
+        expect(json.formattedBadge).toContain("Visited 1,420 times");
+        expect(json.status).toBe("fallback");
+      } finally {
+        for (const k of keysToClear) {
+          if (savedBun[k] !== undefined) Bun.env[k] = savedBun[k];
+          if (savedProc[k] !== undefined) process.env[k] = savedProc[k];
+        }
+      }
+    });
+
+    it("returns real live visitor count from GA4 when configured", async () => {
       const response = await visitorsGetHandler();
       expect(response.status).toBe(200);
 
       const json = (await response.json()) as {
         totalVisitors: number;
-        startDate: string;
-        formattedBadge: string;
         status: string;
       };
-
-      expect(json.totalVisitors).toBe(DEFAULT_FALLBACK_VISITOR_COUNT);
-      expect(json.startDate).toBe(HARDCODED_START_DATE);
-      expect(json.formattedBadge).toContain("Visited 1,420 times");
-      expect(json.status).toBe("fallback");
+      expect(json.status).toBe("fresh");
+      expect(json.totalVisitors).toBeGreaterThanOrEqual(0);
     });
   });
 
