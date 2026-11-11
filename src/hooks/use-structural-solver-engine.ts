@@ -1,4 +1,3 @@
-// src/hooks/use-structural-solver-engine.ts
 /**
  * @file use-structural-solver-engine.ts
  * @description Master reactive hook linking simulator store inputs to the Rust WASM
@@ -62,7 +61,7 @@ export interface StructuralSolverEngineResult {
  * or falls back to default dimensions if no section is available.
  *
  * @param profileType Active steel profile type ("IWF" or "BOX").
- * @param props Optional steel section properties from catalog optimization.
+ * @param props Optional steel section properties from catalog or parametric optimization.
  * @returns Extrusion cross-section input for the Rust WASM 3D mesh generator.
  */
 function buildSteelExtrusionCrossSection(
@@ -98,7 +97,8 @@ function buildSteelExtrusionCrossSection(
 
 /**
  * Core reactive engine hook that synchronizes Mode A / Mode B structural mechanics,
- * SNI 1729 / SNI 2847 section optimization, 3D WebGL extrusion meshes, and 256-station diagrams.
+ * SNI 1729 / SNI 2847 section optimization (including custom parametric BOX sections),
+ * 3D WebGL extrusion meshes, and 256-station diagrams.
  *
  * @returns Reactive solver outputs, 3D mesh views, diagram views, and compliance status.
  * @example
@@ -241,6 +241,7 @@ export function useStructuralSolverEngine(): StructuralSolverEngineResult {
               steelGrade: store.steelGrade,
               maxDepthMm: store.steelMaxHeightMm ? Number(store.steelMaxHeightMm) : undefined,
               maxWidthMm: store.steelMaxWidthMm ? Number(store.steelMaxWidthMm) : undefined,
+              customBoxConfig: store.customBoxConfig,
             });
 
             const userCandidate = store.selectedSteelProfileName
@@ -340,6 +341,7 @@ export function useStructuralSolverEngine(): StructuralSolverEngineResult {
               steelGrade: store.steelGrade,
               maxDepthMm: store.steelMaxHeightMm ? Number(store.steelMaxHeightMm) : undefined,
               maxWidthMm: store.steelMaxWidthMm ? Number(store.steelMaxWidthMm) : undefined,
+              customBoxConfig: store.customBoxConfig,
             });
 
             const userCandidate = store.selectedSteelProfileName
@@ -443,6 +445,7 @@ export function useStructuralSolverEngine(): StructuralSolverEngineResult {
     store.steelMaxHeightMm,
     store.steelMaxWidthMm,
     store.selectedSteelProfileName,
+    store.customBoxConfig,
     store.coordinateMode,
     store.deflectionLimitDenominator,
   ]);

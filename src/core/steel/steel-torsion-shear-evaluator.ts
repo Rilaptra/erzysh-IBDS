@@ -99,8 +99,8 @@ export function evaluateSteelShear(
 
   if (section.profileType === "IWF") {
     const dims = IWF_DIMS_MAP.get(section.name);
-    const h = dims ? Number(dims.H) : Number(section.h0);
-    const tw = dims ? Number(dims.tw) : 6.0;
+    const h = dims ? Number(dims.H) : Number(section.H ?? section.h0);
+    const tw = dims ? Number(dims.tw) : Number(section.tw ?? 6.0);
     awMm2 = h * tw;
 
     // SNI 1729:2020 Pasal G2.1a: rolled I-shapes with h/tw <= 2.24*sqrt(E/Fy) have phi_v = 1.0, Cv1 = 1.0
@@ -116,8 +116,8 @@ export function evaluateSteelShear(
   } else {
     // BOX Profile (Pasal G4)
     const dims = BOX_DIMS_MAP.get(section.name);
-    const h = dims ? Number(dims.H) : Number(section.h0);
-    const t = dims ? Number(dims.t) : 6.0;
+    const h = dims ? Number(dims.H) : Number(section.H ?? section.h0);
+    const t = dims ? Number(dims.t) : Number(section.t ?? section.tw ?? 6.0);
     const hFlat = Math.max(1.0, h - 3.0 * t);
     awMm2 = 2.0 * hFlat * t; // 2 vertical shear webs
     phiV = 0.9;
@@ -182,8 +182,8 @@ export function evaluateSteelTorsion(
   if (section.profileType === "BOX") {
     const boxProps = section as BoxSectionProperties;
     const dims = BOX_DIMS_MAP.get(section.name);
-    const h = dims ? Number(dims.H) : Number(section.h0);
-    const t = dims ? Number(dims.t) : 6.0;
+    const h = dims ? Number(dims.H) : Number(section.H ?? section.h0);
+    const t = dims ? Number(dims.t) : Number(section.t ?? section.tw ?? 6.0);
 
     // HSS Torsional constant C in mm³
     cMm3 = boxProps.C ? Number(boxProps.C) : 2.0 * (h - t) * (h - t) * t;
@@ -207,7 +207,7 @@ export function evaluateSteelTorsion(
     // IWF Open Profile: approximate torsional yield capacity based on thin web/flange St. Venant J
     const jMm4 = Number(section.J);
     const dims = IWF_DIMS_MAP.get(section.name);
-    const tf = dims ? Number(dims.tf) : 10.0;
+    const tf = dims ? Number(dims.tf) : Number(section.tf ?? 10.0);
     cMm3 = jMm4 / tf;
     fcrMpa = 0.6 * fy;
     tnKnm = (fcrMpa * cMm3) / 1_000_000;

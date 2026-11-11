@@ -1,8 +1,8 @@
-// src/components/results/SteelOptimizationRankingTable.tsx
 /**
  * @file SteelOptimizationRankingTable.tsx
  * @description Ranking table & summary card for SNI 1729:2020 structural steel optimization:
  * - Optimal governing profile recommendation (lightest compliant section)
+ * - Highlights custom-generated parametric hollow box sections (`isCustomGenerated`)
  * - Destructive error banner when demands exceed catalog capacity (`solverError`)
  * - Interactive clickable candidate ranking rows to inspect/select alternative profiles
  * - Exact 2D SVG technical cross-section preview using true catalog H, B, tw, tf, r, t
@@ -38,7 +38,7 @@ export interface SteelOptimizationRankingTableProps {
 
 /**
  * Renders the SNI 1729:2020 steel profile optimization summary, 2D SVG cross-section,
- * interactive alternative profile table, and error diagnostics.
+ * interactive alternative profile table, custom parametric badges, and error diagnostics.
  *
  * @param props Optimization result and optional export modal callback.
  * @returns React element displaying steel optimization results.
@@ -49,7 +49,13 @@ export function SteelOptimizationRankingTable({
   result,
   onOpenExportModal,
 }: SteelOptimizationRankingTableProps): ReactElement {
-  const { solverError, selectedSteelProfileName, governingForces } = useBeamSimulatorStore();
+  const {
+    solverError,
+    selectedSteelProfileName,
+    governingForces,
+    steelProfileType,
+    customBoxConfig,
+  } = useBeamSimulatorStore();
 
   if (solverError) {
     return (
@@ -68,7 +74,7 @@ export function SteelOptimizationRankingTable({
             {governingForces.absoluteMaxVu.toFixed(1)} kN | Pu ={" "}
             {governingForces.absoluteMaxPu.toFixed(1)} kN
           </div>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             <Button
               type="button"
               size="xs"
@@ -85,6 +91,23 @@ export function SteelOptimizationRankingTable({
             >
               Naikkan ke BJ 55 & Hapus Batas Hmax
             </Button>
+
+            {steelProfileType === "BOX" && !customBoxConfig.enabled ? (
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                onClick={() =>
+                  beamSimulatorActions.setSteelParameters({
+                    customBoxConfig: { enabled: true },
+                    selectedProfileName: null,
+                  })
+                }
+                className="border-purple-500/50 text-[10px] font-semibold text-purple-300 hover:bg-purple-500/20"
+              >
+                ⚡ Aktifkan BOX Custom (t = 20–35 mm)
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -110,10 +133,18 @@ export function SteelOptimizationRankingTable({
       <Card size="sm" className="border-border/40 bg-card/60">
         <CardContent className="flex items-center justify-between p-2.5">
           <div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground text-[10px] font-medium">
                 PROFIL TERPILIH (SNI 1729)
               </span>
+              {props.isCustomGenerated ? (
+                <Badge
+                  variant="outline"
+                  className="h-4 border-purple-500/50 bg-purple-500/15 px-1.5 text-[9px] font-bold text-purple-300"
+                >
+                  ⚡ PARAMETRIK CUSTOM
+                </Badge>
+              ) : null}
               {selectedSteelProfileName ? (
                 <Badge
                   variant="outline"
@@ -130,7 +161,7 @@ export function SteelOptimizationRankingTable({
                 </Badge>
               )}
             </div>
-            <div className="text-sm font-bold text-sky-400">{props.name}</div>
+            <div className="mt-0.5 text-sm font-bold text-sky-400">{props.name}</div>
             <div className="text-muted-foreground text-[10px]">
               Mutu {bestCandidate.grade.grade.replace("_", " ")} (fy ={" "}
               {Number(bestCandidate.grade.fy)} MPa) • {Number(props.unitWeightKgPerM).toFixed(1)}{" "}
@@ -223,7 +254,7 @@ export function SteelOptimizationRankingTable({
             Peringkat Profil Ekonomis (Klik baris untuk pilih):
           </span>
           <span className="text-muted-foreground text-[10px]">
-            {compliantCandidates.length} lulus
+            {compliantCandidates.length} lulus (dari {result.evaluatedCount} diuji)
           </span>
         </div>
         <ScrollArea className="border-border/40 h-32 w-full rounded-md border">
@@ -261,8 +292,20 @@ export function SteelOptimizationRankingTable({
                     )}
                   >
                     <TableCell className="text-foreground px-2 py-1 font-semibold">
-                      {isSelected ? "▸ " : ""}
-                      {c.properties.name}
+                      <div className="flex items-center gap-1">
+                        <span>
+                          {isSelected ? "▸ " : ""}
+                          {c.properties.name}
+                        </span>
+                        {c.properties.isCustomGenerated ? (
+                          <Badge
+                            variant="outline"
+                            className="h-3.5 border-purple-500/40 bg-purple-500/15 px-1 py-0 text-[8px] font-semibold text-purple-300"
+                          >
+                            Custom
+                          </Badge>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className="px-2 py-1 text-right font-mono">
                       {(Number(c.governingDcr) * 100).toFixed(1)}%

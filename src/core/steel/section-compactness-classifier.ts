@@ -8,6 +8,7 @@
 
 import rawBoxCatalog from "@/data/steel-box-catalog.json";
 import rawIwfCatalog from "@/data/steel-iwf-catalog.json";
+import type { Millimeter } from "@/types/branded-units";
 import { SteelDesignError } from "@/types/steel-sni1729-types";
 import type {
   BoxPrimaryDimensions,
@@ -117,7 +118,19 @@ export function classifySectionCompactness(
   const sqrtEOverFy = Math.sqrt(modulusOfElasticityE / fy);
 
   if (section.profileType === "IWF") {
-    const dims = (explicitDims as IwfPrimaryDimensions) ?? IWF_DIMS_MAP.get(section.name);
+    const dims =
+      (explicitDims as IwfPrimaryDimensions) ??
+      IWF_DIMS_MAP.get(section.name) ??
+      (section.H && section.B && section.tw && section.tf
+        ? ({
+            name: section.name,
+            H: section.H,
+            B: section.B,
+            tw: section.tw,
+            tf: section.tf,
+            r: section.r ?? (0 as Millimeter),
+          } as IwfPrimaryDimensions)
+        : undefined);
     if (!dims) {
       throw new SteelDesignError(
         section.name,
@@ -162,7 +175,18 @@ export function classifySectionCompactness(
   }
 
   // BOX / PSR Profile
-  const dims = (explicitDims as BoxPrimaryDimensions) ?? BOX_DIMS_MAP.get(section.name);
+  const dims =
+    (explicitDims as BoxPrimaryDimensions) ??
+    BOX_DIMS_MAP.get(section.name) ??
+    (section.H && section.B && (section.t || section.tw)
+      ? ({
+          name: section.name,
+          H: section.H,
+          B: section.B,
+          t: (section.t ?? section.tw) as Millimeter,
+          shapeType: section.H === section.B ? "SQUARE" : "RECTANGULAR",
+        } as BoxPrimaryDimensions)
+      : undefined);
   if (!dims) {
     throw new SteelDesignError(
       section.name,

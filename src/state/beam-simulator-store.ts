@@ -1,4 +1,3 @@
-// src/state/beam-simulator-store.ts
 /**
  * @file beam-simulator-store.ts
  * @description Central reactive state store for the beam deflection and design simulator.
@@ -29,7 +28,11 @@ import type {
   ConcreteOptimizationResult,
   RebarSteelGrade,
 } from "@/types/concrete-sni2847-types";
-import type { SteelGrade, SteelProfileType } from "@/types/steel-sni1729-types";
+import type {
+  CustomBoxOptimizationConfig,
+  SteelGrade,
+  SteelProfileType,
+} from "@/types/steel-sni1729-types";
 
 /**
  * Supported 2D internal force diagram display layouts.
@@ -101,6 +104,7 @@ export interface BeamSimulatorState {
   readonly steelMaxHeightMm: Millimeter | undefined;
   readonly steelMaxWidthMm: Millimeter | undefined;
   readonly selectedSteelProfileName: string | null;
+  readonly customBoxConfig: CustomBoxOptimizationConfig;
 
   // Visual & Canvas Preferences
   readonly coordinateMode: CoordinateSystemMode;
@@ -167,6 +171,18 @@ const INITIAL_STATE: BeamSimulatorState = {
   steelMaxHeightMm: undefined,
   steelMaxWidthMm: undefined,
   selectedSteelProfileName: null,
+  customBoxConfig: {
+    enabled: false,
+    hMinMm: 200,
+    hMaxMm: 600,
+    bMinMm: 200,
+    bMaxMm: 600,
+    dimensionStepMm: 50,
+    tMinMm: 20,
+    tMaxMm: 35,
+    thicknessStepMm: 5,
+    shapeRule: "ALL",
+  },
 
   coordinateMode: "Z-Up",
   customUpVector: { x: 0, y: 0, z: 1 },
@@ -326,6 +342,12 @@ export const beamSimulatorActions = {
     emitChange();
   },
 
+  /**
+   * Updates structural steel design parameters, including optional parametric
+   * custom hollow box generator settings (`customBoxConfig`).
+   *
+   * @param params Partial steel design and custom box parameters.
+   */
   setSteelParameters(params: {
     profileType?: SteelProfileType;
     grade?: SteelGrade;
@@ -333,9 +355,11 @@ export const beamSimulatorActions = {
     maxHeightMm?: number;
     maxWidthMm?: number;
     selectedProfileName?: string | null;
+    customBoxConfig?: Partial<CustomBoxOptimizationConfig>;
   }): void {
     const nextProfileType = params.profileType ?? currentState.steelProfileType;
     const profileTypeChanged = nextProfileType !== currentState.steelProfileType;
+    const customBoxChanged = params.customBoxConfig !== undefined;
 
     currentState = {
       ...currentState,
@@ -357,10 +381,13 @@ export const beamSimulatorActions = {
             ? (params.maxWidthMm as Millimeter)
             : undefined
           : currentState.steelMaxWidthMm,
+      customBoxConfig: params.customBoxConfig
+        ? { ...currentState.customBoxConfig, ...params.customBoxConfig }
+        : currentState.customBoxConfig,
       selectedSteelProfileName:
         params.selectedProfileName !== undefined
           ? params.selectedProfileName
-          : profileTypeChanged
+          : profileTypeChanged || customBoxChanged
             ? null
             : currentState.selectedSteelProfileName,
     };
