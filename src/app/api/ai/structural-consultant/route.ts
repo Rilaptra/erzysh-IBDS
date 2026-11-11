@@ -7,6 +7,7 @@
  */
 
 import { appConfig } from "@/config/app-config";
+import { executeGeminiWithFailover } from "@/lib/gemini-api-failover";
 import type { BeamSimulatorState } from "@/state/beam-simulator-store";
 
 /**
@@ -295,7 +296,7 @@ async function callGeminiConsultant(
   prompt: string,
   history: Array<{ role: string; content: string }>,
   state: StructuralConsultantRequestBody["simulatorState"] | undefined,
-  apiKey: string,
+  apiKey?: string,
 ): Promise<string | null> {
   const isTest = process.env.NODE_ENV === "test" || Bun.env?.NODE_ENV === "test";
   if (isTest) {
@@ -303,9 +304,7 @@ async function callGeminiConsultant(
   }
 
   const primaryModel = appConfig.ai.consultantModel;
-  const candidateModels = Array.from(
-    new Set([primaryModel, "gemini-2.5-flash", "gemini-1.5-flash"]),
-  );
+  const candidateModels = Array.from(new Set([primaryModel, ...appConfig.ai.fallbackModels]));
 
   const span = state?.spanLengthM ? Number(state.spanLengthM) : 6.0;
   const defl = Math.abs(state?.maxDeflectionMm ?? 0);
@@ -369,48 +368,20 @@ PANDUAN MERESPONS:
     parts: [{ text: prompt }],
   });
 
-  const payload = {
+  const execResult = await executeGeminiWithFailover({
+    candidateModels,
+    candidateKeys: apiKey ? [apiKey, ...appConfig.ai.fallbackApiKeys] : undefined,
+    systemInstruction,
     contents,
-    systemInstruction: {
-      parts: [{ text: systemInstruction }],
-    },
     generationConfig: {
       temperature: 0.3,
       maxOutputTokens: 1200,
     },
-  };
+    timeoutMs: 3500,
+    logPrefix: "Structural Consultant",
+  });
 
-  for (const model of candidateModels) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(3500),
-      });
-
-      if (!response.ok) continue;
-
-      const result = (await response.json()) as {
-        candidates?: Array<{
-          content?: {
-            parts?: Array<{ text?: string }>;
-          };
-        }>;
-      };
-
-      const replyText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      if (replyText) {
-        return replyText;
-      }
-    } catch {
-      // Continue to next candidate model
-      continue;
-    }
-  }
-
-  return null;
+  return execResult?.text ?? null;
 }
 
 // ============================================================================
@@ -434,20 +405,9 @@ export async function POST(req: Request): Promise<Response> {
     const history = body.messages ? body.messages.slice(0, -1) : [];
 
     // 1. Attempt Gemini call if API key configured
-    const apiKey =
-      appConfig.ai.apiKey ||
-      Bun.env.AI_PROVIDER_API_KEY?.trim() ||
-      Bun.env.GEMINI_API_KEY?.trim() ||
-      process.env.AI_PROVIDER_API_KEY?.trim() ||
-      process.env.GEMINI_API_KEY?.trim();
-    if (apiKey && apiKey !== "your_gemini_api_key_here") {
+    if (appConfig.ai.apiKeys.length > 0) {
       try {
-        const geminiReply = await callGeminiConsultant(
-          prompt,
-          history,
-          body.simulatorState,
-          apiKey,
-        );
+        const geminiReply = await callGeminiConsultant(prompt, history, body.simulatorState);
         if (geminiReply) {
           const resp: StructuralConsultantResponse = {
             reply: geminiReply,

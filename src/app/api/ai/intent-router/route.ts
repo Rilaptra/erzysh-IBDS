@@ -10,6 +10,7 @@
 
 import { appConfig } from "@/config/app-config";
 import { generateContextualSuggestions, matchRuleBasedIntent } from "@/lib/command-matcher";
+import { executeGeminiWithFailover } from "@/lib/gemini-api-failover";
 import type {
   CommandId,
   IntentActionItem,
@@ -29,11 +30,11 @@ export { generateContextualSuggestions, matchRuleBasedIntent };
  */
 async function classifyIntentViaGemini(
   transcript: string,
-  apiKey: string,
+  apiKey?: string,
   currentState?: Record<string, unknown>,
 ): Promise<IntentRouterResult | null> {
   const preferredModel = appConfig.ai.intentModel;
-  const candidateModels = [preferredModel, "gemini-2.5-flash", "gemini-1.5-flash"];
+  const candidateModels = [preferredModel, ...appConfig.ai.fallbackModels];
 
   const systemInstruction = `Kamu adalah **Ucuy**, persona AI asisten rekayasa struktur yang sangat ramah, santai, cerdas, dan tanggap untuk aplikasi IBDS (Interactive Beam Deflection Simulator).
 Sebagai Ucuy, kamu memiliki pemahaman mendalam tentang teknik sipil (SNI 1729:2020 baja & SNI 2847:2019 beton), sangat pintar dalam memahami maksud pengguna (baik bahasa sehari-hari, bahasa santai/gaul seperti "cuy", maupun formal), serta bisa menjelaskan tentang aplikasi IBDS ini sendiri secara lengkap dan menyenangkan!
@@ -129,10 +130,13 @@ OUTPUT FORMAT JSON SAJA:
   const promptContent = `State Saat Ini: ${JSON.stringify(currentState || {})}
 Transkrip Pengguna: "${transcript}"`;
 
-  const payload = {
+  const execResult = await executeGeminiWithFailover({
+    candidateModels,
+    candidateKeys: apiKey ? [apiKey, ...appConfig.ai.fallbackApiKeys] : undefined,
+    systemInstruction,
     contents: [
       {
-        parts: [{ text: systemInstruction }, { text: promptContent }],
+        parts: [{ text: promptContent }],
       },
     ],
     generationConfig: {
@@ -140,82 +144,61 @@ Transkrip Pengguna: "${transcript}"`;
       responseMimeType: "application/json",
       maxOutputTokens: 600,
     },
-  };
+    timeoutMs: 4500,
+    logPrefix: "Intent Router",
+  });
 
-  for (const model of candidateModels) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(4500),
-      });
+  if (!execResult?.text) {
+    return null;
+  }
 
-      if (!response.ok) {
-        continue;
-      }
-
-      const result = (await response.json()) as {
-        candidates?: Array<{
-          content?: {
-            parts?: Array<{ text?: string }>;
-          };
-        }>;
-      };
-
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      if (!text) continue;
-
-      const parsed = JSON.parse(text) as {
+  try {
+    const parsed = JSON.parse(execResult.text) as {
+      commandId: CommandId;
+      confidence: number;
+      extractedParameters?: Record<string, unknown>;
+      actions?: Array<{
         commandId: CommandId;
-        confidence: number;
         extractedParameters?: Record<string, unknown>;
-        actions?: Array<{
-          commandId: CommandId;
-          extractedParameters?: Record<string, unknown>;
-          label?: string;
-        }>;
-        spokenConfirmation?: string;
-        suggestions?: string[];
+        label?: string;
+      }>;
+      spokenConfirmation?: string;
+      suggestions?: string[];
+    };
+
+    if (parsed.commandId) {
+      const suggestions =
+        Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0
+          ? parsed.suggestions.slice(0, 4)
+          : Array.from(generateContextualSuggestions(parsed.commandId, parsed.extractedParameters));
+
+      // Sanitize multi-command actions array
+      const actions: IntentActionItem[] =
+        Array.isArray(parsed.actions) && parsed.actions.length > 0
+          ? parsed.actions.map((act) => ({
+              commandId: act.commandId,
+              extractedParameters: act.extractedParameters ?? {},
+              label: act.label,
+            }))
+          : [
+              {
+                commandId: parsed.commandId,
+                extractedParameters: parsed.extractedParameters ?? {},
+              },
+            ];
+
+      return {
+        commandId: parsed.commandId,
+        confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.92,
+        extractedParameters: parsed.extractedParameters ?? {},
+        actions,
+        rawTranscript: transcript,
+        spokenConfirmation: parsed.spokenConfirmation,
+        suggestions,
       };
-
-      if (parsed.commandId) {
-        const suggestions =
-          Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0
-            ? parsed.suggestions.slice(0, 4)
-            : Array.from(
-                generateContextualSuggestions(parsed.commandId, parsed.extractedParameters),
-              );
-
-        // Sanitize multi-command actions array
-        const actions: IntentActionItem[] =
-          Array.isArray(parsed.actions) && parsed.actions.length > 0
-            ? parsed.actions.map((act) => ({
-                commandId: act.commandId,
-                extractedParameters: act.extractedParameters ?? {},
-                label: act.label,
-              }))
-            : [
-                {
-                  commandId: parsed.commandId,
-                  extractedParameters: parsed.extractedParameters ?? {},
-                },
-              ];
-
-        return {
-          commandId: parsed.commandId,
-          confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.92,
-          extractedParameters: parsed.extractedParameters ?? {},
-          actions,
-          rawTranscript: transcript,
-          spokenConfirmation: parsed.spokenConfirmation,
-          suggestions,
-        };
-      }
-    } catch {
-      // Try next candidate model
     }
+  } catch {
+    return null;
   }
 
   return null;
@@ -250,15 +233,13 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // 2. If Gemini API key is configured, invoke LLM for high-intelligence natural routing + conversational consultation
-    const apiKey =
-      appConfig.ai.apiKey ||
-      Bun.env.AI_PROVIDER_API_KEY?.trim() ||
-      Bun.env.GEMINI_API_KEY?.trim() ||
-      process.env.AI_PROVIDER_API_KEY?.trim() ||
-      process.env.GEMINI_API_KEY?.trim();
-    if (apiKey && apiKey !== "your_gemini_api_key_here") {
+    if (appConfig.ai.apiKeys.length > 0) {
       try {
-        const geminiResult = await classifyIntentViaGemini(transcript, apiKey, body.currentState);
+        const geminiResult = await classifyIntentViaGemini(
+          transcript,
+          undefined,
+          body.currentState,
+        );
         if (geminiResult && geminiResult.confidence >= 0.7) {
           return Response.json(geminiResult, { status: 200 });
         }

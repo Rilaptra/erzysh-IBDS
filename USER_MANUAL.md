@@ -45,6 +45,7 @@
    - 5.1 Kontrol Gerakan Tangan Tanpa Sentuh (MediaPipe Hand Tracking)
    - 5.2 Kontrol Perintah Suara (Voice Commands) & Daftar Perintah
    - 5.3 Asisten AI Konsultan Rekayasa Struktur
+   - 5.4 Konfigurasi Kunci API Google Gemini & Sistem Failover Cadangan (Backup Keys)
 6. [BAB 6: PEMELIHARAAN SISTEM, TROUBLESHOOTING & FAQ](#bab-6-pemeliharaan-sistem-troubleshooting--faq)
    - 6.1 Kendala Akselerasi Hardware WebGL
    - 6.2 Kendala Izin Kamera & Pelacakan Tangan
@@ -354,6 +355,59 @@ Di dalam jendela **6. AI & Gestur**, terdapat panel percakapan langsung dengan A
   - _"Berapa batas lendutan izin untuk balok pemikul dinding bata menurut SNI?"_
   - _"Jelaskan cara kerja blok tegangan ekivalen Whitney pada beton bertulang!"_
 - AI akan menjawab secara ilmiah dengan mencantumkan pasal-pasal standar SNI terkait dan memberikan saran optimasi dimensi penampang.
+
+### 5.4 Konfigurasi Kunci API Google Gemini & Sistem Failover Cadangan (Backup Keys)
+
+Layanan AI pada IBDS (Intent Router, Konsultan Struktur, Live Speech Voice Synthesis, dan Release Pipeline) ditenagai oleh **Google Gemini API**. Google AI Studio Free Tier menerapkan batas laju kuota gratis (15 permintaan per menit / 1.500 permintaan per hari).
+
+Untuk memastikan aplikasi tidak pernah terhenti atau error saat kuota kunci utama habis (HTTP 429 _Too Many Requests_ / `RESOURCE_EXHAUSTED` atau HTTP 400 _API_KEY_INVALID_), IBDS dilengkapi dengan **Sistem Failover dan Rotasi Kunci Cadangan Otomatis** dengan enkripsi header keamanan `x-goog-api-key` dan _progressive cooldown backoff_.
+
+#### 1. Cara Menambahkan Kunci Cadangan di File `.env`
+
+Buka file `.env` di folder proyek, Anda dapat memilih salah satu metode konfigurasi yang paling nyaman:
+
+- **Metode A: Kunci Cadangan Tunggal (Paling Praktis)**
+
+  ```bash
+  # Kunci Utama
+  GEMINI_API_KEY=AIzaSyD-KunciUtamaGoogleStudio1234567
+  # Kunci Cadangan (Fallback otomatis)
+  GEMINI_API_KEY_BACKUP=AIzaSyB-KunciCadanganGoogleStudio9876543
+  ```
+
+- **Metode B: Multi-Kunci Dipisahkan Tanda Koma (`GEMINI_API_KEYS`)**
+
+  ```bash
+  GEMINI_API_KEYS=AIzaSy-KunciUtama,AIzaSy-KunciCadangan1,AIzaSy-KunciCadangan2
+  ```
+
+- **Metode C: Kunci Terindeks (`GEMINI_API_KEY_1..10`)**
+  ```bash
+  GEMINI_API_KEY_1=AIzaSy-Kunci1
+  GEMINI_API_KEY_2=AIzaSy-Kunci2
+  GEMINI_API_KEY_3=AIzaSy-Kunci3
+  ```
+
+> [!NOTE]
+> Sistem secara cerdas memfilter placeholder bawaan (`your_gemini_api_key_here`), menghapus tanda kutip (`"..."` atau `'...'`), memangkas spasi berlebih, dan menduplikasi kunci secara otomatis.
+
+#### 2. Cara Kerja Sistem Failover
+
+1. **Deteksi Laju Kuota & Kegagalan Kredensial:** Mengenali respons HTTP 429 (`RESOURCE_EXHAUSTED`), HTTP 401 (`UNAUTHENTICATED`), HTTP 403 (`PERMISSION_DENIED`), dan HTTP 400 (`API_KEY_INVALID`).
+2. **Rotasi Instan Tanpa Delay:** Begitu terdeteksi, kunci yang terkena limit langsung diberi status _cooldown_ dan sistem seketika memindahkan permintaan ke kunci cadangan berikutnya.
+3. **Progressive Backoff Scaling:** Durasi cooldown berskala eksponensial (60s $\to$ 120s $\to$ 240s $\to$ maks 900s) jika kunci berulang kali gagal, dan otomatis di-reset saat panggilan berhasil.
+4. **Keamanan Kredensial:** Kunci API dikirim melalui HTTP Header `x-goog-api-key`, mengeliminasi paparan token di query URL dan log error browser/server.
+5. **Jaminan Fallback Offline:** Jika seluruh kunci API habis atau perangkat offline, aplikasi secara otomatis beralih ke engine deterministik lokal (RegEx Intent Matcher & Heuristik SNI 2847 / SNI 1729) sehingga antarmuka tetap berjalan 100% lancar tanpa crash.
+
+#### 3. Verifikasi Konfigurasi Kunci Cadangan
+
+Jalankan pengujian unit mandiri melalui terminal:
+
+```bash
+bun test tests/config/app-config.test.ts tests/ai/gemini-api-failover.test.ts
+```
+
+Jika konfigurasi valid, seluruh 50+ pengujian unit rotasi kunci dan failover akan berstatus **`pass`**.
 
 ---
 

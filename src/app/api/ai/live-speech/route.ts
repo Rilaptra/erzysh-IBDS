@@ -9,23 +9,13 @@
 
 import { NextResponse } from "next/server";
 
-import { appConfig } from "@/config/app-config";
+import { appConfig, getGeminiApiKey, getGeminiApiKeys } from "@/config/app-config";
+import { markApiKeyRateLimited, maskApiKey, prioritizeApiKeys } from "@/lib/gemini-api-failover";
 
 const GEMINI_LIVE_MODEL = appConfig.ai.liveModel;
 const GEMINI_LIVE_VOICE = appConfig.ai.liveVoice;
 const BIDI_WS_BASE_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
-
-function getGeminiApiKey(): string | null {
-  const key =
-    appConfig.ai.apiKey ||
-    process.env.AI_PROVIDER_API_KEY?.trim() ||
-    process.env.GEMINI_API_KEY?.trim();
-  if (!key || key === "your_gemini_api_key_here") {
-    return null;
-  }
-  return key;
-}
 
 /**
  * GET /api/ai/live-speech
@@ -33,8 +23,10 @@ function getGeminiApiKey(): string | null {
  * Supplies the client Bidi WebSocket connection parameters for models/gemini-3.8-live.
  */
 export async function GET(): Promise<Response> {
+  const keys = getGeminiApiKeys();
   const apiKey = getGeminiApiKey();
-  if (!apiKey) {
+  const activeKey = prioritizeApiKeys(keys)[0] ?? apiKey;
+  if (!activeKey || keys.length === 0) {
     return NextResponse.json(
       { error: "AI_PROVIDER_API_KEY / GEMINI_API_KEY tidak dikonfigurasi." },
       { status: 503 },
@@ -42,10 +34,174 @@ export async function GET(): Promise<Response> {
   }
 
   return NextResponse.json({
-    apiKey,
+    apiKey: activeKey,
+    totalKeys: keys.length,
+    hasBackup: keys.length > 1,
     model: GEMINI_LIVE_MODEL,
     voiceName: GEMINI_LIVE_VOICE,
-    wsUrl: `${BIDI_WS_BASE_URL}?key=${apiKey}`,
+    wsUrl: `${BIDI_WS_BASE_URL}?key=${activeKey}`,
+  });
+}
+
+/**
+ * Attempts a single Gemini Live WebSocket session for generating 24kHz PCM audio chunks.
+ */
+async function attemptLiveSpeechAudio(
+  apiKey: string,
+  text: string,
+  voiceName: string,
+): Promise<{ chunks: string[]; totalBytes: number }> {
+  const wsUrl = `${BIDI_WS_BASE_URL}?key=${apiKey}`;
+
+  return new Promise<{ chunks: string[]; totalBytes: number }>((resolve, reject) => {
+    const chunks: string[] = [];
+    let totalBytes = 0;
+    let settled = false;
+
+    const ws = new WebSocket(wsUrl);
+
+    const timeoutId = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        try {
+          ws.close();
+        } catch {
+          // Ignore
+        }
+        if (chunks.length > 0) {
+          resolve({ chunks, totalBytes });
+        } else {
+          reject(new Error("Timeout menunggu respons audio dari Gemini 3.8 Live."));
+        }
+      }
+    }, 9000);
+
+    ws.onopen = () => {
+      const setupMsg = {
+        setup: {
+          model: GEMINI_LIVE_MODEL,
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName,
+                },
+              },
+            },
+          },
+          systemInstruction: {
+            parts: [
+              {
+                text: "Kamu adalah asisten suara bernama ucuy untuk aplikasi teknik sipil Interactive Beam Deflection & Structural Design Simulator (IBDS). Berikan konfirmasi suara Bahasa Indonesia yang natural, ramah, singkat (1 kalimat padat), dan jelas.",
+              },
+            ],
+          },
+        },
+      };
+      ws.send(JSON.stringify(setupMsg));
+    };
+
+    ws.onmessage = async (event: MessageEvent) => {
+      try {
+        let rawText = "";
+        if (typeof event.data === "string") {
+          rawText = event.data;
+        } else if (event.data instanceof Blob) {
+          rawText = await event.data.text();
+        } else if (event.data instanceof ArrayBuffer) {
+          rawText = new TextDecoder("utf-8").decode(event.data);
+        } else if (ArrayBuffer.isView(event.data)) {
+          rawText = new TextDecoder("utf-8").decode(event.data);
+        }
+
+        const data = JSON.parse(rawText) as {
+          setupComplete?: Record<string, unknown>;
+          serverContent?: {
+            modelTurn?: {
+              parts?: Array<{
+                inlineData?: { mimeType?: string; data?: string };
+              }>;
+            };
+            turnComplete?: boolean;
+          };
+        };
+
+        if (data.setupComplete) {
+          const clientTurn = {
+            clientContent: {
+              turns: [
+                {
+                  role: "user",
+                  parts: [
+                    {
+                      text: `Konfirmasikan dengan singkat dan natural dalam Bahasa Indonesia: "${text}"`,
+                    },
+                  ],
+                },
+              ],
+              turnComplete: true,
+            },
+          };
+          ws.send(JSON.stringify(clientTurn));
+        }
+
+        if (data.serverContent) {
+          const parts = data.serverContent.modelTurn?.parts;
+          if (parts) {
+            for (const part of parts) {
+              if (part.inlineData?.data) {
+                chunks.push(part.inlineData.data);
+                totalBytes += Math.floor((part.inlineData.data.length * 3) / 4);
+              }
+            }
+          }
+
+          if (data.serverContent.turnComplete) {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeoutId);
+              try {
+                ws.close();
+              } catch {
+                // Ignore
+              }
+              resolve({ chunks, totalBytes });
+            }
+          }
+        }
+      } catch (parseErr) {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(parseErr instanceof Error ? parseErr : new Error(String(parseErr)));
+        }
+      }
+    };
+
+    ws.onerror = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeoutId);
+        reject(new Error("WebSocket error saat menghubungi Gemini 3.8 Live."));
+      }
+    };
+
+    ws.onclose = (event: CloseEvent) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeoutId);
+        if (chunks.length > 0) {
+          resolve({ chunks, totalBytes });
+        } else {
+          reject(
+            new Error(
+              `Gemini Live WebSocket ditutup (${event.code}: ${event.reason || "No audio chunks"}).`,
+            ),
+          );
+        }
+      }
+    };
   });
 }
 
@@ -53,7 +209,7 @@ export async function GET(): Promise<Response> {
  * POST /api/ai/live-speech
  * Adapted from prototype/voice-command/tests/test-live-38.ts.
  * Opens a BidiGenerateContent WebSocket session to models/gemini-3.8-live with AUDIO modality
- * and streams/collects 24kHz PCM audio chunks.
+ * and streams/collects 24kHz PCM audio chunks with automatic backup API key failover.
  */
 export async function POST(req: Request): Promise<Response> {
   try {
@@ -65,173 +221,45 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: "Parameter 'text' wajib disertakan." }, { status: 400 });
     }
 
-    const apiKey = getGeminiApiKey();
-    if (!apiKey) {
+    const rawKeys = getGeminiApiKeys();
+    if (rawKeys.length === 0) {
       return NextResponse.json(
-        { error: "AI_PROVIDER_API_KEY tidak dikonfigurasi." },
+        { error: "AI_PROVIDER_API_KEY / GEMINI_API_KEY tidak dikonfigurasi." },
         { status: 503 },
       );
     }
 
-    const wsUrl = `${BIDI_WS_BASE_URL}?key=${apiKey}`;
+    const keysToTry = prioritizeApiKeys(rawKeys);
 
-    const result = await new Promise<{
-      chunks: string[];
-      totalBytes: number;
-    }>((resolve, reject) => {
-      const chunks: string[] = [];
-      let totalBytes = 0;
-      let settled = false;
+    let result: { chunks: string[]; totalBytes: number } | null = null;
+    let lastError: unknown = null;
 
-      const ws = new WebSocket(wsUrl);
+    for (let keyIdx = 0; keyIdx < keysToTry.length; keyIdx++) {
+      const currentKey = keysToTry[keyIdx];
+      if (!currentKey) continue;
 
-      const timeoutId = setTimeout(() => {
-        if (!settled) {
-          settled = true;
-          try {
-            ws.close();
-          } catch {
-            // Ignore
-          }
-          if (chunks.length > 0) {
-            resolve({ chunks, totalBytes });
-          } else {
-            reject(new Error("Timeout menunggu respons audio dari Gemini 3.8 Live."));
-          }
+      try {
+        result = await attemptLiveSpeechAudio(currentKey, text, voiceName);
+        if (result && result.chunks.length > 0) {
+          break;
         }
-      }, 9000);
+      } catch (attemptErr) {
+        lastError = attemptErr;
+        markApiKeyRateLimited(currentKey);
 
-      ws.onopen = () => {
-        const setupMsg = {
-          setup: {
-            model: GEMINI_LIVE_MODEL,
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: {
-                    voiceName,
-                  },
-                },
-              },
-            },
-            systemInstruction: {
-              parts: [
-                {
-                  text: "Kamu adalah asisten suara bernama ucuy untuk aplikasi teknik sipil Interactive Beam Deflection & Structural Design Simulator (IBDS). Berikan konfirmasi suara Bahasa Indonesia yang natural, ramah, singkat (1 kalimat padat), dan jelas.",
-                },
-              ],
-            },
-          },
-        };
-        ws.send(JSON.stringify(setupMsg));
-      };
-
-      ws.onmessage = async (event: MessageEvent) => {
-        try {
-          let rawText = "";
-          if (typeof event.data === "string") {
-            rawText = event.data;
-          } else if (event.data instanceof Blob) {
-            rawText = await event.data.text();
-          } else if (event.data instanceof ArrayBuffer) {
-            rawText = new TextDecoder("utf-8").decode(event.data);
-          } else if (ArrayBuffer.isView(event.data)) {
-            rawText = new TextDecoder("utf-8").decode(event.data);
-          }
-
-          const data = JSON.parse(rawText) as {
-            setupComplete?: Record<string, unknown>;
-            serverContent?: {
-              modelTurn?: {
-                parts?: Array<{
-                  inlineData?: { mimeType?: string; data?: string };
-                }>;
-              };
-              turnComplete?: boolean;
-            };
-          };
-
-          if (data.setupComplete) {
-            const clientTurn = {
-              clientContent: {
-                turns: [
-                  {
-                    role: "user",
-                    parts: [
-                      {
-                        text: `Konfirmasikan dengan singkat dan natural dalam Bahasa Indonesia: "${text}"`,
-                      },
-                    ],
-                  },
-                ],
-                turnComplete: true,
-              },
-            };
-            ws.send(JSON.stringify(clientTurn));
-          }
-
-          if (data.serverContent) {
-            const parts = data.serverContent.modelTurn?.parts;
-            if (parts) {
-              for (const part of parts) {
-                if (part.inlineData?.data) {
-                  chunks.push(part.inlineData.data);
-                  totalBytes += Math.floor((part.inlineData.data.length * 3) / 4);
-                }
-              }
-            }
-
-            if (data.serverContent.turnComplete) {
-              if (!settled) {
-                settled = true;
-                clearTimeout(timeoutId);
-                try {
-                  ws.close();
-                } catch {
-                  // Ignore
-                }
-                resolve({ chunks, totalBytes });
-              }
-            }
-          }
-        } catch (parseErr) {
-          if (!settled) {
-            settled = true;
-            clearTimeout(timeoutId);
-            reject(parseErr instanceof Error ? parseErr : new Error(String(parseErr)));
-          }
+        if (keyIdx + 1 < keysToTry.length) {
+          const nextKey = keysToTry[keyIdx + 1];
+          console.warn(
+            `⚠️ [Live Speech Failover] Kunci API (${maskApiKey(currentKey)}) gagal/limit. Mengalihkan ke kunci cadangan (${maskApiKey(nextKey || "")})...`,
+          );
         }
-      };
+      }
+    }
 
-      ws.onerror = () => {
-        if (!settled) {
-          settled = true;
-          clearTimeout(timeoutId);
-          reject(new Error("WebSocket error saat menghubungi Gemini 3.8 Live."));
-        }
-      };
-
-      ws.onclose = (event: CloseEvent) => {
-        if (!settled) {
-          settled = true;
-          clearTimeout(timeoutId);
-          if (chunks.length > 0) {
-            resolve({ chunks, totalBytes });
-          } else {
-            reject(
-              new Error(
-                `Gemini Live WebSocket ditutup (${event.code}: ${event.reason || "No audio chunks"}).`,
-              ),
-            );
-          }
-        }
-      };
-    });
-
-    if (result.chunks.length === 0) {
+    if (!result || result.chunks.length === 0) {
+      const errMsg = lastError instanceof Error ? lastError.message : "Tidak ada audio";
       return NextResponse.json(
-        { error: "Tidak ada chunk audio yang diterima dari Gemini 3.8 Live." },
+        { error: `Gagal menghasilkan audio live dari semua kunci API: ${errMsg}` },
         { status: 502 },
       );
     }

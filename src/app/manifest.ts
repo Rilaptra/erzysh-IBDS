@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file manifest.ts
  * @description Progressive Web App (PWA) Web App Manifest generator for IBDS.
  * Conforms to W3C Web App Manifest specification and Next.js App Router metadata conventions.
@@ -22,7 +22,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "IBDS",
     description:
       "Interactive 3D Beam Deflection & Structural Design Simulator following SNI 2847:2019 & SNI 1729:2020.",
-    start_url: "/",
+    start_url: "/simulator",
     scope: "/",
     display: "standalone",
     orientation: "any",
@@ -61,14 +61,14 @@ export default function manifest(): MetadataRoute.Manifest {
         name: "Mode Beban Eksternal",
         short_name: "Mode A",
         description: "Simulasi balok interaktif dengan pembebanan eksternal",
-        url: "/?mode=MODE_A_EXTERNAL_LOADS",
+        url: "/simulator?mode=MODE_A_EXTERNAL_LOADS",
         icons: [{ src: "/icons/icon.svg", sizes: "any" }],
       },
       {
         name: "Mode Gaya Dalam SNI",
         short_name: "Mode B",
         description: "Optimasi penampang beton bertulang dan profil baja SNI",
-        url: "/?mode=MODE_B_DIRECT_INTERNAL_FORCES",
+        url: "/simulator?mode=MODE_B_DIRECT_INTERNAL_FORCES",
         icons: [{ src: "/icons/icon.svg", sizes: "any" }],
       },
     ],

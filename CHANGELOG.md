@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.8] - 2026-11-11
+
+### ✨ Added
+
+- 🤖 Multi-key Gemini API automatic failover & rotation system for rate limits (HTTP 429 / 15 RPM) and invalid keys
+- 🛡️ Support for backup API keys (`GEMINI_API_KEY_BACKUP`, `GEMINI_API_KEYS`, and indexed `GEMINI_API_KEY_1`, `2`, `3`)
+- 🔒 Secure token transmission via `x-goog-api-key` header with progressive backoff cooldown
+
 ## [0.6.7] - 2026-11-11
 
 ### 🛠️ Maintenance

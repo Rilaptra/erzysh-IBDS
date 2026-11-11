@@ -62,3 +62,13 @@ AI_MODEL_STRATEGY_NOTES.md
 .agents/
 
 
+
+# Service Account Keys & Cloud Credentials
+*.json.key
+*erzysh*.json
+**/*erzysh*.json
+public/*erzysh*.json
+public/*service_account*.json
+**/service-account*.json
+**/credentials*.json
+
