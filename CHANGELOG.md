@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.7] - 2026-11-11
+
+### 🛠️ Maintenance
+
+- Manual patch release v0.6.7.
+
+## [0.6.6] - 2026-11-10
+
+### 📚 Added
+
+- Add complete Indonesian user manual (USER_MANUAL.md) covering app overview, PWA installation, 3D WebGL workspace, step-by-step structural design workflows, multimodal AI/hand tracking/voice commands, and troubleshooting guides
+
 ## [0.6.5] - 2026-11-09
 
 ### ✨ Added

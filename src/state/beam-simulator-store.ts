@@ -12,12 +12,7 @@ import type {
   ConcreteViewMode,
 } from "@/components/canvas/Beam3DExtrudedViewport";
 import type { SteelOptimizationResult } from "@/core/steel/steel-section-optimizer";
-import type {
-  BeamLoadingConfig,
-  DistributedLoad,
-  PointLoad,
-  SupportOrientation,
-} from "@/types/beam-loading-modes";
+import type { DistributedLoad, PointLoad, SupportOrientation } from "@/types/beam-loading-modes";
 import type {
   CoordinateSystemMode,
   Kilonewton,
@@ -33,7 +28,11 @@ import type {
   ConcreteOptimizationResult,
   RebarSteelGrade,
 } from "@/types/concrete-sni2847-types";
-import type { SteelGrade, SteelProfileType } from "@/types/steel-sni1729-types";
+import type {
+  CustomBoxOptimizationConfig,
+  SteelGrade,
+  SteelProfileType,
+} from "@/types/steel-sni1729-types";
 
 /**
  * Supported 2D internal force diagram display layouts.
@@ -57,6 +56,7 @@ export interface GoverningInternalForces {
   readonly maxPositiveMux: number;
   readonly maxNegativeMux: number;
   readonly absoluteMaxMux: number;
+  readonly absoluteMaxMuy: number;
   readonly absoluteMaxVu: number;
   readonly absoluteMaxPu: number;
   readonly absoluteMaxTu: number;
@@ -104,6 +104,7 @@ export interface BeamSimulatorState {
   readonly steelMaxHeightMm: Millimeter | undefined;
   readonly steelMaxWidthMm: Millimeter | undefined;
   readonly selectedSteelProfileName: string | null;
+  readonly customBoxConfig: CustomBoxOptimizationConfig;
 
   // Visual & Canvas Preferences
   readonly coordinateMode: CoordinateSystemMode;
@@ -170,6 +171,18 @@ const INITIAL_STATE: BeamSimulatorState = {
   steelMaxHeightMm: undefined,
   steelMaxWidthMm: undefined,
   selectedSteelProfileName: null,
+  customBoxConfig: {
+    enabled: false,
+    hMinMm: 200,
+    hMaxMm: 600,
+    bMinMm: 200,
+    bMaxMm: 600,
+    dimensionStepMm: 50,
+    tMinMm: 20,
+    tMaxMm: 35,
+    thicknessStepMm: 5,
+    shapeRule: "ALL",
+  },
 
   coordinateMode: "Z-Up",
   customUpVector: { x: 0, y: 0, z: 1 },
@@ -186,6 +199,7 @@ const INITIAL_STATE: BeamSimulatorState = {
     maxPositiveMux: 0,
     maxNegativeMux: 0,
     absoluteMaxMux: 0,
+    absoluteMaxMuy: 0,
     absoluteMaxVu: 0,
     absoluteMaxPu: 0,
     absoluteMaxTu: 0,
@@ -198,6 +212,9 @@ const INITIAL_STATE: BeamSimulatorState = {
 let currentState = INITIAL_STATE;
 const listeners = new Set<() => void>();
 
+/**
+ * Notifies all subscribed React components of a state transition.
+ */
 function emitChange(): void {
   for (const listener of listeners) {
     listener();
@@ -245,6 +262,12 @@ export const beamSimulatorActions = {
     emitChange();
   },
 
+  /**
+   * Updates Mode B direct internal forces and automatically activates
+   * `MODE_B_DIRECT_INTERNAL_FORCES` so the solver engine responds immediately.
+   *
+   * @param forces Partial set of direct factored internal forces and span length.
+   */
   setDirectForces(forces: {
     spanLengthM?: number;
     axialPuKn?: number;
@@ -255,6 +278,7 @@ export const beamSimulatorActions = {
   }): void {
     currentState = {
       ...currentState,
+      loadingMode: "MODE_B_DIRECT_INTERNAL_FORCES",
       directSpanLengthM:
         forces.spanLengthM !== undefined
           ? (forces.spanLengthM as Meter)
@@ -318,6 +342,12 @@ export const beamSimulatorActions = {
     emitChange();
   },
 
+  /**
+   * Updates structural steel design parameters, including optional parametric
+   * custom hollow box generator settings (`customBoxConfig`).
+   *
+   * @param params Partial steel design and custom box parameters.
+   */
   setSteelParameters(params: {
     profileType?: SteelProfileType;
     grade?: SteelGrade;
@@ -325,27 +355,41 @@ export const beamSimulatorActions = {
     maxHeightMm?: number;
     maxWidthMm?: number;
     selectedProfileName?: string | null;
+    customBoxConfig?: Partial<CustomBoxOptimizationConfig>;
   }): void {
+    const nextProfileType = params.profileType ?? currentState.steelProfileType;
+    const profileTypeChanged = nextProfileType !== currentState.steelProfileType;
+    const customBoxChanged = params.customBoxConfig !== undefined;
+
     currentState = {
       ...currentState,
-      steelProfileType: params.profileType ?? currentState.steelProfileType,
+      steelProfileType: nextProfileType,
       steelGrade: params.grade ?? currentState.steelGrade,
       steelUnbracedLengthLbM:
         params.unbracedLengthLbM !== undefined
           ? (params.unbracedLengthLbM as Meter)
           : currentState.steelUnbracedLengthLbM,
       steelMaxHeightMm:
-        params.maxHeightMm !== undefined
-          ? (params.maxHeightMm as Millimeter)
+        "maxHeightMm" in params
+          ? params.maxHeightMm !== undefined
+            ? (params.maxHeightMm as Millimeter)
+            : undefined
           : currentState.steelMaxHeightMm,
       steelMaxWidthMm:
-        params.maxWidthMm !== undefined
-          ? (params.maxWidthMm as Millimeter)
+        "maxWidthMm" in params
+          ? params.maxWidthMm !== undefined
+            ? (params.maxWidthMm as Millimeter)
+            : undefined
           : currentState.steelMaxWidthMm,
+      customBoxConfig: params.customBoxConfig
+        ? { ...currentState.customBoxConfig, ...params.customBoxConfig }
+        : currentState.customBoxConfig,
       selectedSteelProfileName:
         params.selectedProfileName !== undefined
           ? params.selectedProfileName
-          : currentState.selectedSteelProfileName,
+          : profileTypeChanged || customBoxChanged
+            ? null
+            : currentState.selectedSteelProfileName,
     };
     emitChange();
   },
@@ -402,10 +446,17 @@ export const beamSimulatorActions = {
     emitChange();
   },
 
+  /**
+   * Records a solver or design optimization error message so UI components
+   * can alert the engineer immediately.
+   *
+   * @param error Diagnostic error message string.
+   */
   setSolverError(error: string): void {
     currentState = {
       ...currentState,
       isSolving: false,
+      solverRevision: currentState.solverRevision + 1,
       solverError: error,
     };
     emitChange();
@@ -420,6 +471,8 @@ export const beamSimulatorActions = {
 /**
  * Direct non-reactive getter for the current simulator state snapshot.
  * Useful for non-React callers, exporters, and automated test suites.
+ *
+ * @returns Current immutable `BeamSimulatorState`.
  */
 export function getBeamSimulatorSnapshot(): BeamSimulatorState {
   return currentState;

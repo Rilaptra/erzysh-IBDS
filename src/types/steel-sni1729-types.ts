@@ -2,8 +2,9 @@
  * @file steel-sni1729-types.ts
  * @description Type definitions for structural steel design and section optimization
  * according to the Indonesian National Standard SNI 1729:2020 (AISC 360-16 equivalent).
- * Covers IWF and BOX primary dimensions, derived geometric properties,
- * Table B4.1b compactness classifications, Chapter F LTB, and Chapter H interaction.
+ * Covers IWF and BOX primary dimensions, derived geometric properties, custom parametric
+ * hollow box generation contracts, Table B4.1b compactness classifications, Chapter F LTB,
+ * and Chapter H interaction.
  */
 
 import type {
@@ -47,6 +48,39 @@ export interface SteelGradeProperties {
   readonly G: Megapascal;
   /** Poisson's ratio nu = 0.30. */
   readonly nu: number;
+}
+
+// ============================================================================
+// Parametric Custom Box Hollow Generator Contracts
+// ============================================================================
+
+/** Geometric aspect ratio rule for parametric hollow box generation. */
+export type CustomBoxShapeRule = "ALL" | "SQUARE_ONLY" | "RECTANGULAR_ONLY";
+
+/**
+ * Configuration parameters for the Parametric Custom Hollow Box (HSS) Generator & Optimizer.
+ */
+export interface CustomBoxOptimizationConfig {
+  /** Whether the parametric custom hollow box generator mode is active (default: false). */
+  readonly enabled: boolean;
+  /** Minimum section depth H in mm (default: 200). */
+  readonly hMinMm: number;
+  /** Maximum section depth H in mm (default: 600). */
+  readonly hMaxMm: number;
+  /** Minimum section width B in mm (default: 200). */
+  readonly bMinMm: number;
+  /** Maximum section width B in mm (default: 600). */
+  readonly bMaxMm: number;
+  /** Step interval for H and B dimensions in mm (default: 50). */
+  readonly dimensionStepMm: number;
+  /** Minimum wall thickness t in mm (default: 20). */
+  readonly tMinMm: number;
+  /** Maximum wall thickness t in mm (default: 35). */
+  readonly tMaxMm: number;
+  /** Step interval for wall thickness t in mm (default: 5). */
+  readonly thicknessStepMm: number;
+  /** Cross-sectional shape filter rule (default: "ALL"). */
+  readonly shapeRule: CustomBoxShapeRule;
 }
 
 // ============================================================================
@@ -96,6 +130,20 @@ export interface BoxPrimaryDimensions {
 export interface SteelSectionProperties {
   readonly name: string;
   readonly profileType: SteelProfileType;
+  /** Overall depth H in mm. */
+  readonly H: Millimeter;
+  /** Overall flange or box width B in mm. */
+  readonly B: Millimeter;
+  /** Web thickness tw in mm (equals wall thickness t for BOX sections). */
+  readonly tw: Millimeter;
+  /** Flange thickness tf in mm (equals wall thickness t for BOX sections). */
+  readonly tf: Millimeter;
+  /** Root fillet radius r in mm (applicable to IWF sections). */
+  readonly r?: Millimeter;
+  /** Uniform wall thickness t in mm (applicable to BOX sections). */
+  readonly t?: Millimeter;
+  /** Indicates whether the section was dynamically synthesized by the parametric custom generator. */
+  readonly isCustomGenerated?: boolean;
   /** Gross cross-sectional area A in mm². */
   readonly area: MillimeterSquared;
   /** Nominal unit mass W in kg/m. */

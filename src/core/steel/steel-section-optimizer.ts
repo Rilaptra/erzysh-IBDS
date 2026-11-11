@@ -1,36 +1,41 @@
 /**
  * @file steel-section-optimizer.ts
  * @description High-efficiency structural steel section optimizer (SNI 1729:2020).
- * Implements binary-search-assisted profile discovery across JIS G 3192 (IWF) and
- * JIS G 3466 (BOX) precomputed catalogs.
+ * Implements binary-search-assisted profile discovery across JIS G 3192 (IWF),
+ * JIS G 3466 (BOX) precomputed catalogs, and the Parametric Custom Box Hollow
+ * Section Generator (configurable H, B intervals and wall thickness t = 20–35 mm).
  * Evaluates Table B4.1b compactness, Chapter F LTB, Chapter G shear, Chapter H1 interaction,
  * Chapter H3 torsion, geometric constraints (H_max, B_max), and Smart Grade optimization
- * (BJ 34, BJ 37, BJ 41, BJ 50, BJ 55) with target efficiency 0.90 <= DCR <= 1.00.
+ * (BJ 34, BJ 37, BJ 41, BJ 50, BJ 55) with weight-first economic ranking.
  */
 
-import { evaluateDeflectionCompliance } from "@/config/deflection-limits-config";
 import type { DeflectionLimitKey } from "@/config/deflection-limits-config";
+import { evaluateDeflectionCompliance } from "@/config/deflection-limits-config";
 import rawSteelGrades from "@/data/steel-material-grades.json";
-import { kilonewton, kilonewtonMeter, meter, utilizationRatio } from "@/types/branded-units";
-import type { Kilonewton, KilonewtonMeter, Meter, UtilizationRatio } from "@/types/branded-units";
-import { SteelDesignError } from "@/types/steel-sni1729-types";
+import type { Kilonewton, KilonewtonMeter, Meter } from "@/types/branded-units";
+import {
+  kilonewton,
+  kilonewtonMeter,
+  meter,
+  millimeter,
+  utilizationRatio,
+} from "@/types/branded-units";
 import type {
-  BiaxialInteractionResult,
-  LateralTorsionalBucklingResult,
-  SectionCompactnessResult,
+  CustomBoxOptimizationConfig,
   SteelGrade,
   SteelGradeProperties,
   SteelOptimizationCandidate,
   SteelProfileType,
   SteelSectionProperties,
 } from "@/types/steel-sni1729-types";
+import { SteelDesignError } from "@/types/steel-sni1729-types";
 
 import {
   getPrecomputedSortedBoxCatalog,
   getPrecomputedSortedIwfCatalog,
 } from "../../macros/precompute-steel-catalog.macro";
 import { evaluateBiaxialInteraction } from "./biaxial-interaction-evaluator";
-import type { BoxSectionProperties } from "./iwf-geometric-properties";
+import { type BoxSectionProperties, computeBoxSectionProperties } from "./iwf-geometric-properties";
 import { solveLateralTorsionalBuckling } from "./lateral-torsional-buckling-solver";
 import { classifySectionCompactness } from "./section-compactness-classifier";
 import { evaluateSteelShear, evaluateSteelTorsion } from "./steel-torsion-shear-evaluator";
@@ -47,6 +52,9 @@ export const STEEL_GRADES_CATALOG: Record<SteelGrade, SteelGradeProperties> = {
 /** Pre-computed catalogs loaded at compile time via Bun Macro. */
 const SORTED_IWF_CATALOG: readonly SteelSectionProperties[] = getPrecomputedSortedIwfCatalog();
 const SORTED_BOX_CATALOG: readonly BoxSectionProperties[] = getPrecomputedSortedBoxCatalog();
+
+/** Safety cap on parametric combinations to preserve low-RAM device responsiveness. */
+const MAX_CUSTOM_BOX_COMBINATIONS = 2500;
 
 /** Input parameters configuring steel section optimization. */
 export interface SteelOptimizerInput {
@@ -74,13 +82,15 @@ export interface SteelOptimizerInput {
   readonly maxDepthMm?: number;
   /** Maximum allowable flange/box width B in mm (optional geometric filter). */
   readonly maxWidthMm?: number;
-  /** Target minimum DCR for weight-optimal recommendation (default: 0.90). */
+  /** Target minimum DCR for efficiency highlight (default: 0.90). */
   readonly targetMinDcr?: number;
+  /** Optional parametric custom box hollow section generator configuration. */
+  readonly customBoxConfig?: CustomBoxOptimizationConfig;
 }
 
 /** Complete optimization search deliverable. */
 export interface SteelOptimizationResult {
-  /** Best overall candidate section. */
+  /** Best overall candidate section (lightest compliant section). */
   readonly bestCandidate: SteelOptimizationCandidate;
   /** Alternative compliant candidates sorted ascending by unit weight. */
   readonly compliantCandidates: readonly SteelOptimizationCandidate[];
@@ -91,20 +101,119 @@ export interface SteelOptimizationResult {
 }
 
 /**
- * Searches the sorted structural steel catalogs and determines the most material-efficient
- * compliant section matching load demands (Pu, Mux, Muy, Vu, Tu) per SNI 1729:2020.
+ * Generates a sorted catalog of custom parametric hollow box sections (`BoxSectionProperties`)
+ * across user-defined depth `H`, width `B`, and wall thickness `t` intervals.
  *
- * @param input Loads, span length, steel grade, and geometric filters.
+ * Enforces SNI 1729:2020 Table B4.1b flat-wall geometry validity (`H > 3*t` and `B > 3*t`)
+ * and computes exact section properties (`A`, `W`, `Ix`, `Iy`, `Zx`, `Zy`, `J`, `C`).
+ *
+ * @param config Parametric generation bounds and step intervals.
+ * @returns Read-only array of `BoxSectionProperties` sorted ascending by strong-axis `Zx`.
+ * @example
+ * const customCatalog = generateCustomBoxCatalog({
+ *   enabled: true,
+ *   hMinMm: 200,
+ *   hMaxMm: 300,
+ *   bMinMm: 200,
+ *   bMaxMm: 300,
+ *   dimensionStepMm: 50,
+ *   tMinMm: 20,
+ *   tMaxMm: 35,
+ *   thicknessStepMm: 5,
+ *   shapeRule: "ALL",
+ * });
+ */
+export function generateCustomBoxCatalog(
+  config: CustomBoxOptimizationConfig,
+): readonly BoxSectionProperties[] {
+  const sections: BoxSectionProperties[] = [];
+  const stepDim = Math.max(10, Math.round(Number(config.dimensionStepMm) || 50));
+  const rawStepT = Number(config.thicknessStepMm);
+  const stepT = Number.isFinite(rawStepT) && rawStepT >= 0.5 ? rawStepT : 5;
+
+  const hMin = Math.max(60, Math.round(Number(config.hMinMm) || 200));
+  const hMax = Math.max(hMin, Math.round(Number(config.hMaxMm) || 600));
+  const bMin = Math.max(60, Math.round(Number(config.bMinMm) || 200));
+  const bMax = Math.max(bMin, Math.round(Number(config.bMaxMm) || 600));
+
+  const tMin = Math.max(2, Number(config.tMinMm) || 20);
+  const tMax = Math.max(tMin, Number(config.tMaxMm) || 35);
+
+  for (let H = hMin; H <= hMax; H += stepDim) {
+    for (let B = bMin; B <= bMax; B += stepDim) {
+      if (config.shapeRule === "SQUARE_ONLY" && H !== B) {
+        continue;
+      }
+      if (config.shapeRule === "RECTANGULAR_ONLY" && H === B) {
+        continue;
+      }
+
+      for (let rawT = tMin; rawT <= tMax + 1e-6; rawT += stepT) {
+        if (sections.length >= MAX_CUSTOM_BOX_COMBINATIONS) {
+          break;
+        }
+
+        const t = Number(rawT.toFixed(2));
+        // SNI 1729 Table B4.1b flat-wall requirement: clear flat width H - 3t > 0 and B - 3t > 0
+        if (H <= 3 * t || B <= 3 * t) {
+          continue;
+        }
+
+        const isSquare = H === B;
+        const name = `BOX ${H} x ${B} x ${t} (Custom)`;
+        try {
+          const props = computeBoxSectionProperties({
+            name,
+            H: millimeter(H),
+            B: millimeter(B),
+            t: millimeter(t),
+            shapeType: isSquare ? "SQUARE" : "RECTANGULAR",
+          });
+          sections.push({
+            ...props,
+            isCustomGenerated: true,
+          });
+        } catch {
+          // Skip physically invalid combinations
+        }
+      }
+    }
+  }
+
+  return sections.sort((a, b) => Number(a.Zx) - Number(b.Zx));
+}
+
+/**
+ * Searches the sorted structural steel catalogs (or the Parametric Custom Box Generator when enabled)
+ * and determines the most material-efficient compliant section matching load demands
+ * (Pu, Mux, Muy, Vu, Tu) per SNI 1729:2020.
+ *
+ * Candidates satisfying `governingDcr <= 1.0` and deflection limits are sorted primarily
+ * by `unitWeightKgPerM` ascending (lightest & most economical section wins).
+ *
+ * @param input Loads, span length, steel grade, geometric filters, and optional custom box config.
  * @returns Complete SteelOptimizationResult with bestCandidate and compliant alternatives.
  * @throws {SteelDesignError} When no compliant section can be found within catalog bounds.
  * @example
  * const res = optimizeSteelSection({
- *   factoredMomentMux: kilonewtonMeter(120),
- *   factoredShearVu: kilonewton(60),
- *   unbracedLengthLbM: meter(4.0),
- *   steelGrade: "BJ_37",
+ *   profileType: "BOX",
+ *   factoredMomentMux: kilonewtonMeter(350),
+ *   factoredShearVu: kilonewton(140),
+ *   unbracedLengthLbM: meter(6.0),
+ *   steelGrade: "BJ_41",
+ *   customBoxConfig: {
+ *     enabled: true,
+ *     hMinMm: 200,
+ *     hMaxMm: 600,
+ *     bMinMm: 200,
+ *     bMaxMm: 600,
+ *     dimensionStepMm: 50,
+ *     tMinMm: 20,
+ *     tMaxMm: 35,
+ *     thicknessStepMm: 5,
+ *     shapeRule: "ALL",
+ *   },
  * });
- * console.log(res.bestCandidate.properties.name, res.bestCandidate.governingDcr);
  */
 export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizationResult {
   const pu = Number(input.factoredAxialPu ?? 0);
@@ -114,7 +223,7 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
   const tu = Math.abs(Number(input.factoredTorsionTu ?? 0));
   const lbMm = Number(input.unbracedLengthLbM) * 1000;
 
-  if (lbMm <= 0) {
+  if (!Number.isFinite(lbMm) || lbMm <= 0) {
     throw new SteelDesignError(
       "UNKNOWN",
       "optimizeSteelSection",
@@ -123,8 +232,23 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
   }
 
   const selectedProfileType: SteelProfileType = input.profileType === "BOX" ? "BOX" : "IWF";
+  const isCustomBoxActive =
+    selectedProfileType === "BOX" && Boolean(input.customBoxConfig?.enabled);
+
   const catalog: readonly SteelSectionProperties[] =
-    selectedProfileType === "BOX" ? SORTED_BOX_CATALOG : SORTED_IWF_CATALOG;
+    selectedProfileType === "BOX"
+      ? isCustomBoxActive && input.customBoxConfig
+        ? generateCustomBoxCatalog(input.customBoxConfig)
+        : SORTED_BOX_CATALOG
+      : SORTED_IWF_CATALOG;
+
+  if (catalog.length === 0) {
+    throw new SteelDesignError(
+      "CUSTOM_BOX_EMPTY",
+      "optimizeSteelSection",
+      "Generator BOX Custom tidak menghasilkan penampang yang memenuhi syarat geometri dasar SNI 1729 (H > 3t dan B > 3t). Perbesar nilai Hmax/Bmax atau kurangi tebal tmin.",
+    );
+  }
 
   const gradesToEvaluate: SteelGradeProperties[] = input.steelGrade
     ? [STEEL_GRADES_CATALOG[input.steelGrade]]
@@ -171,8 +295,12 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
       evaluatedCount++;
 
       // Geometric dimensional filtering (H_max, B_max)
-      const depthH = Number(section.h0); // approximate outer height
+      const depthH = Number(section.H ?? section.h0);
       if (input.maxDepthMm && depthH > input.maxDepthMm) {
+        continue;
+      }
+      const widthB = Number(section.B ?? 0);
+      if (input.maxWidthMm && widthB > 0 && widthB > input.maxWidthMm) {
         continue;
       }
 
@@ -240,10 +368,8 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
       );
 
       if (governingDcrValue <= 1.0 && deflectionCompliant) {
-        let status: "OPTIMAL" | "ACCEPTABLE" = "ACCEPTABLE";
-        if (governingDcrValue >= targetMinDcr && governingDcrValue <= 1.0) {
-          status = "OPTIMAL";
-        }
+        const status: "OPTIMAL" | "ACCEPTABLE" =
+          governingDcrValue >= targetMinDcr && governingDcrValue <= 1.0 ? "OPTIMAL" : "ACCEPTABLE";
 
         compliantCandidates.push({
           properties: section,
@@ -254,33 +380,40 @@ export function optimizeSteelSection(input: SteelOptimizerInput): SteelOptimizat
           governingDcr: utilizationRatio(Number(governingDcrValue.toFixed(3))),
           status,
         });
-
-        // Found a safe candidate for this grade; continue scanning to find best DCR
-        if (status === "OPTIMAL") {
-          break;
-        }
       }
     }
   }
 
   if (compliantCandidates.length === 0) {
+    const sourceLabel = isCustomBoxActive
+      ? `Generator BOX Custom (H=${input.customBoxConfig?.hMinMm}–${input.customBoxConfig?.hMaxMm} mm, B=${input.customBoxConfig?.bMinMm}–${input.customBoxConfig?.bMaxMm} mm, t=${input.customBoxConfig?.tMinMm}–${input.customBoxConfig?.tMaxMm} mm)`
+      : `katalog standar ${selectedProfileType}`;
+
     throw new SteelDesignError(
       "CATALOG_EXHAUSTED",
       "optimizeSteelSection",
-      `No compliant ${selectedProfileType} steel section could be found for demands (Mux=${mux} kNm, Lb=${lbMm / 1000} m). Consider relaxing geometric limits or increasing steel grade.`,
+      `Tidak ditemukan profil baja pada ${sourceLabel} (${input.steelGrade ?? "Multi-Grade"}) yang mampu menahan kombinasi beban (Mux=${mux.toFixed(1)} kNm, Muy=${muy.toFixed(1)} kNm, Vu=${vu.toFixed(1)} kN, Pu=${pu.toFixed(1)} kN, Tu=${tu.toFixed(1)} kNm pada Lb=${(lbMm / 1000).toFixed(2)} m). Silakan perbesar batas dimensi Hmax/Bmax, aktifkan Generator BOX Custom (t=20–35 mm), atau naikkan mutu baja ke BJ 50 / BJ 55.`,
     );
   }
 
-  // Sort candidates ascending by unit weight, prioritizing OPTIMAL status and lower weight
+  // Sort candidates primarily by lightest unit weight (kg/m ascending),
+  // breaking ties by higher governing DCR (closer to 1.0).
   compliantCandidates.sort((a, b) => {
-    if (a.status === "OPTIMAL" && b.status !== "OPTIMAL") {
-      return -1;
+    const weightDiff = a.properties.unitWeightKgPerM - b.properties.unitWeightKgPerM;
+    if (Math.abs(weightDiff) > 1e-6) {
+      return weightDiff;
     }
-    if (b.status === "OPTIMAL" && a.status !== "OPTIMAL") {
-      return 1;
-    }
-    return a.properties.unitWeightKgPerM - b.properties.unitWeightKgPerM;
+    return Number(b.governingDcr) - Number(a.governingDcr);
   });
+
+  // Mark the lightest compliant candidate as OPTIMAL so the top recommendation is always highlighted
+  const lightestCandidate = compliantCandidates[0]!;
+  if (lightestCandidate.status !== "OPTIMAL") {
+    compliantCandidates[0] = {
+      ...lightestCandidate,
+      status: "OPTIMAL",
+    };
+  }
 
   return {
     bestCandidate: compliantCandidates[0]!,

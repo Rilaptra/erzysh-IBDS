@@ -31,6 +31,29 @@ interface InMemVisitorCache {
 /** In-memory cache map holding hashed keys and active TTLs */
 const cacheStore = new Map<string, InMemVisitorCache>();
 
+/** Dynamic local visitor hit counter for live telemetry sessions */
+let localDynamicVisitorHits = 0;
+
+/**
+ * Resolves baseline visitor count prioritizing environment configuration over hardcoded default.
+ */
+function getBaselineVisitorCount(): number {
+  const envVal =
+    typeof Bun !== "undefined" && Bun.env?.NEXT_PUBLIC_GA4_FALLBACK_VISITORS
+      ? Bun.env.NEXT_PUBLIC_GA4_FALLBACK_VISITORS
+      : typeof process !== "undefined" && process.env?.NEXT_PUBLIC_GA4_FALLBACK_VISITORS
+        ? process.env.NEXT_PUBLIC_GA4_FALLBACK_VISITORS
+        : undefined;
+
+  if (envVal) {
+    const parsed = Number(envVal);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.floor(parsed);
+    }
+  }
+  return DEFAULT_FALLBACK_VISITOR_COUNT;
+}
+
 // ============================================================================
 // Web Crypto RS256 Service Account JWT Signer (Zero External Dependencies)
 // ============================================================================
@@ -252,14 +275,34 @@ export async function fetchGa4VisitorCount(
  *
  * @returns {Promise<Response>} JSON response implementing `VisitorCountResponse`.
  */
-export async function GET(): Promise<Response> {
+export async function GET(request?: Request): Promise<Response> {
   const now = Date.now();
+  let shouldIncrement = false;
+
+  if (request) {
+    try {
+      const url = new URL(request.url);
+      if (url.searchParams.get("hit") === "1" || url.searchParams.get("increment") === "true") {
+        shouldIncrement = true;
+      }
+    } catch {
+      // Ignore URL parse error
+    }
+  }
+
+  if (shouldIncrement) {
+    localDynamicVisitorHits += 1;
+  }
+
+  const baselineCount = getBaselineVisitorCount();
+  const currentTotal = baselineCount + localDynamicVisitorHits;
+
   const defaultFallback: VisitorCountResponse = {
-    totalVisitors: DEFAULT_FALLBACK_VISITOR_COUNT,
+    totalVisitors: currentTotal,
     startDate: HARDCODED_START_DATE,
     cachedAt: new Date(now).toISOString(),
     ttlSeconds: ANALYTICS_CACHE_TTL_SECONDS,
-    formattedBadge: formatVisitorBadge(DEFAULT_FALLBACK_VISITOR_COUNT, HARDCODED_START_DATE),
+    formattedBadge: formatVisitorBadge(currentTotal, HARDCODED_START_DATE),
     status: "fallback",
   };
 

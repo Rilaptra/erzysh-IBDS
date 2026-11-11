@@ -97,7 +97,18 @@ export function useVisitorFlexCounter(): UseVisitorFlexCounterReturn {
     }
 
     try {
-      const response = await fetch("/api/analytics/visitors", {
+      const hasRecordedHit =
+        typeof window !== "undefined" && window.sessionStorage?.getItem("ibds_visitor_counted");
+      const url = !hasRecordedHit ? "/api/analytics/visitors?hit=1" : "/api/analytics/visitors";
+      if (!hasRecordedHit && typeof window !== "undefined" && window.sessionStorage) {
+        try {
+          window.sessionStorage.setItem("ibds_visitor_counted", "1");
+        } catch {
+          // Ignore storage quota error
+        }
+      }
+
+      const response = await fetch(url, {
         method: "GET",
         headers: { Accept: "application/json" },
         cache: force ? "no-store" : "default",
