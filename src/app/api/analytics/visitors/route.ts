@@ -47,7 +47,7 @@ function getBaselineVisitorCount(): number {
 
   if (envVal) {
     const parsed = Number(envVal);
-    if (Number.isFinite(parsed) && parsed > 0) {
+    if (Number.isFinite(parsed) && parsed >= 0) {
       return Math.floor(parsed);
     }
   }

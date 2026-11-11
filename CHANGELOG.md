@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.9] - 2026-11-11
+
+### 🛠️ Maintenance
+
+- Fix visitor analytics baseline fallback to allow zero counts and update associated test suites
+
 ## [0.6.8] - 2026-11-11
 
 ### ✨ Added
