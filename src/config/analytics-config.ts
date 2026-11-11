@@ -4,8 +4,8 @@
  * custom epoch visitor flex badge tracking.
  */
 
-import { AnalyticsTelemetryError } from "@/types/analytics-telemetry-types";
 import type { Ga4ServiceAccountCredentials } from "@/types/analytics-telemetry-types";
+import { AnalyticsTelemetryError } from "@/types/analytics-telemetry-types";
 
 /**
  * Hardcoded project launch epoch date.
@@ -23,7 +23,7 @@ export const ANALYTICS_CACHE_TTL_SECONDS = 900;
 /**
  * Baseline fallback visitor count used when GA4 credentials are not configured in local development.
  */
-export const DEFAULT_FALLBACK_VISITOR_COUNT = 1420;
+export const DEFAULT_FALLBACK_VISITOR_COUNT = 0;
 
 /**
  * Formats the visitor counter badge string.

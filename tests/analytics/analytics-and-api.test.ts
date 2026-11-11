@@ -146,7 +146,12 @@ describe("Step 7: Analytics & Telemetry Engine Tests", () => {
 
   describe("GET /api/analytics/visitors Route Handler", () => {
     it("returns 200 with fallback visitor count in unconfigured environment", async () => {
-      const keysToClear = ["GA4_SERVICE_ACCOUNT_EMAIL", "GA4_PRIVATE_KEY", "GA4_PROPERTY_ID"];
+      const keysToClear = [
+        "GA4_SERVICE_ACCOUNT_EMAIL",
+        "GA4_PRIVATE_KEY",
+        "GA4_PROPERTY_ID",
+        "NEXT_PUBLIC_GA4_FALLBACK_VISITORS",
+      ];
       const savedBun: Record<string, string | undefined> = {};
       const savedProc: Record<string, string | undefined> = {};
 
@@ -170,7 +175,9 @@ describe("Step 7: Analytics & Telemetry Engine Tests", () => {
 
         expect(json.totalVisitors).toBe(DEFAULT_FALLBACK_VISITOR_COUNT);
         expect(json.startDate).toBe(HARDCODED_START_DATE);
-        expect(json.formattedBadge).toContain("Visited 1,420 times");
+        expect(json.formattedBadge).toBe(
+          formatVisitorBadge(DEFAULT_FALLBACK_VISITOR_COUNT, HARDCODED_START_DATE),
+        );
         expect(json.status).toBe("fallback");
       } finally {
         for (const k of keysToClear) {

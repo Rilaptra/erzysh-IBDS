@@ -223,8 +223,8 @@ describe("Global Application Configuration (app-config.ts)", () => {
       expect(telemetryConfig.ga4MeasurementId.startsWith("G-")).toBe(true);
     });
 
-    it("provides positive fallback visitor count", () => {
-      expect(telemetryConfig.fallbackVisitorCount).toBeGreaterThan(0);
+    it("provides positive or zero fallback visitor count", () => {
+      expect(telemetryConfig.fallbackVisitorCount).toBeGreaterThanOrEqual(0);
     });
 
     it("provides valid ISO start date", () => {
