@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.10] - 2026-11-12
+
+### 🛠️ Maintenance
+
+- Update build timestamp and configuration metadata
+
 ## [0.6.9] - 2026-11-11
 
 ### 🛠️ Maintenance
