@@ -2,10 +2,12 @@ import {
   ArrowRightIcon,
   BoxIcon,
   Building2Icon,
+  ExternalLinkIcon,
   FileTextIcon,
   HandIcon,
   MicIcon,
   RulerIcon,
+  UserIcon,
   ZapIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -15,6 +17,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION, WASM_VERSION } from "@/config/version";
 import { cn } from "@/lib/utils";
+
+const GITHUB_PROFILE_URL = "https://github.com/Rilaptra";
+const GITHUB_REPO_URL = "https://github.com/Rilaptra/erzysh-IBDS";
+
+function GitHubIcon({ className, ...props }: React.ComponentProps<"svg">) {
+  return (
+    <svg
+      role="img"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={cn("size-4 shrink-0", className)}
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+    </svg>
+  );
+}
 
 const FEATURES = [
   {
@@ -92,6 +112,40 @@ export default function LandingPage() {
             </Button>
             <Button
               asChild
+              variant="ghost"
+              size="sm"
+              className="text-[11px] text-slate-300 hover:text-white"
+              title="Profil GitHub @Rilaptra"
+            >
+              <a
+                href={GITHUB_PROFILE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5"
+              >
+                <UserIcon className="size-3.5 text-cyan-400" aria-hidden />
+                <span className="hidden sm:inline">@Rilaptra</span>
+              </a>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="text-[11px] text-slate-300 hover:text-white"
+              title="Repository GitHub erzysh-IBDS"
+            >
+              <a
+                href={GITHUB_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5"
+              >
+                <GitHubIcon className="size-3.5" aria-hidden />
+                <span className="hidden sm:inline">Repository</span>
+              </a>
+            </Button>
+            <Button
+              asChild
               size="sm"
               className="bg-sky-500/20 text-[11px] font-bold text-sky-400 hover:bg-sky-500/30"
             >
@@ -120,14 +174,53 @@ export default function LandingPage() {
             Analisis defleksi, gaya dalam, dan desain penampang beton maupun baja langsung di
             browser — cepat, akurat, dan mengacu pada standar SNI.
           </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-            <Button asChild size="lg" className="px-4 font-semibold">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2.5">
+            <Button asChild size="lg" className="px-4 font-semibold shadow-lg shadow-sky-500/10">
               <Link href="/simulator">
                 Mulai Simulasi <ArrowRightIcon data-icon="inline-end" aria-hidden />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="px-4">
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="border-border/60 bg-card/60 px-4"
+            >
               <a href="#fitur">Lihat Fitur</a>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="border-border/60 bg-card/60 px-4 font-medium transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+            >
+              <a
+                href={GITHUB_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2"
+              >
+                <GitHubIcon className="size-4" aria-hidden />
+                <span>GitHub Repo</span>
+                <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
+              </a>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="border-border/60 bg-card/60 px-4 font-medium transition-colors hover:border-sky-500/50 hover:bg-sky-500/10 hover:text-sky-300"
+            >
+              <a
+                href={GITHUB_PROFILE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2"
+              >
+                <UserIcon className="size-4 text-cyan-400" aria-hidden />
+                <span>Profil @Rilaptra</span>
+                <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
+              </a>
             </Button>
           </div>
         </section>
@@ -210,13 +303,81 @@ export default function LandingPage() {
                 </p>
               </Link>
             </div>
+            <div className="border-border/30 mt-8 flex flex-wrap items-center justify-center gap-2 border-t pt-6 text-xs text-slate-400">
+              <span>Open-source oleh Rizqi Lasheva Purnama Putra:</span>
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-cyan-400 hover:text-cyan-300"
+              >
+                <a
+                  href={GITHUB_PROFILE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5"
+                >
+                  <UserIcon className="size-3.5 text-cyan-400" aria-hidden />
+                  Profil GitHub
+                </a>
+              </Button>
+              <span className="text-slate-600" aria-hidden>
+                ·
+              </span>
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-slate-300 hover:text-white"
+              >
+                <a
+                  href={GITHUB_REPO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5"
+                >
+                  <GitHubIcon className="size-3.5" aria-hidden />
+                  Repository & Source Code
+                </a>
+              </Button>
+            </div>
           </div>
         </section>
       </main>
 
-      <footer className="border-border/40 bg-background/60 border-t py-6 text-center text-[11px] text-slate-500 backdrop-blur-md">
-        © {new Date().getFullYear()} IBDS — Interactive Beam Deflection & Structural Design
-        Simulator
+      <footer className="border-border/40 bg-background/60 border-t py-8 text-[11px] text-slate-500 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
+          <div className="flex items-center gap-2 text-center sm:text-left">
+            <RulerIcon className="size-3.5 text-cyan-400" aria-hidden />
+            <span>
+              © {new Date().getFullYear()} IBDS — Interactive Beam Deflection & Structural Design
+              Simulator
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <a
+              href={GITHUB_PROFILE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-slate-400 transition-colors hover:text-cyan-400"
+            >
+              <UserIcon className="size-3.5 text-cyan-400" aria-hidden />
+              <span>Rizqi Lasheva (@Rilaptra)</span>
+            </a>
+            <span className="text-slate-700" aria-hidden>
+              ·
+            </span>
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-slate-400 transition-colors hover:text-cyan-400"
+            >
+              <GitHubIcon className="size-3.5" aria-hidden />
+              <span>GitHub Repository</span>
+            </a>
+          </div>
+        </div>
       </footer>
     </ErzyshPageShell>
   );

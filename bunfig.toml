@@ -1,5 +1,5 @@
 [install]
-minimumReleaseAge = "3d"
+minimumReleaseAge = 259200
 exact = true
 
 [fmt]
