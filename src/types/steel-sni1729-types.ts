@@ -118,6 +118,8 @@ export interface BoxPrimaryDimensions {
   readonly t: Millimeter;
   /** Profile category: Square or Rectangular. */
   readonly shapeType: "SQUARE" | "RECTANGULAR";
+  /** Root corner fillet radius r in mm (0 for sharp-cornered custom sections). */
+  readonly r?: Millimeter;
 }
 
 // ============================================================================

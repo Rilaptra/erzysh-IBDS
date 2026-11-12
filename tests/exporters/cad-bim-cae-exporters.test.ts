@@ -571,5 +571,41 @@ describe("Step 6: Multi-Format CAD / BIM / CAE Exporters", () => {
       const stl = buildStlFromSimulatorState(state);
       expect(stl.content.length).toBeGreaterThan(100);
     });
+
+    it("correctly resolves parametric custom BOX sections without falling back to 200x200x9", () => {
+      beamSimulatorActions.setMaterialKind("STEEL");
+      beamSimulatorActions.setSteelParameters({
+        profileType: "BOX",
+        selectedProfileName: "BOX 350 x 250 x 20 (Custom)",
+      });
+      const state = getBeamSimulatorSnapshot();
+
+      const dxf = buildDxfFromSimulatorState(state);
+      expect(dxf.fileName).toContain("350");
+      expect(dxf.fileName).toContain("250");
+      expect(dxf.fileName).not.toContain("200-x-200");
+      expect(dxf.content).toContain("BOX 350 x 250 x 20 (Custom)");
+
+      const s2k = buildS2kFromSimulatorState(state);
+      expect(s2k.fileName).toContain("350");
+      expect(s2k.fileName).toContain("250");
+      expect(s2k.fileName).not.toContain("200");
+
+      const txt = buildRevitTypeCatalogFromSimulatorState(state);
+      expect(txt.fileName).toContain("350");
+      expect(txt.fileName).toContain("250");
+      expect(txt.content).toContain("BOX 350 x 250 x 20 (Custom)");
+
+      const step = buildStepAp214FromSimulatorState(state);
+      expect(step.fileName).toContain("350");
+      expect(step.fileName).toContain("250");
+      expect(step.fileName).not.toContain("200");
+
+      // Reset to default
+      beamSimulatorActions.setSteelParameters({
+        profileType: "IWF",
+        selectedProfileName: null,
+      });
+    });
   });
 });

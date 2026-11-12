@@ -1,6 +1,6 @@
 {
   "name": "interactive-beam-simulator",
-  "version": "0.6.10",
+  "version": "0.6.11",
   "private": true,
   "description": "Interactive 3D Beam Deflection & Structural Design Simulator (SNI 2847:2019 & SNI 1729:2020)",
   "type": "module",
@@ -52,5 +52,6 @@
     "postcss": "8.5.32",
     "tailwindcss": "4.3.4",
     "typescript": "^5.8.2"
-  }
+  },
+  "packageManager": "bun@1.4.4"
 }

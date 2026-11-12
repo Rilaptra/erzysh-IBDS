@@ -1466,33 +1466,72 @@ export function resolveCrossSectionFromSimulatorState(
     state.selectedSteelProfileName ?? state.steelOptimizationResult?.bestCandidate.properties.name;
   const gradesList = rawSteelGrades as unknown as readonly SteelGradeProperties[];
   const gradeProps = gradesList.find((g) => g.grade === state.steelGrade);
+  const optResult = state.steelOptimizationResult;
+  const activeCandidate =
+    (targetName
+      ? optResult?.compliantCandidates?.find((c) => c.properties.name === targetName)
+      : undefined) ?? optResult?.bestCandidate;
 
   if (state.steelProfileType === "BOX") {
     const boxCatalog = rawBoxCatalog as unknown as readonly BoxPrimaryDimensions[];
-    const matchedBox = (targetName
-      ? boxCatalog.find((item) => item.name === targetName)
-      : undefined) ??
-      boxCatalog.find((item) => item.H === 200 && item.B === 200) ??
-      boxCatalog[0] ?? {
-        name: "BOX 200 x 200 x 8.0",
-        H: 200,
-        B: 200,
-        t: 8,
-        shapeType: "SQUARE" as const,
-      };
+    const matchedBox = targetName ? boxCatalog.find((item) => item.name === targetName) : undefined;
 
-    const hMm = Number(matchedBox.H);
-    const bMm = Number(matchedBox.B);
-    const tMm = Number(matchedBox.t);
+    const customMatch = targetName?.match(
+      /BOX\s+(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i,
+    );
+
+    let hMm: number;
+    let bMm: number;
+    let tMm: number;
+    let profileName: string;
+
+    if (activeCandidate && activeCandidate.properties.profileType === "BOX") {
+      hMm = Number(activeCandidate.properties.H);
+      bMm = Number(activeCandidate.properties.B);
+      tMm = Number(activeCandidate.properties.t ?? activeCandidate.properties.tw);
+      profileName = activeCandidate.properties.name;
+    } else if (matchedBox) {
+      hMm = Number(matchedBox.H);
+      bMm = Number(matchedBox.B);
+      tMm = Number(matchedBox.t);
+      profileName = matchedBox.name;
+    } else if (customMatch) {
+      hMm = Number.parseFloat(customMatch[1]!);
+      bMm = Number.parseFloat(customMatch[2]!);
+      tMm = Number.parseFloat(customMatch[3]!);
+      profileName = targetName ?? `BOX ${hMm} x ${bMm} x ${tMm}`;
+    } else {
+      const fallbackBox = boxCatalog.find((item) => item.H === 200 && item.B === 200) ??
+        boxCatalog[0] ?? {
+          name: "BOX 200 x 200 x 8.0",
+          H: 200,
+          B: 200,
+          t: 8,
+          shapeType: "SQUARE" as const,
+        };
+      hMm = Number(fallbackBox.H);
+      bMm = Number(fallbackBox.B);
+      tMm = Number(fallbackBox.t);
+      profileName = fallbackBox.name;
+    }
+
+    const isCustom = Boolean(
+      activeCandidate?.properties.isCustomGenerated ||
+      (activeCandidate?.properties.r !== undefined && Number(activeCandidate.properties.r) === 0) ||
+      targetName?.includes("(Custom)") ||
+      customMatch,
+    );
+    const innerFilletRadiusMm = isCustom ? 0 : tMm;
+    const outerFilletRadiusMm = isCustom ? 0 : 2 * tMm;
 
     return {
       kind: "STEEL_BOX",
-      profileName: matchedBox.name,
+      profileName,
       hMm,
       bMm,
       tMm,
-      innerFilletRadiusMm: tMm,
-      outerFilletRadiusMm: 2 * tMm,
+      innerFilletRadiusMm,
+      outerFilletRadiusMm,
       steelGrade: state.steelGrade,
       fyMpa: gradeProps ? Number(gradeProps.fy) : 240,
       fuMpa: gradeProps ? Number(gradeProps.fu) : 370,
@@ -1500,27 +1539,55 @@ export function resolveCrossSectionFromSimulatorState(
   }
 
   const iwfCatalog = rawIwfCatalog as unknown as readonly IwfPrimaryDimensions[];
-  const matchedIwf = (targetName
-    ? iwfCatalog.find((item) => item.name === targetName)
-    : undefined) ??
-    iwfCatalog.find((item) => item.H === 300 && item.B === 150) ??
-    iwfCatalog[0] ?? {
-      name: "WF 300 x 150 x 36.7",
-      H: 300,
-      B: 150,
-      tw: 6.5,
-      tf: 9,
-      r: 13,
-    };
+  const matchedIwf = targetName ? iwfCatalog.find((item) => item.name === targetName) : undefined;
+
+  let dMm: number;
+  let bfMm: number;
+  let twMm: number;
+  let tfMm: number;
+  let rMm: number;
+  let profileName: string;
+
+  if (activeCandidate && activeCandidate.properties.profileType === "IWF") {
+    dMm = Number(activeCandidate.properties.H);
+    bfMm = Number(activeCandidate.properties.B);
+    twMm = Number(activeCandidate.properties.tw);
+    tfMm = Number(activeCandidate.properties.tf);
+    rMm = Number(activeCandidate.properties.r ?? 13);
+    profileName = activeCandidate.properties.name;
+  } else if (matchedIwf) {
+    dMm = Number(matchedIwf.H);
+    bfMm = Number(matchedIwf.B);
+    twMm = Number(matchedIwf.tw);
+    tfMm = Number(matchedIwf.tf);
+    rMm = Number(matchedIwf.r);
+    profileName = matchedIwf.name;
+  } else {
+    const fallbackIwf = iwfCatalog.find((item) => item.H === 300 && item.B === 150) ??
+      iwfCatalog[0] ?? {
+        name: "WF 300 x 150 x 36.7",
+        H: 300,
+        B: 150,
+        tw: 6.5,
+        tf: 9,
+        r: 13,
+      };
+    dMm = Number(fallbackIwf.H);
+    bfMm = Number(fallbackIwf.B);
+    twMm = Number(fallbackIwf.tw);
+    tfMm = Number(fallbackIwf.tf);
+    rMm = Number(fallbackIwf.r);
+    profileName = fallbackIwf.name;
+  }
 
   return {
     kind: "STEEL_IWF",
-    profileName: matchedIwf.name,
-    dMm: Number(matchedIwf.H),
-    bfMm: Number(matchedIwf.B),
-    twMm: Number(matchedIwf.tw),
-    tfMm: Number(matchedIwf.tf),
-    rMm: Number(matchedIwf.r),
+    profileName,
+    dMm,
+    bfMm,
+    twMm,
+    tfMm,
+    rMm,
     steelGrade: state.steelGrade,
     fyMpa: gradeProps ? Number(gradeProps.fy) : 240,
     fuMpa: gradeProps ? Number(gradeProps.fu) : 370,

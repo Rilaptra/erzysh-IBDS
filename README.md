@@ -17,7 +17,7 @@ _Dikembangkan oleh **Rizqi Lasheva Purnama Putra** — Dikendalikan secara real-
 <img src="https://img.shields.io/badge/%F0%9F%9A%80_LIVE_DEMO-ERZYSH--IBDS.VERCEL.APP-000000?style=for-the-badge&amp;logo=vercel&amp;logoColor=06B6D4" alt="Vercel Live Deployment" />
 </a>
 <a href="https://github.com/Rilaptra/erzysh-IBDS/releases">
-<img src="https://img.shields.io/badge/RELEASE-v0.6.10--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
+<img src="https://img.shields.io/badge/RELEASE-v0.6.11--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
 </a>
 <a href="https://erzysh-ibds.vercel.app">
 <img src="https://img.shields.io/badge/AUTHOR-RIZQI_LASHEVA_(ERZY.SH)-06B6D4?style=for-the-badge&amp;logo=opsgenie&amp;logoColor=white" alt="Author Erzy.sh" />
@@ -292,9 +292,9 @@ bun test tests/config/app-config.test.ts tests/ai/gemini-api-failover.test.ts
 
 ## 👤 Identitas Pengembang (Author)
 
-| **Rizqi Lasheva Purnama Putra (`Erzy.sh`)**                                     |
-| :------------------------------------------------------------------------------ |
-| 🎓 **Program Studi Teknik Sipil — Mata Kuliah Aplikasi Komputer**               |
+| **Rizqi Lasheva Purnama Putra (`Erzy.sh`)**                                       |
+| :-------------------------------------------------------------------------------- |
+| 🎓 **Program Studi Teknik Sipil — Mata Kuliah Aplikasi Komputer**                 |
 | 💻 GitHub: [@erzysh](https://www.google.com/search?q=https://github.com/Rilaptra) |
 
 <div align="center">

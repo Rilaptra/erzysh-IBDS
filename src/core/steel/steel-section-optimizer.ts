@@ -168,9 +168,11 @@ export function generateCustomBoxCatalog(
             B: millimeter(B),
             t: millimeter(t),
             shapeType: isSquare ? "SQUARE" : "RECTANGULAR",
+            r: millimeter(0),
           });
           sections.push({
             ...props,
+            r: millimeter(0),
             isCustomGenerated: true,
           });
         } catch {

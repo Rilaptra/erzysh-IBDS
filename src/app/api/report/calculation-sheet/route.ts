@@ -559,7 +559,10 @@ export async function POST(req: Request): Promise<Response> {
         governingVuKn: state.governingForces?.absoluteMaxVu ?? 75,
         governingTuKnm: state.governingForces?.absoluteMaxTu ?? 0,
         governingPuKn: state.governingForces?.absoluteMaxPu ?? 0,
-        steelProfileName: state.selectedSteelProfileName ?? undefined,
+        steelProfileName:
+          state.selectedSteelProfileName ??
+          state.steelOptimizationResult?.bestCandidate.properties.name ??
+          undefined,
         steelGrade: state.steelGrade ?? "BJ_37",
         concreteDimensions: state.concreteBwMm
           ? {

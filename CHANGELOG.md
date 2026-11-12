@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.11] - 2026-11-12
+
+### ✨ Added
+
+- Support for sharp-cornered custom BOX profile cross-section SVG rendering and geometric property calculations
+
+### 🐛 Bug Fixes
+
+- Resolve parameter resolution and fallback bugs for custom BOX profiles in BIM/CAD exporters
+- Correct compactness classifier and geometric property formulas for $r=0$ custom box sections
+
+### 🛠️ Maintenance
+
+- Pin Bun version to `1.4.x` in vercel config and `package.json`
+
 ## [0.6.10] - 2026-11-12
 
 ### 🛠️ Maintenance

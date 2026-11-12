@@ -157,6 +157,9 @@ export function SteelProfileCrossSectionSvg({
                 Math.max(boxThicknessT * scale, 3.5),
                 Math.min(scaledB, scaledH) * 0.28,
               );
+              const isCustom = profileName.includes("(Custom)") || filletRadiusR === 0;
+              const outerRx = isCustom ? 0 : 4;
+              const innerRx = isCustom ? 0 : 2;
               return (
                 <g>
                   {/* Outer Box */}
@@ -165,7 +168,7 @@ export function SteelProfileCrossSectionSvg({
                     y={originY}
                     width={scaledB}
                     height={scaledH}
-                    rx="4"
+                    rx={outerRx}
                     fill="#38BDF8"
                     fillOpacity="0.24"
                     stroke="#38BDF8"
@@ -177,7 +180,7 @@ export function SteelProfileCrossSectionSvg({
                     y={originY + t}
                     width={Math.max(scaledB - 2 * t, 4)}
                     height={Math.max(scaledH - 2 * t, 4)}
-                    rx="2"
+                    rx={innerRx}
                     fill="#0F1416"
                     stroke="#38BDF8"
                     strokeWidth="1.5"

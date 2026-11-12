@@ -199,9 +199,14 @@ export function classifySectionCompactness(
   const h = Number(dims.H);
   const t = Number(dims.t);
 
-  // Table B4.1b Note d: b_flat = B - 3*t, h_flat = H - 3*t
-  const bFlat = Math.max(1.0, b - 3.0 * t);
-  const hFlat = Math.max(1.0, h - 3.0 * t);
+  // Table B4.1b Note d: b_flat = B - 3*t for cold-formed rounded corners, or B - 2*t for sharp-cornered custom box
+  const isSharpCorners =
+    section.name.includes("(Custom)") ||
+    (section.r !== undefined && Number(section.r) === 0) ||
+    dims.name.includes("(Custom)");
+  const flatDeduction = isSharpCorners ? 2.0 * t : 3.0 * t;
+  const bFlat = Math.max(1.0, b - flatDeduction);
+  const hFlat = Math.max(1.0, h - flatDeduction);
 
   // Table B4.1b Case 13 (Flanges of rectangular HSS in flexure)
   const lambdaF = bFlat / t;

@@ -184,6 +184,7 @@ describe("Step 4: SNI 1729:2020 Steel Engine Tests", () => {
       });
       expect(allCatalog.length).toBe(36);
       expect(allCatalog.every((s) => s.isCustomGenerated === true)).toBe(true);
+      expect(allCatalog.every((s) => Number(s.r) === 0)).toBe(true);
       expect(allCatalog.some((s) => s.name === "BOX 200 x 200 x 20 (Custom)")).toBe(true);
       expect(allCatalog.some((s) => s.name === "BOX 300 x 250 x 35 (Custom)")).toBe(true);
 
@@ -232,6 +233,7 @@ describe("Step 4: SNI 1729:2020 Steel Engine Tests", () => {
       expect(opt.bestCandidate.properties.isCustomGenerated).toBe(true);
       expect(Number(opt.bestCandidate.properties.t)).toBeGreaterThanOrEqual(20);
       expect(Number(opt.bestCandidate.properties.t)).toBeLessThanOrEqual(35);
+      expect(Number(opt.bestCandidate.properties.r)).toBe(0);
       expect(Number(opt.bestCandidate.governingDcr)).toBeLessThanOrEqual(1.0);
     });
   });

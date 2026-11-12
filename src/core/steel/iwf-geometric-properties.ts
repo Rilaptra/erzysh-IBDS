@@ -375,12 +375,21 @@ export function computeBoxSectionProperties(input: BoxPrimaryDimensions): BoxSec
     );
   }
 
+  const isCustom =
+    input.name.includes("(Custom)") || (input.r !== undefined && Number(input.r) === 0);
+  const rCornerMm = isCustom ? 0 : Number(input.r ?? 2 * t);
+
   const h = H / 10;
   const b = B / 10;
   const tw = t / 10;
 
   // 1. Cross-sectional Area A (cm²)
-  const areaCm2 = 2 * tw * (b + h - 2 * tw) - 3 * (4 - Math.PI) * Math.pow(tw, 2);
+  // For sharp 90-degree corners (r = 0): pure rectangle difference 2*tw*(b + h - 2*tw)
+  // For cold-formed rounded corners: standard deduction 3*(4 - pi)*tw^2 per JIS G 3466
+  const areaCm2 =
+    rCornerMm === 0
+      ? 2 * tw * (b + h - 2 * tw)
+      : 2 * tw * (b + h - 2 * tw) - 3 * (4 - Math.PI) * Math.pow(tw, 2);
 
   // 2. Unit Weight W (kg/m)
   const unitWeightKgPerM = areaCm2 * CM2_TO_KG_PER_M;
@@ -403,13 +412,18 @@ export function computeBoxSectionProperties(input: BoxPrimaryDimensions): BoxSec
 
   // 7. Flange centroid distance h0 and clear flat web height hc (mm)
   const h0Mm = H - t;
-  const hcMm = H - 3 * t;
+  const hcMm = rCornerMm === 0 ? H - 2 * t : H - 3 * t;
 
   // 8. St. Venant Torsional Constant J (cm⁴)
   const jCm4 = (2 * tw * Math.pow(b - tw, 2) * Math.pow(h - tw, 2)) / (b + h - 2 * tw);
 
   // 9. HSS Torsional Constant C (cm³)
-  const cCm3 = 2 * (b - tw) * (h - tw) * tw - 4.5 * (4 - Math.PI) * Math.pow(tw, 3);
+  // For sharp corners: 2*(b - tw)*(h - tw)*tw
+  // For cold-formed rounded corners: deduct 4.5*(4 - pi)*tw^3 per SNI 1729:2020 Catatan Pengguna H3.1
+  const cCm3 =
+    rCornerMm === 0
+      ? 2 * (b - tw) * (h - tw) * tw
+      : 2 * (b - tw) * (h - tw) * tw - 4.5 * (4 - Math.PI) * Math.pow(tw, 3);
 
   // 10. Warping constant Cw
   const cw = 0;
@@ -425,6 +439,7 @@ export function computeBoxSectionProperties(input: BoxPrimaryDimensions): BoxSec
     tw: millimeter(t),
     tf: millimeter(t),
     t: millimeter(t),
+    r: millimeter(rCornerMm),
     area: (areaCm2 * 100) as MillimeterSquared,
     unitWeightKgPerM,
     Ix: (ixCm4 * 10000) as MillimeterToFourth,
