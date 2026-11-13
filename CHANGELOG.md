@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.14] - 2026-11-13
+
+### ✨ Added
+
+- Add GSAP-powered hero animations and interactive 3D beam morph visual on the landing page
+- Add dynamic simulation mode query synchronization in `AdaptiveApplicationShell`
+- Add custom UI keyframes and styling enhancements for gradient texts and scanlines
+
 ## [0.6.13] - 2026-11-13
 
 ### 🛠️ Maintenance

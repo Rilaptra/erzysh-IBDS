@@ -217,3 +217,73 @@
     transform: scale(1.04);
   }
 }
+
+@keyframes erzyshFadeUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes erzyshGlowPulse {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes erzyshGradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes erzyshScanline {
+  0% {
+    transform: translate3d(-140%, 0, 0);
+  }
+  100% {
+    transform: translate3d(720%, 0, 0);
+  }
+}
+
+.erzysh-fade-up {
+  animation: erzyshFadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.erzysh-glow-pulse {
+  animation: erzyshGlowPulse 8s ease-in-out infinite;
+}
+
+.erzysh-gradient-text {
+  background-size: 200% auto;
+  animation: erzyshGradientShift 6s ease-in-out infinite;
+}
+
+.erzysh-scanline {
+  animation: erzyshScanline 5.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erzysh-fade-up,
+  .erzysh-glow-pulse,
+  .erzysh-gradient-text,
+  .erzysh-scanline {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

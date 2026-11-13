@@ -17,7 +17,7 @@ _Dikembangkan oleh **Rizqi Lasheva Purnama Putra** — Dikendalikan secara real-
 <img src="https://img.shields.io/badge/%F0%9F%9A%80_LIVE_DEMO-ERZYSH--IBDS.VERCEL.APP-000000?style=for-the-badge&amp;logo=vercel&amp;logoColor=06B6D4" alt="Vercel Live Deployment" />
 </a>
 <a href="https://github.com/Rilaptra/erzysh-IBDS/releases">
-<img src="https://img.shields.io/badge/RELEASE-v0.6.13--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
+<img src="https://img.shields.io/badge/RELEASE-v0.6.14--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
 </a>
 <a href="https://erzysh-ibds.vercel.app">
 <img src="https://img.shields.io/badge/AUTHOR-RIZQI_LASHEVA_(ERZY.SH)-06B6D4?style=for-the-badge&amp;logo=opsgenie&amp;logoColor=white" alt="Author Erzy.sh" />
@@ -176,38 +176,65 @@ Seluruh spesifikasi rekayasa di dalam folder [./mdfiles/](https://www.google.com
 <br />
 
 ```text
-IBDS/
+erzysh-IBDS/
 ├── .github/workflows/                  # CI Quality Gate & Automated AI GitHub Release
 ├── .githooks/                          # Native Bun pre-commit (bun fmt & bun check -b)
 ├── crates/
 │   └── mechanics-3d-wasm/              # 🦀 Rust WASM: 5 Tumpuan, Euler-Bernoulli, & 3D Extruded Mesh
-├── mdfiles/                            # 📚 9 Dokumen Spesifikasi Inti & Arsip Iterasi (iterate/)
-├── prototype/                          # 🧪 Prototipe Multimodal Aktif (hand-tracking & voice-command)
+├── mdfiles/                            # 📚 Dokumen Spesifikasi Inti & Arsip Iterasi (iterate/)
+├── prototype/                          # 🧪 Prototipe Multimodal (hand-tracking & voice-command)
+├── public/
+│   ├── icons/                          # Ikon PWA & Apple Touch Icon
+│   ├── png/                            # Aset PNG (logo, pwa-icon, banner-wide)
+│   └── webp/                           # Aset WebP terkompresi (banner-wide-1200x288, logo)
 ├── scripts/
 │   ├── ai/
-│   │   ├── step-context-bundler.ts     # 🎯 CLI Pembuat Folder Temp & PROMPT.md per Step [1-7]
-│   │   ├── ai-commit-helper.ts         # 🤖 Generator Conventional Commit + Auto Semantic Release Tag
-│   │   └── ai-pr-summary.ts
+│   │   ├── ai-commit-helper.ts         # 🤖 Generator Conventional Commit + Auto Tag
+│   │   └── ai-pr-summary.ts            # 📝 Ringkasan PR otomatis berbasis AI
+│   ├── ci/
+│   │   └── install-git-hooks.ts        # 🪝 Installer native .githooks/
+│   ├── data/
+│   │   └── validate-sni-catalogs.ts    # ✅ Validator katalog profil baja & tulangan SNI
+│   ├── pwa/
+│   │   └── generate-pwa-icons.ts       # 📱 Generator ikon PWA multi-resolusi
 │   ├── wasm/
 │   │   └── build-mechanics-wasm.ts     # ⚙️ Builder Rust -> src/wasm/ via Bun.$
-│   ├── ci/
-│   └── data/
+│   ├── release.ts                      # 🚀 Semantic release & version tagging
+│   ├── sync-version.ts                 # 🔄 Sinkronisasi APP_VERSION & WASM_VERSION
+│   └── verify.ts                       # 🛡️ Quality gate runner (format, typecheck, test, build)
 ├── src/
+│   ├── app/                            # Next.js App Router (Landing /, /simulator, PWA, API)
+│   │   ├── api/                        # Bun API Routes (ai, analytics, report)
+│   │   ├── simulator/                  # Rute Simulator (?mode=MODE_A / MODE_B)
+│   │   ├── layout.tsx & page.tsx       # Root layout & Landing Page (GSAP + SVG Morph)
+│   │   └── manifest.ts & robots.ts     # PWA Web Manifest & SEO robots
+│   ├── components/
+│   │   ├── adaptive/                   # AdaptiveApplicationShell, Desktop & Android Companion
+│   │   ├── assistant/                  # Voice Assistant & AI Structural Consultant UI
+│   │   ├── canvas/                     # Viewport 3D WebGL, Diagram 2D, & Dark Grid
+│   │   ├── forms/                      # Form Material, Mode A/B, & Parameter SNI
+│   │   ├── landing/                    # ErzyshPageShell, HeroAnimatedSection, HeroBeamMorphVisual
+│   │   ├── results/                    # Kartu Hasil Optimasi Beton, Baja, & Modal Ekspor
+│   │   ├── telemetry/                  # Custom Epoch Visitor Counter Badge
+│   │   ├── ui/                         # Komponen primitif shadcn/ui & Radix
+│   │   └── windows/                    # 6 Floating Windows interaktif
 │   ├── config/                         # Gate PWA Desktop/Android, Faktor Φ SNI, & Epoch GA4
-│   ├── types/                          # Branded Units (kN, kNm, MPa, mm) & Koordinat Z-Up/Y-Up
-│   ├── data/                           # Katalog JSON 5 Dimensi Primer IWF, BOX, & Tulangan Beton
-│   ├── wasm/                           # Output Binding WebAssembly Zero-Copy
-│   ├── macros/                         # Bun Compile-Time Pre-Sorting O(log N)
 │   ├── core/
 │   │   ├── mechanics/                  # Bridge TS <-> Rust WASM
 │   │   ├── concrete/                   # Engine Optimasi Beton SNI 2847:2019
 │   │   ├── steel/                      # Engine Optimasi Baja SNI 1729:2020
 │   │   └── exporters/                  # Generator .dxf, .lsp, .s2k, .ifc, .iom.xml, .step, .stl
-│   ├── state/
-│   ├── hooks/
-│   ├── components/                     # 3D Beam Viewport, 2D Overlays, Floating Windows, & HUD
-│   └── app/                            # Next.js App Router, PWA Manifest, & Bun API Routes
-├── tests/                              # Unit Tests & Benchmark Validasi SAP2000
+│   ├── data/                           # Katalog JSON 5 Dimensi Primer IWF, BOX, & Tulangan Beton
+│   ├── hooks/                          # Solver Engine, Web Speech, MediaPipe Hand Tracking
+│   ├── lib/                            # Utilitas umum (cn, helpers)
+│   ├── macros/                         # Bun Compile-Time Pre-Sorting O(log N)
+│   ├── state/                          # Central Store (useSyncExternalStore)
+│   ├── types/                          # Branded Units (kN, kNm, MPa, mm) & Koordinat Z-Up/Y-Up
+│   └── wasm/                           # Output Binding WebAssembly Zero-Copy
+├── tests/                              # Unit Tests & Benchmark Validasi SAP2000 (13 modul)
+├── next.config.ts
+├── package.json
+├── tsconfig.json
 └── README.md
 ```
 
@@ -222,20 +249,15 @@ Pastikan perangkat kamu telah terinstal:
 - [**Bun**](https://bun.sh) **v1.4.4+** (`bun --version`)
 - [**Rust & Cargo**](https://rustup.rs) + target WebAssembly (`rustup target add wasm32-unknown-unknown`) + `wasm-bindgen-cli`
 
-### 2. Kloning & Persiapan Konteks Pembangunan Bertahap (Step 1 – 7)
-
-Jika kamu sedang membangun modul demi modul menggunakan bantuan AI, jalankan **Step Context Bundler CLI** untuk menghasilkan folder konteks `.tmp-step-context/step-0X/` beserta file `PROMPT.md`:
+### 2. Kloning Repositori
 
 ```bash
-# 1. Clone repositori
-git clone https://github.com/erzysh/IBDS.git
-cd IBDS
-
-# 2. Jalankan CLI interaktif pemilih Step [1-7] & pembuat PROMPT.md otomatis
-bun run scripts/ai/step-context-bundler.ts
+# Clone repositori
+git clone https://github.com/Rilaptra/erzysh-IBDS.git
+cd erzysh-IBDS
 ```
 
-### 3. Menjalankan Server Pengembangan Lokal (Setelah Step 1–5 Terinstal)
+### 3. Menjalankan Server Pengembangan Lokal
 
 ```bash
 # 1. Instal seluruh dependencies dengan Bun v1.4.4

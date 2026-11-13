@@ -13,6 +13,8 @@ import {
 import Link from "next/link";
 
 import { ErzyshPageShell, glassPanelClass } from "@/components/landing/ErzyshPageShell";
+import { HeroAnimatedSection } from "@/components/landing/HeroAnimatedSection";
+import { HeroBeamMorphVisual } from "@/components/landing/HeroBeamMorphVisual";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION, WASM_VERSION } from "@/config/version";
@@ -83,10 +85,10 @@ const FEATURES = [
 ] as const;
 
 const SPECS = [
-  { label: "APP", value: `v${APP_VERSION}` },
-  { label: "WASM ENGINE", value: `v${WASM_VERSION}` },
-  { label: "BETON", value: "SNI 2847:2019" },
-  { label: "BAJA", value: "SNI 1729:2020" },
+  { label: "APP", value: `v${APP_VERSION}`, color: "text-cyan-300" },
+  { label: "WASM ENGINE", value: `v${WASM_VERSION}`, color: "text-sky-300" },
+  { label: "BETON", value: "SNI 2847:2019", color: "text-emerald-300" },
+  { label: "BAJA", value: "SNI 1729:2020", color: "text-violet-300" },
 ] as const;
 
 export default function LandingPage() {
@@ -147,7 +149,7 @@ export default function LandingPage() {
             <Button
               asChild
               size="sm"
-              className="bg-sky-500/20 text-[11px] font-bold text-sky-400 hover:bg-sky-500/30"
+              className="bg-linear-to-r from-cyan-400 via-sky-400 to-violet-500 text-[11px] font-bold text-slate-950 transition-all hover:brightness-110"
             >
               <Link href="/simulator">Buka Simulator</Link>
             </Button>
@@ -156,112 +158,158 @@ export default function LandingPage() {
       </header>
 
       <main>
-        <section className="mx-auto max-w-4xl px-6 pt-24 pb-16 text-center sm:pt-32">
+        <HeroAnimatedSection className="mx-auto max-w-4xl px-6 pt-24 pb-16 text-center sm:pt-32">
           <Badge
+            data-hero="badge"
             variant="outline"
-            className="border-border/40 bg-card/60 text-[11px] text-slate-400"
+            className="border-cyan-400/25 bg-[#0c1a2c]/80 text-[11px] text-cyan-200/90"
           >
-            <span className="size-1.5 rounded-full bg-emerald-400" aria-hidden />v{APP_VERSION} ·
-            Interactive Beam Deflection & Structural Design Simulator
+            <span className="relative flex size-2" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-cyan-400" />
+            </span>
+            v{APP_VERSION} · Interactive Beam Deflection & Structural Design Simulator
           </Badge>
-          <h1 className="mt-6 text-3xl font-bold tracking-tight text-balance sm:text-5xl">
+          <h1
+            data-hero="title"
+            className="mt-6 text-3xl font-bold tracking-tight text-balance sm:text-5xl"
+          >
             Simulasi Defleksi Balok & Desain Struktur{" "}
-            <span className="bg-linear-to-r from-cyan-400 to-sky-400 bg-clip-text text-transparent">
+            <span
+              data-hero="accent"
+              className="erzysh-gradient-text inline-block bg-linear-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-transparent"
+            >
               3D Interaktif
             </span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-sm text-balance text-slate-400 sm:text-base">
+          <p
+            data-hero="subtitle"
+            className="mx-auto mt-5 max-w-2xl text-sm text-balance text-slate-300/80 sm:text-base"
+          >
             Analisis defleksi, gaya dalam, dan desain penampang beton maupun baja langsung di
             browser — cepat, akurat, dan mengacu pada standar SNI.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2.5">
-            <Button asChild size="lg" className="px-4 font-semibold shadow-lg shadow-sky-500/10">
-              <Link href="/simulator">
-                Mulai Simulasi <ArrowRightIcon data-icon="inline-end" aria-hidden />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-border/60 bg-card/60 px-4"
-            >
-              <a href="#fitur">Lihat Fitur</a>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-border/60 bg-card/60 px-4 font-medium transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
-            >
-              <a
-                href={GITHUB_REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2"
+            <div data-hero="cta">
+              <Button
+                data-hero="cta-primary"
+                asChild
+                size="lg"
+                className="group bg-linear-to-r from-cyan-400 via-sky-400 to-violet-500 px-5 font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition-all duration-200 hover:shadow-violet-500/25 hover:brightness-110"
               >
-                <GitHubIcon className="size-4" aria-hidden />
-                <span>GitHub Repo</span>
-                <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
-              </a>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-border/60 bg-card/60 px-4 font-medium transition-colors hover:border-sky-500/50 hover:bg-sky-500/10 hover:text-sky-300"
-            >
-              <a
-                href={GITHUB_PROFILE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2"
+                <Link href="/simulator">
+                  Mulai Simulasi{" "}
+                  <ArrowRightIcon
+                    data-hero="cta-arrow"
+                    data-icon="inline-end"
+                    className="transition-transform duration-200 group-hover:translate-x-0.5"
+                    aria-hidden
+                  />
+                </Link>
+              </Button>
+            </div>
+            <div data-hero="cta">
+              <Button
+                data-hero="cta-secondary"
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-cyan-500/20 bg-[#0b1628]/70 px-4 hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-200"
               >
-                <UserIcon className="size-4 text-cyan-400" aria-hidden />
-                <span>Profil @Rilaptra</span>
-                <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
-              </a>
-            </Button>
+                <a href="#fitur">Lihat Fitur</a>
+              </Button>
+            </div>
+            <div data-hero="cta">
+              <Button
+                data-hero="cta-secondary"
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-cyan-500/20 bg-[#0b1628]/70 px-4 font-medium transition-colors hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+              >
+                <a
+                  href={GITHUB_REPO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <GitHubIcon className="size-4" aria-hidden />
+                  <span>GitHub Repo</span>
+                  <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
+                </a>
+              </Button>
+            </div>
+            <div data-hero="cta">
+              <Button
+                data-hero="cta-secondary"
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-violet-500/20 bg-[#0b1628]/70 px-4 font-medium transition-colors hover:border-violet-400/50 hover:bg-violet-500/10 hover:text-violet-300"
+              >
+                <a
+                  href={GITHUB_PROFILE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <UserIcon className="size-4 text-cyan-400" aria-hidden />
+                  <span>Profil @Rilaptra</span>
+                  <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
+                </a>
+              </Button>
+            </div>
           </div>
-        </section>
+          <HeroBeamMorphVisual />
+        </HeroAnimatedSection>
 
-        <section className="mx-auto max-w-4xl px-6">
+        <section
+          className="erzysh-fade-up mx-auto max-w-4xl px-6"
+          style={{ animationDelay: "320ms" }}
+        >
           <dl
             className={cn(
               glassPanelClass,
-              "divide-border/40 grid grid-cols-2 sm:grid-cols-4 sm:divide-x",
+              "grid grid-cols-2 divide-cyan-500/15 transition-colors duration-300 hover:border-cyan-400/35 sm:grid-cols-4 sm:divide-x",
             )}
           >
             {SPECS.map((spec) => (
               <div key={spec.label} className="px-4 py-3 text-center">
-                <dt className="text-[10px] font-bold tracking-wider text-slate-500">
+                <dt className="text-[10px] font-bold tracking-wider text-slate-400">
                   {spec.label}
                 </dt>
-                <dd className="mt-0.5 font-mono text-sm text-cyan-400">{spec.value}</dd>
+                <dd className={cn("mt-0.5 font-mono text-sm", spec.color)}>{spec.value}</dd>
               </div>
             ))}
           </dl>
         </section>
 
         <section id="fitur" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24">
-          <p className="text-center text-[11px] font-bold tracking-wider text-sky-400">
+          <p className="text-center text-[11px] font-bold tracking-wider text-cyan-400">
             FITUR UTAMA
           </p>
           <h2 className="mt-2 text-center text-2xl font-bold tracking-tight">
             Workstation teknik sipil di browser
           </h2>
           <ul className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(({ icon: Icon, tag, title, description, accent }) => (
+            {FEATURES.map(({ icon: Icon, tag, title, description, accent }, index) => (
               <li
                 key={title}
                 className={cn(
                   glassPanelClass,
-                  "overflow-hidden transition-colors hover:border-cyan-500/40",
+                  "group erzysh-fade-up overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/45 hover:shadow-cyan-500/10",
                 )}
+                style={{ animationDelay: `${360 + index * 60}ms` }}
               >
-                <div className="border-border/40 flex items-center justify-between border-b px-3 py-2">
+                <div className="flex items-center justify-between border-b border-cyan-500/15 px-3 py-2">
                   <span className="text-foreground text-xs font-bold tracking-wider">{title}</span>
-                  <Icon className={cn("size-3.5", accent)} aria-hidden />
+                  <Icon
+                    className={cn(
+                      "size-3.5 transition-transform duration-300 group-hover:scale-110",
+                      accent,
+                    )}
+                    aria-hidden
+                  />
                 </div>
                 <div className="p-3">
                   <p className="text-xs leading-relaxed text-slate-300">{description}</p>
@@ -276,7 +324,7 @@ export default function LandingPage() {
 
         <section id="mulai" className="mx-auto max-w-4xl scroll-mt-20 px-6 pb-24">
           <div className={cn(glassPanelClass, "p-8 text-center")}>
-            <p className="text-[11px] font-bold tracking-wider text-sky-400">MULAI SEKARANG</p>
+            <p className="text-[11px] font-bold tracking-wider text-cyan-400">MULAI SEKARANG</p>
             <h2 className="mt-2 text-xl font-bold">Pilih mode simulasi</h2>
             <p className="mx-auto mt-2 max-w-md text-xs text-slate-400">
               Tersedia untuk desktop workstation dan Android companion (PWA). Tanpa instalasi.
@@ -284,9 +332,15 @@ export default function LandingPage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <Link
                 href="/simulator?mode=MODE_A_EXTERNAL_LOADS"
-                className="group border-border/40 bg-background/60 rounded-lg border p-4 text-left transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/5"
+                className="group rounded-lg border border-cyan-500/20 bg-[#060d19]/80 p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/60 hover:bg-cyan-500/10 hover:shadow-lg hover:shadow-cyan-500/15"
               >
-                <span className="font-mono text-[10px] text-cyan-400">MODE A</span>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-cyan-400">MODE A</span>
+                  <ArrowRightIcon
+                    className="size-3.5 text-cyan-400/70 transition-transform duration-200 group-hover:translate-x-1 group-hover:text-cyan-300"
+                    aria-hidden
+                  />
+                </div>
                 <p className="mt-1 text-sm font-semibold">Beban Eksternal</p>
                 <p className="mt-1 text-[11px] text-slate-400">
                   Balok interaktif dengan beban titik & merata.
@@ -294,16 +348,22 @@ export default function LandingPage() {
               </Link>
               <Link
                 href="/simulator?mode=MODE_B_DIRECT_INTERNAL_FORCES"
-                className="group border-border/40 bg-background/60 rounded-lg border p-4 text-left transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/5"
+                className="group rounded-lg border border-violet-500/20 bg-[#060d19]/80 p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:border-violet-400/60 hover:bg-violet-500/10 hover:shadow-lg hover:shadow-violet-500/15"
               >
-                <span className="font-mono text-[10px] text-emerald-400">MODE B</span>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-violet-400">MODE B</span>
+                  <ArrowRightIcon
+                    className="size-3.5 text-violet-400/70 transition-transform duration-200 group-hover:translate-x-1 group-hover:text-violet-300"
+                    aria-hidden
+                  />
+                </div>
                 <p className="mt-1 text-sm font-semibold">Gaya Dalam SNI</p>
                 <p className="mt-1 text-[11px] text-slate-400">
                   Optimasi penampang beton bertulang & profil baja.
                 </p>
               </Link>
             </div>
-            <div className="border-border/30 mt-8 flex flex-wrap items-center justify-center gap-2 border-t pt-6 text-xs text-slate-400">
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-2 border-t border-cyan-500/15 pt-6 text-xs text-slate-400">
               <span>Open-source oleh Rizqi Lasheva Purnama Putra:</span>
               <Button
                 asChild
@@ -345,7 +405,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-border/40 bg-background/60 border-t py-8 text-[11px] text-slate-500 backdrop-blur-md">
+      <footer className="border-t border-cyan-500/15 bg-[#050a14]/75 py-8 text-[11px] text-slate-500 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
           <div className="flex items-center gap-2 text-center sm:text-left">
             <RulerIcon className="size-3.5 text-cyan-400" aria-hidden />
