@@ -192,7 +192,7 @@ export function DraggableFloatingWindow({
           className="overflow-y-auto p-3 text-slate-300"
           style={{
             display: isMinimized ? "none" : undefined,
-            maxHeight: `${maxHeight}px`,
+            maxHeight: `min(${maxHeight}px, calc(100dvh - 7rem))`,
             scrollbarWidth: "thin",
           }}
         >

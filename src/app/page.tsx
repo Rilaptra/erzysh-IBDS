@@ -94,14 +94,18 @@ const SPECS = [
 export default function LandingPage() {
   return (
     <ErzyshPageShell>
-      <header className="sticky top-0 z-40 px-4 pt-3.5 sm:px-6">
+      <header className="erzysh-landing-header sticky top-0 z-40 px-4 sm:px-6">
         <nav
           className={cn(
             glassPanelClass,
             "mx-auto flex max-w-6xl items-center justify-between px-3 py-1.5",
           )}
         >
-          <Link href="/" className="flex items-center gap-2 text-xs font-bold tracking-wider">
+          <Link
+            href="/"
+            prefetch={false}
+            className="flex items-center gap-2 text-xs font-bold tracking-wider"
+          >
             <RulerIcon className="size-4 text-cyan-400" aria-hidden />
             IBDS
           </Link>
@@ -151,140 +155,155 @@ export default function LandingPage() {
               size="sm"
               className="bg-linear-to-r from-cyan-400 via-sky-400 to-violet-500 text-[11px] font-bold text-slate-950 transition-all hover:brightness-110"
             >
-              <Link href="/simulator">Buka Simulator</Link>
+              <Link href="/simulator" prefetch={false}>
+                Buka Simulator
+              </Link>
             </Button>
           </div>
         </nav>
       </header>
 
       <main>
-        <HeroAnimatedSection className="mx-auto max-w-4xl px-6 pt-24 pb-16 text-center sm:pt-32">
-          <Badge
-            data-hero="badge"
-            variant="outline"
-            className="border-cyan-400/25 bg-[#0c1a2c]/80 text-[11px] text-cyan-200/90"
-          >
-            <span className="relative flex size-2" aria-hidden>
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-cyan-400" />
-            </span>
-            v{APP_VERSION} · Interactive Beam Deflection & Structural Design Simulator
-          </Badge>
-          <h1
-            data-hero="title"
-            className="mt-6 text-3xl font-bold tracking-tight text-balance sm:text-5xl"
-          >
-            Simulasi Defleksi Balok & Desain Struktur{" "}
-            <span
-              data-hero="accent"
-              className="erzysh-gradient-text inline-block bg-linear-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-transparent"
-            >
-              3D Interaktif
-            </span>
-          </h1>
-          <p
-            data-hero="subtitle"
-            className="mx-auto mt-5 max-w-2xl text-sm text-balance text-slate-300/80 sm:text-base"
-          >
-            Analisis defleksi, gaya dalam, dan desain penampang beton maupun baja langsung di
-            browser — cepat, akurat, dan mengacu pada standar SNI.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-2.5">
-            <div data-hero="cta">
-              <Button
-                data-hero="cta-primary"
-                asChild
-                size="lg"
-                className="group bg-linear-to-r from-cyan-400 via-sky-400 to-violet-500 px-5 font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition-all duration-200 hover:shadow-violet-500/25 hover:brightness-110"
-              >
-                <Link href="/simulator">
-                  Mulai Simulasi{" "}
-                  <ArrowRightIcon
-                    data-hero="cta-arrow"
-                    data-icon="inline-end"
-                    className="transition-transform duration-200 group-hover:translate-x-0.5"
-                    aria-hidden
-                  />
-                </Link>
-              </Button>
-            </div>
-            <div data-hero="cta">
-              <Button
-                data-hero="cta-secondary"
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-cyan-500/20 bg-[#0b1628]/70 px-4 hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-200"
-              >
-                <a href="#fitur">Lihat Fitur</a>
-              </Button>
-            </div>
-            <div data-hero="cta">
-              <Button
-                data-hero="cta-secondary"
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-cyan-500/20 bg-[#0b1628]/70 px-4 font-medium transition-colors hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-300"
-              >
-                <a
-                  href={GITHUB_REPO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2"
+        <div className="erzysh-above-fold">
+          <HeroAnimatedSection className="erzysh-landing-hero mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="erzysh-hero-grid">
+              <div className="erzysh-hero-copy">
+                <Badge
+                  data-hero="badge"
+                  variant="outline"
+                  className="max-w-full border-cyan-400/25 bg-[#0c1a2c]/80 text-[11px] text-cyan-200/90"
                 >
-                  <GitHubIcon className="size-4" aria-hidden />
-                  <span>GitHub Repo</span>
-                  <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
-                </a>
-              </Button>
-            </div>
-            <div data-hero="cta">
-              <Button
-                data-hero="cta-secondary"
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-violet-500/20 bg-[#0b1628]/70 px-4 font-medium transition-colors hover:border-violet-400/50 hover:bg-violet-500/10 hover:text-violet-300"
-              >
-                <a
-                  href={GITHUB_PROFILE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2"
+                  <span className="relative flex size-2 shrink-0" aria-hidden>
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-cyan-400" />
+                  </span>
+                  <span className="truncate">
+                    v{APP_VERSION} · Interactive Beam Deflection &amp; Structural Design Simulator
+                  </span>
+                </Badge>
+                <h1
+                  data-hero="title"
+                  className="erzysh-hero-title mt-4 font-bold tracking-tight text-balance"
                 >
-                  <UserIcon className="size-4 text-cyan-400" aria-hidden />
-                  <span>Profil @Rilaptra</span>
-                  <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
-                </a>
-              </Button>
-            </div>
-          </div>
-          <HeroBeamMorphVisual />
-        </HeroAnimatedSection>
-
-        <section
-          className="erzysh-fade-up mx-auto max-w-4xl px-6"
-          style={{ animationDelay: "320ms" }}
-        >
-          <dl
-            className={cn(
-              glassPanelClass,
-              "grid grid-cols-2 divide-cyan-500/15 transition-colors duration-300 hover:border-cyan-400/35 sm:grid-cols-4 sm:divide-x",
-            )}
-          >
-            {SPECS.map((spec) => (
-              <div key={spec.label} className="px-4 py-3 text-center">
-                <dt className="text-[10px] font-bold tracking-wider text-slate-400">
-                  {spec.label}
-                </dt>
-                <dd className={cn("mt-0.5 font-mono text-sm", spec.color)}>{spec.value}</dd>
+                  Simulasi Defleksi Balok &amp; Desain Struktur{" "}
+                  <span
+                    data-hero="accent"
+                    className="erzysh-gradient-text inline-block bg-linear-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-transparent"
+                  >
+                    3D Interaktif
+                  </span>
+                </h1>
+                <p
+                  data-hero="subtitle"
+                  className="erzysh-hero-subtitle mt-3.5 max-w-xl text-pretty text-slate-300/80"
+                >
+                  Analisis defleksi, gaya dalam, dan desain penampang beton maupun baja langsung di
+                  browser — cepat, akurat, dan mengacu pada standar SNI.
+                </p>
+                <div className="erzysh-hero-actions erzysh-flex-balance mt-5 flex items-center gap-2">
+                  <div data-hero="cta">
+                    <Button
+                      data-hero="cta-primary"
+                      asChild
+                      size="lg"
+                      className="group bg-linear-to-r from-cyan-400 via-sky-400 to-violet-500 px-4 font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition-all duration-200 hover:shadow-violet-500/25 hover:brightness-110"
+                    >
+                      <Link href="/simulator" prefetch={false}>
+                        Mulai Simulasi{" "}
+                        <ArrowRightIcon
+                          data-hero="cta-arrow"
+                          data-icon="inline-end"
+                          className="transition-transform duration-200 group-hover:translate-x-0.5"
+                          aria-hidden
+                        />
+                      </Link>
+                    </Button>
+                  </div>
+                  <div data-hero="cta">
+                    <Button
+                      data-hero="cta-secondary"
+                      asChild
+                      size="lg"
+                      variant="outline"
+                      className="border-cyan-500/20 bg-[#0b1628]/70 px-3.5 hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-200"
+                    >
+                      <a href="#fitur">Lihat Fitur</a>
+                    </Button>
+                  </div>
+                  <div data-hero="cta">
+                    <Button
+                      data-hero="cta-secondary"
+                      asChild
+                      size="lg"
+                      variant="outline"
+                      className="border-cyan-500/20 bg-[#0b1628]/70 px-3.5 font-medium transition-colors hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+                    >
+                      <a
+                        href={GITHUB_REPO_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2"
+                      >
+                        <GitHubIcon className="size-4" aria-hidden />
+                        <span>GitHub Repo</span>
+                        <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
+                      </a>
+                    </Button>
+                  </div>
+                  <div data-hero="cta">
+                    <Button
+                      data-hero="cta-secondary"
+                      asChild
+                      size="lg"
+                      variant="outline"
+                      className="border-violet-500/20 bg-[#0b1628]/70 px-3.5 font-medium transition-colors hover:border-violet-400/50 hover:bg-violet-500/10 hover:text-violet-300"
+                    >
+                      <a
+                        href={GITHUB_PROFILE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2"
+                      >
+                        <UserIcon className="size-4 text-cyan-400" aria-hidden />
+                        <span>Profil @Rilaptra</span>
+                        <ExternalLinkIcon className="size-3 text-slate-400" aria-hidden />
+                      </a>
+                    </Button>
+                  </div>
+                </div>
               </div>
-            ))}
-          </dl>
-        </section>
 
-        <section id="fitur" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24">
+              <div className="min-w-0">
+                <HeroBeamMorphVisual className="max-w-none" />
+              </div>
+            </div>
+          </HeroAnimatedSection>
+
+          <section
+            className="erzysh-specs-section erzysh-fade-up mx-auto max-w-6xl px-4 sm:px-6"
+            style={{ animationDelay: "180ms" }}
+          >
+            <dl
+              className={cn(
+                glassPanelClass,
+                "grid grid-cols-2 divide-cyan-500/15 transition-colors duration-300 hover:border-cyan-400/35 sm:grid-cols-4 sm:divide-x",
+              )}
+            >
+              {SPECS.map((spec) => (
+                <div key={spec.label} className="erzysh-specs-item text-center">
+                  <dt className="text-[10px] font-bold tracking-wider text-slate-400">
+                    {spec.label}
+                  </dt>
+                  <dd className={cn("mt-0.5 font-mono text-xs sm:text-sm", spec.color)}>
+                    {spec.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+
+        <section id="fitur" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20">
           <p className="text-center text-[11px] font-bold tracking-wider text-cyan-400">
             FITUR UTAMA
           </p>
@@ -332,6 +351,7 @@ export default function LandingPage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <Link
                 href="/simulator?mode=MODE_A_EXTERNAL_LOADS"
+                prefetch={false}
                 className="group rounded-lg border border-cyan-500/20 bg-[#060d19]/80 p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/60 hover:bg-cyan-500/10 hover:shadow-lg hover:shadow-cyan-500/15"
               >
                 <div className="flex items-center justify-between">
@@ -348,6 +368,7 @@ export default function LandingPage() {
               </Link>
               <Link
                 href="/simulator?mode=MODE_B_DIRECT_INTERNAL_FORCES"
+                prefetch={false}
                 className="group rounded-lg border border-violet-500/20 bg-[#060d19]/80 p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:border-violet-400/60 hover:bg-violet-500/10 hover:shadow-lg hover:shadow-violet-500/15"
               >
                 <div className="flex items-center justify-between">

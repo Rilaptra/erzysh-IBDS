@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.15] - 2026-11-13
+
+### ✨ Added
+
+- 🎨 Enhanced landing hero page with fluid spacing, responsive grid, and viewport-height-aware split layouts for preview frames
+- 🚀 Added `prefetch={false}` to navigation links for optimized routing
+- 🛠️ Restructured desktop workstation header with integrated window quick dock and telemetry badges
+- ⚡ Improved responsive CSS animations and reduced motion preferences for hero visuals
+
 ## [0.6.14] - 2026-11-13
 
 ### ✨ Added

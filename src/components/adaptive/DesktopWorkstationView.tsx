@@ -303,7 +303,7 @@ export function DesktopWorkstationView(): ReactElement {
   }, [tracking.state.isRunning, tracking.state.activeGesture, beamInteraction, stationViews]);
 
   return (
-    <ErzyshDarkGridBackground className="h-screen w-screen">
+    <ErzyshDarkGridBackground className="h-dvh w-full">
       {/* 1. WebGL 3D Beam Extruded Viewport (Client Only) */}
       <DynamicBeam3DViewport
         mesh={meshViews}
@@ -346,43 +346,45 @@ export function DesktopWorkstationView(): ReactElement {
       {/* 5. 3D Coordinate Axis Switcher */}
       <CoordinateAxisSwitcher />
 
-      {/* 6. Window Quick Dock Bar (Always accessible persistent dock) */}
-      <div
-        className="bg-card/85 border-border/40 absolute top-3.5 left-6 z-40 flex items-center gap-1.5 rounded-lg border px-2 py-1.5 shadow-xl backdrop-blur-md"
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        {(
-          [
-            ["MATERIAL_LOAD_MODE", "1. Material"],
-            ["REALTIME_LOAD_INPUT", "2. Beban"],
-            ["SNI_DESIGN_PARAMETERS", "3. Parameter"],
-            ["OPTIMIZATION_RESULTS", "4. Optimasi"],
-            ["INTERNAL_FORCE_DIAGRAMS", "5. Diagram"],
-            ["GESTURE_AI_ASSISTANT", "6. AI & Gestur"],
-          ] as const
-        ).map(([id, label]) => {
-          const isOpen = windowStore.windows[id].isOpen;
-          return (
-            <Button
-              key={id}
-              type="button"
-              variant={isOpen ? "secondary" : "ghost"}
-              size="xs"
-              onClick={() => floatingWindowActions.toggleWindow(id as FloatingWindowId)}
-              className={cn(
-                "text-[11px] font-medium transition-colors",
-                isOpen && "bg-sky-500/20 font-bold text-sky-400 hover:bg-sky-500/30",
-              )}
-            >
-              {label}
-            </Button>
-          );
-        })}
-      </div>
+      {/* 6. Top Workstation Header: Window Quick Dock Bar + Telemetry Badge */}
+      <div className="pointer-events-none absolute inset-x-4 top-3 z-40 flex flex-wrap items-center justify-between gap-2">
+        <div
+          className="bg-card/85 border-border/40 pointer-events-auto flex flex-wrap items-center gap-1.5 rounded-lg border px-2 py-1.5 shadow-xl backdrop-blur-md"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {(
+            [
+              ["MATERIAL_LOAD_MODE", "1. Material"],
+              ["REALTIME_LOAD_INPUT", "2. Beban"],
+              ["SNI_DESIGN_PARAMETERS", "3. Parameter"],
+              ["OPTIMIZATION_RESULTS", "4. Optimasi"],
+              ["INTERNAL_FORCE_DIAGRAMS", "5. Diagram"],
+              ["GESTURE_AI_ASSISTANT", "6. AI & Gestur"],
+            ] as const
+          ).map(([id, label]) => {
+            const isOpen = windowStore.windows[id].isOpen;
+            return (
+              <Button
+                key={id}
+                type="button"
+                variant={isOpen ? "secondary" : "ghost"}
+                size="xs"
+                onClick={() => floatingWindowActions.toggleWindow(id as FloatingWindowId)}
+                className={cn(
+                  "text-[11px] font-medium transition-colors",
+                  isOpen && "bg-sky-500/20 font-bold text-sky-400 hover:bg-sky-500/30",
+                )}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
 
-      {/* Top-Right Telemetry Badge (GA4 Custom Epoch Visitor Counter) */}
-      <div className="absolute top-3.5 right-6 z-30">
-        <CustomEpochVisitorFlexBadge />
+        {/* Top-Right Telemetry Badge (GA4 Custom Epoch Visitor Counter) */}
+        <div className="pointer-events-auto">
+          <CustomEpochVisitorFlexBadge />
+        </div>
       </div>
 
       {/* 7. The 6 Floating Windows */}

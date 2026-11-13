@@ -34,56 +34,56 @@ export function HeroAnimatedSection({
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
       tl.from("[data-hero='badge']", {
-        y: -16,
-        scale: 0.92,
+        y: -10,
+        scale: 0.95,
         opacity: 0,
-        duration: 0.55,
-        ease: "back.out(1.7)",
+        duration: 0.35,
+        ease: "back.out(1.5)",
       })
         .from(
           "[data-hero='title']",
           {
-            y: 26,
+            y: 16,
             opacity: 0,
-            duration: 0.65,
+            duration: 0.42,
           },
-          "-=0.3",
+          "-=0.25",
         )
         .from(
           "[data-hero='subtitle']",
           {
-            y: 18,
+            y: 12,
             opacity: 0,
-            duration: 0.55,
+            duration: 0.38,
           },
-          "-=0.38",
+          "-=0.28",
         )
         .from(
           "[data-hero='cta']",
           {
-            y: 18,
-            scale: 0.94,
+            y: 12,
+            scale: 0.96,
             opacity: 0,
-            duration: 0.5,
-            stagger: 0.08,
-            ease: "back.out(1.4)",
+            duration: 0.35,
+            stagger: 0.05,
+            ease: "back.out(1.3)",
           },
-          "-=0.32",
+          "-=0.26",
         )
         .from(
           "[data-hero='visual']",
           {
-            y: 28,
-            scale: 0.97,
+            y: 16,
+            scale: 0.98,
             opacity: 0,
-            duration: 0.7,
+            duration: 0.45,
           },
           "-=0.35",
         )
         .add(() => {
           // Idle animations (GPU transform only)
           gsap.to("[data-hero='badge']", {
-            y: -3,
+            y: -2.5,
             duration: 2.6,
             repeat: -1,
             yoyo: true,
@@ -91,8 +91,8 @@ export function HeroAnimatedSection({
           });
 
           gsap.to("[data-hero='accent']", {
-            y: -2,
-            scale: 1.02,
+            y: -1.5,
+            scale: 1.015,
             duration: 3.0,
             repeat: -1,
             yoyo: true,
@@ -100,7 +100,7 @@ export function HeroAnimatedSection({
           });
 
           gsap.to("[data-hero='cta-primary']", {
-            y: -3,
+            y: -2.5,
             duration: 2.2,
             repeat: -1,
             yoyo: true,
@@ -116,7 +116,7 @@ export function HeroAnimatedSection({
           });
 
           gsap.to("[data-hero='cta-secondary']", {
-            y: -2,
+            y: -1.5,
             duration: 2.6,
             stagger: 0.25,
             repeat: -1,

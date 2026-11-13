@@ -8,7 +8,8 @@
 
 "use client";
 
-import { type PointerEvent, type ReactElement, useRef, useState } from "react";
+import { PauseIcon, PlayIcon } from "lucide-react";
+import { type PointerEvent, type ReactElement, useEffect, useRef, useState } from "react";
 
 import { glassPanelClass } from "@/components/landing/ErzyshPageShell";
 import { cn } from "@/lib/utils";
@@ -24,12 +25,28 @@ const BEAM_X_END = 530;
 const BEAM_WIDTH_PX = BEAM_X_END - BEAM_X_START;
 const LOAD_PRESETS = [25, 50, 100] as const;
 
-export function HeroBeamMorphVisual(): ReactElement {
+export interface HeroBeamMorphVisualProps {
+  readonly className?: string;
+}
+
+export function HeroBeamMorphVisual({ className }: HeroBeamMorphVisualProps): ReactElement {
   const svgRef = useRef<SVGSVGElement>(null);
   const [isAuto, setIsAuto] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [loadPosM, setLoadPosM] = useState(3.0);
   const [loadKn, setLoadKn] = useState<number>(50);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncMotionPreference = () => setPrefersReducedMotion(mql.matches);
+    syncMotionPreference();
+    mql.addEventListener("change", syncMotionPreference);
+    return () => mql.removeEventListener("change", syncMotionPreference);
+  }, []);
+
+  const shouldAnimate = isAuto && !isPaused && !prefersReducedMotion;
 
   const updateLoadFromPointer = (clientX: number): void => {
     const svg = svgRef.current;
@@ -42,6 +59,7 @@ export function HeroBeamMorphVisual(): ReactElement {
     const nextPosM = Math.round(clampedRatio * SPAN_M * 20) / 20;
 
     setIsAuto(false);
+    setIsPaused(false);
     setLoadPosM(nextPosM);
   };
 
@@ -64,9 +82,10 @@ export function HeroBeamMorphVisual(): ReactElement {
   };
 
   // Interactive Euler-Bernoulli mechanics at load position a
-  const a = loadPosM;
+  const a = isAuto ? 3.0 : loadPosM;
+  const activeLoadKn = isAuto ? 50 : loadKn;
   const b = SPAN_M - a;
-  const momentKnm = (DIST_LOAD_KN_M * a * b) / 2 + (loadKn * a * b) / SPAN_M;
+  const momentKnm = (DIST_LOAD_KN_M * a * b) / 2 + (activeLoadKn * a * b) / SPAN_M;
   // Scaled deflection (calibrated so P=50 kN @ a=3.0m -> -13.26 mm)
   const deflectionMm = -((momentKnm / 142.5) * 13.26);
 
@@ -80,7 +99,11 @@ export function HeroBeamMorphVisual(): ReactElement {
   return (
     <div
       data-hero="visual"
-      className={cn(glassPanelClass, "relative mx-auto mt-12 max-w-3xl overflow-hidden p-3 sm:p-4")}
+      className={cn(
+        glassPanelClass,
+        "relative mx-auto w-full max-w-3xl overflow-hidden p-2.5 sm:p-3.5",
+        className,
+      )}
     >
       {/* Animated top shimmer bar */}
       <div
@@ -89,10 +112,13 @@ export function HeroBeamMorphVisual(): ReactElement {
       />
 
       {/* Interactive Toolbar Header */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-cyan-500/15 pb-2 font-mono text-[10px]">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-cyan-500/15 pb-1.5 font-mono text-[10px]">
         <div className="flex items-center gap-2 text-cyan-300">
           <span className="inline-flex size-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
-          <span>FEA_INTERACTIVE // {isAuto ? "AUTO_MORPH" : "MANUAL_DRAG"}</span>
+          <span>
+            FEA_INTERACTIVE //{" "}
+            {shouldAnimate ? "AUTO_MORPH" : isAuto ? "STATIC_PEAK" : "MANUAL_DRAG"}
+          </span>
         </div>
 
         <div className="flex items-center gap-1">
@@ -104,6 +130,7 @@ export function HeroBeamMorphVisual(): ReactElement {
                 type="button"
                 onClick={() => {
                   setIsAuto(false);
+                  setIsPaused(false);
                   setLoadKn(preset);
                 }}
                 className={cn(
@@ -121,6 +148,7 @@ export function HeroBeamMorphVisual(): ReactElement {
             type="button"
             onClick={() => {
               setIsAuto(true);
+              setIsPaused(false);
               setLoadPosM(3.0);
               setLoadKn(50);
             }}
@@ -133,6 +161,21 @@ export function HeroBeamMorphVisual(): ReactElement {
           >
             Auto
           </button>
+          {isAuto && !prefersReducedMotion ? (
+            <button
+              type="button"
+              onClick={() => setIsPaused((prev) => !prev)}
+              aria-label={isPaused ? "Putar animasi balok" : "Jeda animasi balok"}
+              title={isPaused ? "Putar animasi" : "Jeda animasi"}
+              className="inline-flex cursor-pointer items-center justify-center rounded px-1.5 py-0.5 text-slate-300 transition-colors hover:bg-cyan-500/15 hover:text-cyan-200"
+            >
+              {isPaused ? (
+                <PlayIcon className="size-3" aria-hidden />
+              ) : (
+                <PauseIcon className="size-3" aria-hidden />
+              )}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -152,7 +195,7 @@ export function HeroBeamMorphVisual(): ReactElement {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           className={cn(
-            "h-auto w-full touch-none select-none",
+            "block aspect-[600/245] h-auto w-full touch-none select-none",
             isDragging ? "cursor-grabbing" : "cursor-grab",
           )}
           role="img"
@@ -212,9 +255,9 @@ export function HeroBeamMorphVisual(): ReactElement {
           {/* Point Load Arrow P (Auto Morph or Interactive Drag) */}
           <g
             filter="url(#cyanGlow)"
-            transform={isAuto ? undefined : `translate(${loadSvgX - 300}, ${arrowDropPx})`}
+            transform={shouldAnimate ? undefined : `translate(${loadSvgX - 300}, ${arrowDropPx})`}
           >
-            {isAuto ? (
+            {shouldAnimate ? (
               <animateTransform
                 attributeName="transform"
                 type="translate"
@@ -229,10 +272,10 @@ export function HeroBeamMorphVisual(): ReactElement {
             <line x1="300" y1="22" x2="300" y2="76" stroke="#22d3ee" strokeWidth="2.5" />
             <polygon points="294,70 306,70 300,82" fill="#22d3ee" />
             <rect
-              x="266"
-              y="7"
-              width="68"
-              height="16"
+              x="261"
+              y="6"
+              width="78"
+              height="17"
               rx="4"
               fill="#0a1628"
               stroke="#22d3ee"
@@ -241,21 +284,21 @@ export function HeroBeamMorphVisual(): ReactElement {
             />
             <text
               x="300"
-              y="18"
+              y="17.5"
               textAnchor="middle"
               fill="#67e8f9"
-              fontSize="8.5"
+              fontSize="9.5"
               fontFamily="monospace"
               fontWeight="bold"
             >
-              P = {isAuto ? 50 : loadKn} kN
+              P = {activeLoadKn} kN
             </text>
           </g>
 
           {/* Morphing Extruded Beam Body (FEA Spectrum) */}
           <path
             d={
-              isAuto
+              shouldAnimate
                 ? "M 70 86 Q 300 86 530 86 L 530 98 Q 300 98 70 98 Z"
                 : `M 70 86 Q ${ctrlX} ${86 + sagPx} 530 86 L 530 98 Q ${ctrlX} ${98 + sagPx} 70 98 Z`
             }
@@ -266,7 +309,7 @@ export function HeroBeamMorphVisual(): ReactElement {
             strokeWidth="1"
             filter="url(#cyanGlow)"
           >
-            {isAuto ? (
+            {shouldAnimate ? (
               <animate
                 attributeName="d"
                 dur={ANIM_DUR}
@@ -286,14 +329,16 @@ export function HeroBeamMorphVisual(): ReactElement {
 
           {/* Morphing Neutral Axis Centerline */}
           <path
-            d={isAuto ? "M 70 92 Q 300 92 530 92" : `M 70 92 Q ${ctrlX} ${92 + sagPx} 530 92`}
+            d={
+              shouldAnimate ? "M 70 92 Q 300 92 530 92" : `M 70 92 Q ${ctrlX} ${92 + sagPx} 530 92`
+            }
             fill="none"
             stroke="#ffffff"
             strokeOpacity="0.65"
             strokeWidth="1"
             strokeDasharray="5 3"
           >
-            {isAuto ? (
+            {shouldAnimate ? (
               <animate
                 attributeName="d"
                 dur={ANIM_DUR}
@@ -327,14 +372,14 @@ export function HeroBeamMorphVisual(): ReactElement {
 
           {/* Deflection Hotspot Node */}
           <circle
-            cx={isAuto ? 300 : loadSvgX}
-            cy={isAuto ? 92 : 92 + sagPx * 0.5}
+            cx={shouldAnimate ? 300 : loadSvgX}
+            cy={shouldAnimate ? 92 : 92 + sagPx * 0.5}
             r="4.5"
             fill="#f59e0b"
             stroke="#ffffff"
             strokeWidth="1.2"
           >
-            {isAuto ? (
+            {shouldAnimate ? (
               <>
                 <animate
                   attributeName="cy"
@@ -359,7 +404,7 @@ export function HeroBeamMorphVisual(): ReactElement {
           {/* Morphing Bending Moment Diagram (BMD) */}
           <path
             d={
-              isAuto
+              shouldAnimate
                 ? "M 70 175 Q 300 175 530 175 L 530 175 L 70 175 Z"
                 : `M 70 175 Q ${ctrlX} ${bmdPeakY} 530 175 L 530 175 L 70 175 Z`
             }
@@ -367,7 +412,7 @@ export function HeroBeamMorphVisual(): ReactElement {
             stroke="#38bdf8"
             strokeWidth="1.6"
           >
-            {isAuto ? (
+            {shouldAnimate ? (
               <animate
                 attributeName="d"
                 dur={ANIM_DUR}
@@ -386,26 +431,26 @@ export function HeroBeamMorphVisual(): ReactElement {
           </path>
 
           {/* Labels & Live Telemetry */}
-          <text x="74" y="169" fill="#64748b" fontSize="8.5" fontFamily="monospace">
+          <text x="74" y="168" fill="#64748b" fontSize="9.5" fontFamily="monospace">
             BMD (M_u) · {isAuto ? "Geser / klik balok untuk uji beban" : `x = ${a.toFixed(2)} m`}
           </text>
           <text
             x="300"
-            y="232"
+            y="233"
             textAnchor="middle"
             fill="#c4b5fd"
-            fontSize="9"
+            fontSize="10"
             fontFamily="monospace"
             fontWeight="bold"
           >
-            {isAuto ? (
+            {shouldAnimate ? (
               <>
                 <animate
                   attributeName="opacity"
                   dur={ANIM_DUR}
                   repeatCount="indefinite"
                   keyTimes={KEY_TIMES}
-                  values="0.35;1;0.55;0.35"
+                  values="0.45;1;0.6;0.45"
                 />
                 M_max = 142.5 kNm · δ_max = -13.26 mm
               </>

@@ -41,6 +41,15 @@ export interface UseVisitorFlexCounterReturn {
   readonly refresh: () => Promise<void>;
 }
 
+function getSafeSessionStorage(): Storage | null {
+  try {
+    return typeof window !== "undefined" ? window.sessionStorage : null;
+  } catch {
+    // Sandboxed iframes without `allow-same-origin` throw SecurityError on sessionStorage read.
+    return null;
+  }
+}
+
 // Module-level client cache shared across component instances
 let clientSharedData: VisitorCountResponse | null = null;
 let clientLastFetchTime = 0;
@@ -97,16 +106,19 @@ export function useVisitorFlexCounter(): UseVisitorFlexCounterReturn {
     }
 
     try {
-      const hasRecordedHit =
-        typeof window !== "undefined" && window.sessionStorage?.getItem("ibds_visitor_counted");
-      const url = !hasRecordedHit ? "/api/analytics/visitors?hit=1" : "/api/analytics/visitors";
-      if (!hasRecordedHit && typeof window !== "undefined" && window.sessionStorage) {
+      const storage = getSafeSessionStorage();
+      let hasRecordedHit: string | null = null;
+      if (storage) {
         try {
-          window.sessionStorage.setItem("ibds_visitor_counted", "1");
+          hasRecordedHit = storage.getItem("ibds_visitor_counted");
+          if (!hasRecordedHit) {
+            storage.setItem("ibds_visitor_counted", "1");
+          }
         } catch {
-          // Ignore storage quota error
+          // Ignore storage quota or sandbox restriction errors
         }
       }
+      const url = !hasRecordedHit ? "/api/analytics/visitors?hit=1" : "/api/analytics/visitors";
 
       const response = await fetch(url, {
         method: "GET",
