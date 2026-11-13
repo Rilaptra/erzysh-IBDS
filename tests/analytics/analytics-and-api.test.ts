@@ -188,15 +188,90 @@ describe("Step 7: Analytics & Telemetry Engine Tests", () => {
     });
 
     it("returns real live visitor count from GA4 when configured", async () => {
-      const response = await visitorsGetHandler();
-      expect(response.status).toBe(200);
+      const keysToManage = ["GA4_SERVICE_ACCOUNT_EMAIL", "GA4_PRIVATE_KEY", "GA4_PROPERTY_ID"];
+      const savedBun: Record<string, string | undefined> = {};
+      const savedProc: Record<string, string | undefined> = {};
+      const originalFetch = globalThis.fetch;
 
-      const json = (await response.json()) as {
-        totalVisitors: number;
-        status: string;
-      };
-      expect(json.status).toBe("fresh");
-      expect(json.totalVisitors).toBeGreaterThanOrEqual(0);
+      for (const k of keysToManage) {
+        savedBun[k] = Bun.env[k];
+        savedProc[k] = process.env[k];
+      }
+
+      try {
+        // Generate an ephemeral PKCS#8 RSA keypair so Web Crypto RS256 signing runs offline
+        const keyPair = await crypto.subtle.generateKey(
+          {
+            name: "RSASSA-PKCS1-v1_5",
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+          },
+          true,
+          ["sign", "verify"],
+        );
+        const pkcs8Buffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+        const pkcs8Bytes = new Uint8Array(pkcs8Buffer);
+        let binary = "";
+        for (let i = 0; i < pkcs8Bytes.byteLength; i++) {
+          binary += String.fromCharCode(pkcs8Bytes[i]!);
+        }
+        const pemKey = `-----BEGIN PRIVATE KEY-----\n${btoa(binary)}\n-----END PRIVATE KEY-----`;
+
+        const testPropertyId = "987654321";
+        Bun.env.GA4_SERVICE_ACCOUNT_EMAIL = "test-sa@example.iam.gserviceaccount.com";
+        process.env.GA4_SERVICE_ACCOUNT_EMAIL = "test-sa@example.iam.gserviceaccount.com";
+        Bun.env.GA4_PRIVATE_KEY = pemKey;
+        process.env.GA4_PRIVATE_KEY = pemKey;
+        Bun.env.GA4_PROPERTY_ID = testPropertyId;
+        process.env.GA4_PROPERTY_ID = testPropertyId;
+
+        globalThis.fetch = (async (input: string | URL | Request) => {
+          const url = String(input);
+          if (url.includes("oauth2.googleapis.com/token")) {
+            return new Response(JSON.stringify({ access_token: "mock-ga4-token" }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          if (url.includes(`properties/${testPropertyId}:runReport`)) {
+            return new Response(
+              JSON.stringify({
+                rows: [{ metricValues: [{ value: "1337" }] }],
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            );
+          }
+          return new Response("Not Found", { status: 404 });
+        }) as typeof fetch;
+
+        const response = await visitorsGetHandler();
+        expect(response.status).toBe(200);
+
+        const json = (await response.json()) as {
+          totalVisitors: number;
+          status: string;
+        };
+        expect(json.status).toBe("fresh");
+        expect(json.totalVisitors).toBe(1337);
+      } finally {
+        globalThis.fetch = originalFetch;
+        for (const k of keysToManage) {
+          if (savedBun[k] !== undefined) {
+            Bun.env[k] = savedBun[k];
+          } else {
+            delete Bun.env[k];
+          }
+          if (savedProc[k] !== undefined) {
+            process.env[k] = savedProc[k];
+          } else {
+            delete process.env[k];
+          }
+        }
+      }
     });
   });
 

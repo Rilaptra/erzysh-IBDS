@@ -7,7 +7,7 @@
 
 import { beforeEach, describe, expect, it } from "bun:test";
 
-import { stripSurroundingQuotes } from "@/config/app-config";
+import { appConfig, stripSurroundingQuotes } from "@/config/app-config";
 import {
   clearApiKeyCooldowns,
   DEFAULT_KEY_COOLDOWN_MS,
@@ -507,7 +507,7 @@ describe("Adversarial Stress Harness: Multi-Key Failover & Security", () => {
       expect(interceptedUrl).not.toContain("?key=");
       expect(interceptedUrl).not.toContain(rawSecretKey);
       expect(interceptedUrl).toBe(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        `https://generativelanguage.googleapis.com/v1beta/models/${appConfig.ai.intentModel}:generateContent`,
       );
     });
 
