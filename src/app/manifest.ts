@@ -49,12 +49,6 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/png",
         purpose: "maskable",
       },
-      {
-        src: "/icons/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "any",
-      },
     ],
     shortcuts: [
       {
@@ -62,14 +56,14 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: "Mode A",
         description: "Simulasi balok interaktif dengan pembebanan eksternal",
         url: "/simulator?mode=MODE_A_EXTERNAL_LOADS",
-        icons: [{ src: "/icons/icon.svg", sizes: "any" }],
+        icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" }],
       },
       {
         name: "Mode Gaya Dalam SNI",
         short_name: "Mode B",
         description: "Optimasi penampang beton bertulang dan profil baja SNI",
         url: "/simulator?mode=MODE_B_DIRECT_INTERNAL_FORCES",
-        icons: [{ src: "/icons/icon.svg", sizes: "any" }],
+        icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" }],
       },
     ],
   };

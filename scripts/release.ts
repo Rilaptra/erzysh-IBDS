@@ -502,7 +502,7 @@ class ReleaseManager {
         8,
         `Code Verification (Fmt + TypeScript + Catalogs + Unit Tests${buildWeb ? " + Build" : ""})`,
       );
-      const verified = await runVerification({ build: buildWeb });
+      const verified = await runVerification({ build: buildWeb, rustTest: rustChanged });
       if (!verified) {
         throw new Error("Verifikasi kode gagal. Perbaiki error di atas sebelum commit/release.");
       }

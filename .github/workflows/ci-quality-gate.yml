@@ -13,6 +13,16 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Rust File Changes
+        id: rust-changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            rust:
+              - 'crates/**'
 
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -31,6 +41,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run Native Rust Mechanics Unit Tests
+        if: steps.rust-changes.outputs.rust == 'true'
         run: cargo test --manifest-path crates/mechanics-3d-wasm/Cargo.toml
 
       - name: Check Formatting (bun fmt)

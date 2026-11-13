@@ -23,6 +23,7 @@ const log = ZyLog.withScope("VERIFY");
 
 export interface VerifyOptions {
   readonly build?: boolean;
+  readonly rustTest?: boolean;
 }
 
 async function spawnInherit(cmd: string[], envOverrides?: Record<string, string>): Promise<number> {
@@ -112,21 +113,28 @@ export async function runVerification(options: VerifyOptions = {}): Promise<bool
 
   // --- Stage 4: Rust Mechanics Unit Tests (GATE) ---
   const cargoManifestPath = join(rootDir, "crates", "mechanics-3d-wasm", "Cargo.toml");
+  const shouldRunRustTests = options.rustTest ?? true;
   if (!failedAt && existsSync(cargoManifestPath)) {
-    write(`${c.cyan("  ▶ Rust Mechanics Tests (cargo test)")}\n`);
-    const start = Date.now();
-    const { code, output } = await spawnCapture([
-      "cargo",
-      "test",
-      "--manifest-path",
-      cargoManifestPath,
-    ]);
-    if (code === 0) {
-      write(`${c.green(`    ✓ Rust unit tests lolos (${elapsed(start)})`)}\n`);
+    if (!shouldRunRustTests) {
+      write(
+        `${c.gray("  ⏭ Rust Mechanics Tests (cargo test) — di-skip (tidak ada perubahan kode Rust)")}\n`,
+      );
     } else {
-      console.error(output);
-      write(`${c.red(`    ✗ Rust unit tests gagal (${elapsed(start)}).`)}\n`);
-      failedAt = "Rust Mechanics Unit Tests";
+      write(`${c.cyan("  ▶ Rust Mechanics Tests (cargo test)")}\n`);
+      const start = Date.now();
+      const { code, output } = await spawnCapture([
+        "cargo",
+        "test",
+        "--manifest-path",
+        cargoManifestPath,
+      ]);
+      if (code === 0) {
+        write(`${c.green(`    ✓ Rust unit tests lolos (${elapsed(start)})`)}\n`);
+      } else {
+        console.error(output);
+        write(`${c.red(`    ✗ Rust unit tests gagal (${elapsed(start)}).`)}\n`);
+        failedAt = "Rust Mechanics Unit Tests";
+      }
     }
   }
 

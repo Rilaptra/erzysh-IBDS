@@ -1,7 +1,7 @@
 <div align="center">
 
-<!-- FUTURISTIC SVG HERO HEADER -->
-<img src="https://capsule-render.vercel.app/api?type=venom&color=0:0A0A0A,45:0F172A,75:06B6D4,100:8B5CF6&height=210&section=header&text=IBDS%20%E2%80%94%203D%20BEAM%20SIMULATOR&fontSize=38&fontColor=FAFAFA&fontAlignY=42&desc=Interactive%203D%20Beam%20Deflection%20%26amp%3B%20SNI%20Structural%20Design%20Optimizer%20%7C%20by%20Erzy.sh&descSize=15&descAlignY=66&animation=fadeIn" width="100%" alt="IBDS 3D Beam Simulator Banner" />
+<!-- HERO BANNER -->
+<img src="public/webp/banner-wide-1200x288.webp" width="100%" alt="IBDS 3D Beam Simulator Banner" />
 
 # 🏗️ Interactive 3D Beam Deflection & Structural Design Simulator
 
@@ -17,7 +17,7 @@ _Dikembangkan oleh **Rizqi Lasheva Purnama Putra** — Dikendalikan secara real-
 <img src="https://img.shields.io/badge/%F0%9F%9A%80_LIVE_DEMO-ERZYSH--IBDS.VERCEL.APP-000000?style=for-the-badge&amp;logo=vercel&amp;logoColor=06B6D4" alt="Vercel Live Deployment" />
 </a>
 <a href="https://github.com/Rilaptra/erzysh-IBDS/releases">
-<img src="https://img.shields.io/badge/RELEASE-v0.6.12--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
+<img src="https://img.shields.io/badge/RELEASE-v0.6.13--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
 </a>
 <a href="https://erzysh-ibds.vercel.app">
 <img src="https://img.shields.io/badge/AUTHOR-RIZQI_LASHEVA_(ERZY.SH)-06B6D4?style=for-the-badge&amp;logo=opsgenie&amp;logoColor=white" alt="Author Erzy.sh" />
