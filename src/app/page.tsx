@@ -15,9 +15,12 @@ import Link from "next/link";
 import { ErzyshPageShell, glassPanelClass } from "@/components/landing/ErzyshPageShell";
 import { HeroAnimatedSection } from "@/components/landing/HeroAnimatedSection";
 import { HeroBeamMorphVisual } from "@/components/landing/HeroBeamMorphVisual";
+import { WhatsNewDialog } from "@/components/landing/WhatsNewDialog";
+import { WhatsNewSection } from "@/components/landing/WhatsNewSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION, WASM_VERSION } from "@/config/version";
+import { getAllChangelogReleases } from "@/lib/changelog";
 import { cn } from "@/lib/utils";
 
 const GITHUB_PROFILE_URL = "https://github.com/Rilaptra";
@@ -92,6 +95,9 @@ const SPECS = [
 ] as const;
 
 export default function LandingPage() {
+  const allReleases = getAllChangelogReleases();
+  const latestReleases = allReleases.slice(0, 3);
+
   return (
     <ErzyshPageShell>
       <header className="erzysh-landing-header sticky top-0 z-40 px-4 sm:px-6">
@@ -112,6 +118,11 @@ export default function LandingPage() {
           <div className="flex items-center gap-1">
             <Button asChild variant="ghost" size="sm" className="hidden text-[11px] sm:inline-flex">
               <a href="#fitur">Fitur</a>
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="hidden text-[11px] sm:inline-flex">
+              <Link href="/changelog" prefetch={false}>
+                Changelog
+              </Link>
             </Button>
             <Button asChild variant="ghost" size="sm" className="hidden text-[11px] sm:inline-flex">
               <a href="#mulai">Mulai</a>
@@ -341,6 +352,10 @@ export default function LandingPage() {
           </ul>
         </section>
 
+        <WhatsNewSection releases={latestReleases} totalReleasesCount={allReleases.length} />
+
+        <WhatsNewDialog releases={allReleases} />
+
         <section id="mulai" className="mx-auto max-w-4xl scroll-mt-20 px-6 pb-24">
           <div className={cn(glassPanelClass, "p-8 text-center")}>
             <p className="text-[11px] font-bold tracking-wider text-cyan-400">MULAI SEKARANG</p>
@@ -436,6 +451,16 @@ export default function LandingPage() {
             </span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/changelog"
+              prefetch={false}
+              className="text-slate-400 transition-colors hover:text-cyan-400"
+            >
+              Changelog
+            </Link>
+            <span className="text-slate-700" aria-hidden>
+              ·
+            </span>
             <a
               href={GITHUB_PROFILE_URL}
               target="_blank"

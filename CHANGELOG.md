@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.17] - 2026-11-14
+
+### ✨ Added
+
+- Add dedicated `/changelog` release notes explorer page with category filtering and instant search
+- Add interactive What's New dialog modal on landing page to showcase recent updates
+- Add quick version index sidebar and release statistics summary cards
+
 ## [0.6.16] - 2026-11-14
 
 ### ✨ Added
