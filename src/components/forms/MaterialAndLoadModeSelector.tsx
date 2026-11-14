@@ -52,10 +52,16 @@ export function MaterialAndLoadModeSelector(): ReactElement {
           }}
           className="grid w-full grid-cols-2"
         >
-          <ToggleGroupItem value="STEEL" className="text-xs">
+          <ToggleGroupItem
+            value="STEEL"
+            className="h-auto min-h-8 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
+          >
             Baja (SNI 1729)
           </ToggleGroupItem>
-          <ToggleGroupItem value="CONCRETE" className="text-xs">
+          <ToggleGroupItem
+            value="CONCRETE"
+            className="h-auto min-h-8 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
+          >
             Beton (SNI 2847)
           </ToggleGroupItem>
         </ToggleGroup>
@@ -79,10 +85,16 @@ export function MaterialAndLoadModeSelector(): ReactElement {
           }}
           className="grid w-full grid-cols-2"
         >
-          <ToggleGroupItem value="MODE_A_EXTERNAL_LOADS" className="text-xs">
+          <ToggleGroupItem
+            value="MODE_A_EXTERNAL_LOADS"
+            className="h-auto min-h-8 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
+          >
             Mode A: Beban Eksternal
           </ToggleGroupItem>
-          <ToggleGroupItem value="MODE_B_DIRECT_INTERNAL_FORCES" className="text-xs">
+          <ToggleGroupItem
+            value="MODE_B_DIRECT_INTERNAL_FORCES"
+            className="h-auto min-h-8 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
+          >
             Mode B: Gaya Dalam
           </ToggleGroupItem>
         </ToggleGroup>
@@ -107,10 +119,16 @@ export function MaterialAndLoadModeSelector(): ReactElement {
             }}
             className="grid w-full grid-cols-2"
           >
-            <ToggleGroupItem value="SOLID_WITH_END_SECTION" className="text-xs">
+            <ToggleGroupItem
+              value="SOLID_WITH_END_SECTION"
+              className="h-auto min-h-8 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
+            >
               Solid + Potongan
             </ToggleGroupItem>
-            <ToggleGroupItem value="WIREFRAME_REBAR_CAGE" className="text-xs">
+            <ToggleGroupItem
+              value="WIREFRAME_REBAR_CAGE"
+              className="h-auto min-h-8 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
+            >
               Wireframe Tulangan
             </ToggleGroupItem>
           </ToggleGroup>
@@ -173,8 +191,8 @@ export function MaterialAndLoadModeSelector(): ReactElement {
           <FieldLegend variant="label" className="text-muted-foreground text-xs font-semibold">
             Visibilitas Bidang Gaya Dalam
           </FieldLegend>
-          <div className="grid grid-cols-2 gap-2">
-            <Field orientation="horizontal" className="items-center gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[340px]:grid-cols-2">
+            <Field orientation="horizontal" className="min-w-0 items-center gap-2">
               <Checkbox
                 id="check-sfd"
                 checked={visibleDiagrams.sfd}
@@ -182,24 +200,27 @@ export function MaterialAndLoadModeSelector(): ReactElement {
               />
               <FieldLabel
                 htmlFor="check-sfd"
-                className="cursor-pointer font-medium text-emerald-500"
+                className="min-w-0 cursor-pointer leading-tight font-medium text-emerald-500"
               >
                 SFD (Geser)
               </FieldLabel>
             </Field>
 
-            <Field orientation="horizontal" className="items-center gap-2">
+            <Field orientation="horizontal" className="min-w-0 items-center gap-2">
               <Checkbox
                 id="check-bmd"
                 checked={visibleDiagrams.bmd}
                 onCheckedChange={() => beamSimulatorActions.toggleDiagramVisibility("bmd")}
               />
-              <FieldLabel htmlFor="check-bmd" className="cursor-pointer font-medium text-cyan-500">
+              <FieldLabel
+                htmlFor="check-bmd"
+                className="min-w-0 cursor-pointer leading-tight font-medium text-cyan-500"
+              >
                 BMD (Momen)
               </FieldLabel>
             </Field>
 
-            <Field orientation="horizontal" className="items-center gap-2">
+            <Field orientation="horizontal" className="min-w-0 items-center gap-2">
               <Checkbox
                 id="check-nfd"
                 checked={visibleDiagrams.nfd}
@@ -207,19 +228,22 @@ export function MaterialAndLoadModeSelector(): ReactElement {
               />
               <FieldLabel
                 htmlFor="check-nfd"
-                className="cursor-pointer font-medium text-purple-500"
+                className="min-w-0 cursor-pointer leading-tight font-medium text-purple-500"
               >
                 NFD (Aksial)
               </FieldLabel>
             </Field>
 
-            <Field orientation="horizontal" className="items-center gap-2">
+            <Field orientation="horizontal" className="min-w-0 items-center gap-2">
               <Checkbox
                 id="check-tfd"
                 checked={visibleDiagrams.tfd}
                 onCheckedChange={() => beamSimulatorActions.toggleDiagramVisibility("tfd")}
               />
-              <FieldLabel htmlFor="check-tfd" className="cursor-pointer font-medium text-amber-500">
+              <FieldLabel
+                htmlFor="check-tfd"
+                className="min-w-0 cursor-pointer leading-tight font-medium text-amber-500"
+              >
                 TFD (Torsi)
               </FieldLabel>
             </Field>

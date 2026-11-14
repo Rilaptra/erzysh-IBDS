@@ -117,6 +117,211 @@ function generateLocalConsultantHeuristic(
 }
 
 /**
+ * Formats a LaTeX math expression into clean Unicode/React nodes with sub/superscripts.
+ */
+function renderMathExpression(rawMath: string, keyPrefix: string): React.ReactNode {
+  const cleaned = rawMath
+    .replace(/\\(?:text|mathrm|textbf)\{([^}]*)\}/g, "$1")
+    .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, "$1/$2")
+    .replace(/\\sqrt\{([^}]*)\}/g, "√($1)")
+    .replace(/\\Delta/g, "Δ")
+    .replace(/\\delta/g, "δ")
+    .replace(/\\sigma/g, "σ")
+    .replace(/\\tau/g, "τ")
+    .replace(/\\phi/g, "φ")
+    .replace(/\\lambda/g, "λ")
+    .replace(/\\alpha/g, "α")
+    .replace(/\\beta/g, "β")
+    .replace(/\\gamma/g, "γ")
+    .replace(/\\theta/g, "θ")
+    .replace(/\\pi/g, "π")
+    .replace(/\\mu/g, "μ")
+    .replace(/\\rho/g, "ρ")
+    .replace(/\\epsilon/g, "ε")
+    .replace(/\\omega/g, "ω")
+    .replace(/\\Sigma/g, "Σ")
+    .replace(/\\times/g, "×")
+    .replace(/\\cdot/g, "·")
+    .replace(/\\div/g, "÷")
+    .replace(/\\pm/g, "±")
+    .replace(/\\leq|\\le/g, "≤")
+    .replace(/\\geq|\\ge/g, "≥")
+    .replace(/\\neq|\\ne/g, "≠")
+    .replace(/\\approx/g, "≈")
+    .replace(/\\infty/g, "∞")
+    .replace(/\\(min|max|allow)/g, "$1")
+    .replace(/\\([a-zA-Z]+)/g, "$1")
+    .trim();
+
+  const parts: React.ReactNode[] = [];
+  const scriptRegex = /([_^])(?:\{([^}]+)\}|([a-zA-Z0-9']+))/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let partIdx = 0;
+
+  while ((match = scriptRegex.exec(cleaned)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(cleaned.slice(lastIndex, match.index));
+    }
+    const kind = match[1];
+    const value = match[2] ?? match[3] ?? "";
+    if (kind === "_") {
+      parts.push(
+        <sub key={`${keyPrefix}-sub-${partIdx++}`} className="text-[9px] leading-none">
+          {value}
+        </sub>,
+      );
+    } else {
+      parts.push(
+        <sup key={`${keyPrefix}-sup-${partIdx++}`} className="text-[9px] leading-none">
+          {value}
+        </sup>,
+      );
+    }
+    lastIndex = scriptRegex.lastIndex;
+  }
+
+  if (lastIndex < cleaned.length) {
+    parts.push(cleaned.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : cleaned;
+}
+
+/**
+ * Formats inline Markdown (**bold**, *italic*, `code`) and LaTeX ($...$, $$...$$) safely into React nodes.
+ */
+function renderInlineFormatted(
+  text: string,
+  isUser: boolean,
+  keyPrefix: string,
+): React.ReactNode[] {
+  const tokenRegex =
+    /(\*\*[^*\n]+?\*\*|\$\$[^$\n]+?\$\$|\$[^$\n]+?\$|`[^`\n]+?`|\*[^\s*](?:[^*\n]*?[^\s*])?\*)/g;
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let tokenIdx = 0;
+
+  while ((match = tokenRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const token = match[0];
+    const tokenKey = `${keyPrefix}-${tokenIdx++}`;
+
+    if (token.startsWith("**") && token.endsWith("**")) {
+      const inner = token.slice(2, -2);
+      nodes.push(
+        <strong key={tokenKey} className="font-semibold">
+          {renderInlineFormatted(inner, isUser, `${tokenKey}-b`)}
+        </strong>,
+      );
+    } else if (token.startsWith("$$") && token.endsWith("$$")) {
+      const inner = token.slice(2, -2);
+      nodes.push(
+        <span
+          key={tokenKey}
+          className={cn("font-mono", isUser ? "text-primary-foreground" : "text-cyan-300")}
+        >
+          {renderMathExpression(inner, tokenKey)}
+        </span>,
+      );
+    } else if (token.startsWith("$") && token.endsWith("$")) {
+      const inner = token.slice(1, -1);
+      nodes.push(
+        <span
+          key={tokenKey}
+          className={cn("font-mono", isUser ? "text-primary-foreground" : "text-cyan-300")}
+        >
+          {renderMathExpression(inner, tokenKey)}
+        </span>,
+      );
+    } else if (token.startsWith("`") && token.endsWith("`")) {
+      const inner = token.slice(1, -1);
+      nodes.push(
+        <code
+          key={tokenKey}
+          className={cn(
+            "rounded px-1 py-0.5 font-mono text-[10px]",
+            isUser ? "text-primary-foreground bg-black/20" : "bg-muted/70 text-cyan-300",
+          )}
+        >
+          {inner}
+        </code>,
+      );
+    } else if (token.startsWith("*") && token.endsWith("*")) {
+      const inner = token.slice(1, -1);
+      nodes.push(
+        <em key={tokenKey} className="italic">
+          {renderInlineFormatted(inner, isUser, `${tokenKey}-i`)}
+        </em>,
+      );
+    }
+
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+/**
+ * Renders AI/user chat message text with clean block & inline formatting.
+ */
+function FormattedMessageText({
+  text,
+  isUser,
+}: {
+  readonly text: string;
+  readonly isUser: boolean;
+}): ReactElement {
+  const lines = text.split("\n");
+
+  return (
+    <div className="space-y-1 font-sans text-[11px] leading-relaxed break-words">
+      {lines.map((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={`sp-${index}`} className="h-1" />;
+        }
+
+        if (/^#{1,3}\s+/.test(trimmed)) {
+          const headingText = trimmed.replace(/^#{1,3}\s+/, "");
+          return (
+            <div key={`h-${index}`} className="font-semibold">
+              {renderInlineFormatted(headingText, isUser, `h-${index}`)}
+            </div>
+          );
+        }
+
+        if (/^[-*]\s+/.test(trimmed)) {
+          const itemText = trimmed.replace(/^[-*]\s+/, "");
+          return (
+            <div key={`li-${index}`} className="flex items-start gap-1.5 pl-0.5">
+              <span className="mt-[2px] text-[10px] opacity-70">•</span>
+              <span className="min-w-0 flex-1">
+                {renderInlineFormatted(itemText, isUser, `li-${index}`)}
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <p key={`p-${index}`} className="m-0">
+            {renderInlineFormatted(line, isUser, `p-${index}`)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * Structural AI Assistant Panel Component.
  *
  * @param props {@link StructuralAiAssistantPanelProps}
@@ -136,7 +341,7 @@ export function StructuralAiAssistantPanel({
       id: "initial-msg",
       sender: "assistant",
       text: "Halo engineer! Aku **Ucuy**, asisten rekayasa struktur dan pemandu cerdas kamu di IBDS. Aku siap membantu analisis lendutan, kepatuhan SNI 2847/1729, optimasi profil balok, hingga menjelaskan seluruh fitur aplikasi ini. Silakan tanya apa saja!",
-      timestamp: Date.now(),
+      timestamp: 0,
     },
   ]);
 
@@ -223,11 +428,9 @@ export function StructuralAiAssistantPanel({
   };
 
   return (
-    <div
-      className={cn("text-foreground flex h-full max-h-[460px] flex-col gap-2 text-xs", className)}
-    >
+    <div className={cn("text-foreground flex w-full min-w-0 flex-col gap-2 text-xs", className)}>
       {/* Quick Action Top Bar (Camera Toggle & Reset) */}
-      <div className="border-border/40 flex items-center justify-between border-b pb-2">
+      <div className="border-border/40 flex shrink-0 items-center justify-between gap-2 border-b pb-2">
         <span className="text-[11px] font-bold text-sky-400">🤖 Consultant AI & Multimodal</span>
         <div className="flex items-center gap-1.5">
           <Button
@@ -260,7 +463,7 @@ export function StructuralAiAssistantPanel({
       </div>
 
       {/* Quick Prompt Pills */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex shrink-0 flex-wrap gap-1.5">
         {QUICK_PROMPTS.map((prompt) => (
           <Badge
             key={prompt}
@@ -279,7 +482,7 @@ export function StructuralAiAssistantPanel({
       </div>
 
       {/* Chat Messages Scrolling History */}
-      <ScrollArea className="border-border/30 bg-background/50 min-h-[220px] flex-1 rounded-md border p-2.5">
+      <ScrollArea className="border-border/30 bg-background/50 h-[220px] min-h-0 w-full overflow-hidden rounded-md border p-2.5">
         <div className="flex flex-col gap-2.5 pr-2">
           {messages.map((msg) => {
             const isUser = msg.sender === "user";
@@ -293,19 +496,19 @@ export function StructuralAiAssistantPanel({
                     : "border-border/60 bg-card text-card-foreground mr-auto rounded-bl-xs border",
                 )}
               >
-                <div className="font-sans text-[11px] leading-relaxed whitespace-pre-wrap">
-                  {msg.text}
-                </div>
+                <FormattedMessageText text={msg.text} isUser={isUser} />
                 <div
                   className={cn(
                     "mt-1 text-right text-[8px]",
                     isUser ? "text-primary-foreground/70" : "text-muted-foreground",
                   )}
                 >
-                  {new Date(msg.timestamp).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {msg.timestamp > 0
+                    ? new Date(msg.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Aktif"}
                 </div>
               </div>
             );
@@ -327,7 +530,7 @@ export function StructuralAiAssistantPanel({
           e.preventDefault();
           handleSendMessage(inputText);
         }}
-        className="mt-auto"
+        className="shrink-0"
       >
         <InputGroup className="border-border/60 bg-background/60 h-9">
           <InputGroupInput

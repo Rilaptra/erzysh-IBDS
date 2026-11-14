@@ -11,16 +11,19 @@ _Dikembangkan oleh **Rizqi Lasheva Purnama Putra** — Dikendalikan secara real-
 
 <br />
 
-<!-- ROW 1: LIVE DEPLOYMENT, RELEASE VERSION, &amp; AUTHOR -->
+<!-- ROW 1: LIVE DEPLOYMENT, RELEASE VERSION, AUTHOR, &amp; LICENSE -->
 <p align="center">
 <a href="https://erzysh-ibds.vercel.app">
 <img src="https://img.shields.io/badge/%F0%9F%9A%80_LIVE_DEMO-ERZYSH--IBDS.VERCEL.APP-000000?style=for-the-badge&amp;logo=vercel&amp;logoColor=06B6D4" alt="Vercel Live Deployment" />
 </a>
 <a href="https://github.com/Rilaptra/erzysh-IBDS/releases">
-<img src="https://img.shields.io/badge/RELEASE-v0.6.15--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
+<img src="https://img.shields.io/badge/RELEASE-v0.6.16--alpha_(AI_AUTO--TAG)-8B5CF6?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="GitHub Release" />
 </a>
 <a href="https://erzysh-ibds.vercel.app">
 <img src="https://img.shields.io/badge/AUTHOR-RIZQI_LASHEVA_(ERZY.SH)-06B6D4?style=for-the-badge&amp;logo=opsgenie&amp;logoColor=white" alt="Author Erzy.sh" />
+</a>
+<a href="./LICENSE">
+<img src="https://img.shields.io/badge/LICENSE-MIT-10B981?style=for-the-badge&amp;logo=opensourceinitiative&amp;logoColor=white" alt="MIT License" />
 </a>
 </p>
 
@@ -232,6 +235,7 @@ erzysh-IBDS/
 │   ├── types/                          # Branded Units (kN, kNm, MPa, mm) & Koordinat Z-Up/Y-Up
 │   └── wasm/                           # Output Binding WebAssembly Zero-Copy
 ├── tests/                              # Unit Tests & Benchmark Validasi SAP2000 (13 modul)
+├── LICENSE
 ├── next.config.ts
 ├── package.json
 ├── tsconfig.json
@@ -318,6 +322,12 @@ bun test tests/config/app-config.test.ts tests/ai/gemini-api-failover.test.ts
 | :-------------------------------------------------------------------------------- |
 | 🎓 **Program Studi Teknik Sipil — Mata Kuliah Aplikasi Komputer**                 |
 | 💻 GitHub: [@erzysh](https://www.google.com/search?q=https://github.com/Rilaptra) |
+
+## 📄 Lisensi (License)
+
+Repositori ini dilisensikan di bawah **MIT License** — lihat berkas [LICENSE](./LICENSE) untuk detail selengkapnya.
+
+> _Catatan: Dependensi pihak ketiga yang digunakan saat runtime/build tetap tunduk pada lisensi masing-masing._
 
 <div align="center">
 <br />

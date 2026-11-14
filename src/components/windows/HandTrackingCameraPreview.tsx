@@ -85,13 +85,13 @@ export function HandTrackingCameraPreview({
   return (
     <Card
       className={cn(
-        "flex w-[264px] flex-col gap-2.5 rounded-xl border-slate-700/60 bg-slate-900/85 p-3 text-slate-200 shadow-xl backdrop-blur-md",
+        "flex w-full min-w-0 shrink-0 flex-col gap-2.5 rounded-xl border-slate-700/60 bg-slate-900/85 p-3 text-slate-200 shadow-xl backdrop-blur-md",
         className,
       )}
       style={style}
     >
       {/* Header Bar */}
-      <div className="flex items-center justify-between border-b border-slate-700/60 pb-1.5 text-xs font-bold">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-700/60 pb-1.5 text-xs font-bold">
         <div className="flex items-center gap-1.5">
           <Camera className="size-4 text-cyan-400" />
           <span>Webcam Hand Tracking</span>

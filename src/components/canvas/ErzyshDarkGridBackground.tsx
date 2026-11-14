@@ -30,6 +30,7 @@ export function ErzyshDarkGridBackground({
       data-component="ErzyshDarkGridBackground"
       style={{
         position: "relative",
+        isolation: "isolate",
         width: "100%",
         height: "100%",
         backgroundColor: "#0A0A0A",
@@ -43,6 +44,7 @@ export function ErzyshDarkGridBackground({
         style={{
           position: "absolute",
           inset: 0,
+          zIndex: -1,
           backgroundImage: `
             linear-gradient(to right, #1F2020 1px, transparent 1px),
             linear-gradient(to bottom, #1F2020 1px, transparent 1px)
@@ -61,6 +63,7 @@ export function ErzyshDarkGridBackground({
         style={{
           position: "absolute",
           inset: 0,
+          zIndex: -1,
           background:
             "radial-gradient(circle at 50% 48%, rgba(6, 182, 212, 0.08) 0%, rgba(10, 14, 14, 0.02) 45%, transparent 75%)",
           pointerEvents: "none",

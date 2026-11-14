@@ -46,19 +46,19 @@ export function ConcreteOptimizationResultCard({
   const { section, flexure, shear } = result;
 
   return (
-    <div className="flex flex-col gap-2.5 text-xs">
+    <div className="flex min-w-0 flex-col gap-2.5 text-xs">
       {/* 1. Header Ringkasan Penampang */}
-      <Card size="sm" className="border-border/40 bg-card/60">
-        <CardContent className="flex items-center justify-between p-2.5">
-          <div>
+      <Card size="sm" className="border-border/50 bg-card/95 min-w-0">
+        <CardContent className="flex items-start justify-between gap-2 p-2.5">
+          <div className="min-w-0 flex-1">
             <span className="text-muted-foreground text-[10px] font-medium">DIMENSI PENAMPANG</span>
             <div className="text-sm font-bold text-sky-400">
               {Number(section.bw)} × {Number(section.h)} mm
             </div>
           </div>
 
-          <div className="text-right">
-            <span className="text-muted-foreground text-[10px] font-medium">
+          <div className="shrink-0 text-right">
+            <span className="text-muted-foreground text-[10px] font-medium whitespace-nowrap">
               RASIO TULANGAN (ρ)
             </span>
             <div className="text-xs font-bold text-amber-300">
@@ -69,12 +69,12 @@ export function ConcreteOptimizationResultCard({
       </Card>
 
       {/* 2. Gambar Potongan SVG 2D */}
-      <div className="flex justify-center py-1">
+      <div className="flex justify-center py-0.5">
         <ConcreteCrossSectionSvg result={result} width={220} height={200} />
       </div>
 
       {/* 3. Desain Lentur (Whitney Flexure) */}
-      <Card size="sm" className="border-border/40 bg-card/60">
+      <Card size="sm" className="border-border/50 bg-card/95 min-w-0">
         <CardHeader className="flex flex-row items-center justify-between px-3 pt-2.5 pb-1">
           <CardTitle className="text-xs font-bold text-sky-400">Tulangan Lentur (As)</CardTitle>
           <Badge
@@ -107,7 +107,7 @@ export function ConcreteOptimizationResultCard({
       <Separator className="my-0.5 opacity-40" />
 
       {/* 4. Desain Geser (Stirrups) */}
-      <Card size="sm" className="border-border/40 bg-card/60">
+      <Card size="sm" className="border-border/50 bg-card/95 min-w-0">
         <CardHeader className="flex flex-row items-center justify-between px-3 pt-2.5 pb-1">
           <CardTitle className="text-xs font-bold text-emerald-400">Sengkang Geser (Av)</CardTitle>
           <Badge
@@ -134,7 +134,7 @@ export function ConcreteOptimizationResultCard({
         <Button
           type="button"
           onClick={onOpenExportModal}
-          className="mt-1 w-full bg-linear-to-r from-cyan-500 to-blue-600 font-bold text-white shadow-sm hover:from-cyan-600 hover:to-blue-700"
+          className="mt-1 h-auto min-h-9 w-full bg-linear-to-r from-cyan-500 to-blue-600 py-2 text-center leading-snug font-bold whitespace-normal text-white shadow-sm hover:from-cyan-600 hover:to-blue-700"
         >
           📦 Ekspor Gambar CAD (.dxf) & Model BIM (.ifc)
         </Button>

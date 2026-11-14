@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark, .dark *));
+@custom-variant data-active (&:is([data-active], [data-state="active"]));
+@custom-variant data-checked (&:is([data-checked], [data-state="checked"]));
+@custom-variant data-horizontal (&:is([data-horizontal], [data-orientation="horizontal"]));
+@custom-variant data-vertical (&:is([data-vertical], [data-orientation="vertical"]));
+@custom-variant data-open (&:is([data-open], [data-state="open"]));
+@custom-variant data-closed (&:is([data-closed], [data-state="closed"]));
 
 @theme inline {
   --color-background: var(--background);

@@ -77,14 +77,22 @@ export function SteelDesignParametersForm(): ReactElement {
           value={steelProfileType}
           onValueChange={(val) => {
             if (val)
-              beamSimulatorActions.setSteelParameters({ profileType: val as SteelProfileType });
+              beamSimulatorActions.setSteelParameters({
+                profileType: val as SteelProfileType,
+              });
           }}
           className="grid w-full grid-cols-2"
         >
-          <ToggleGroupItem value="IWF" className="text-xs">
+          <ToggleGroupItem
+            value="IWF"
+            className="h-auto min-h-8 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
+          >
             IWF / H-Beam
           </ToggleGroupItem>
-          <ToggleGroupItem value="BOX" className="text-xs">
+          <ToggleGroupItem
+            value="BOX"
+            className="h-auto min-h-8 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
+          >
             BOX / Hollow HSS
           </ToggleGroupItem>
         </ToggleGroup>
@@ -121,7 +129,7 @@ export function SteelDesignParametersForm(): ReactElement {
           {customBoxConfig.enabled ? (
             <div className="mt-2.5 flex flex-col gap-2 border-t border-purple-500/25 pt-2.5">
               {/* Badge Info Kombinasi */}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
                 <Badge
                   variant="outline"
                   className="border-purple-500/40 bg-purple-500/15 px-1.5 py-0 text-[10px] font-semibold text-purple-200"
@@ -167,19 +175,30 @@ export function SteelDesignParametersForm(): ReactElement {
                   onValueChange={(val) => {
                     if (val) {
                       beamSimulatorActions.setSteelParameters({
-                        customBoxConfig: { shapeRule: val as CustomBoxShapeRule },
+                        customBoxConfig: {
+                          shapeRule: val as CustomBoxShapeRule,
+                        },
                       });
                     }
                   }}
                   className="grid w-full grid-cols-3"
                 >
-                  <ToggleGroupItem value="ALL" className="text-[10px]">
+                  <ToggleGroupItem
+                    value="ALL"
+                    className="h-auto min-h-8 px-1 py-1 text-center text-[10px] leading-tight whitespace-normal"
+                  >
                     Semua
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="SQUARE_ONLY" className="text-[10px]">
+                  <ToggleGroupItem
+                    value="SQUARE_ONLY"
+                    className="h-auto min-h-8 px-1 py-1 text-center text-[10px] leading-tight whitespace-normal"
+                  >
                     Persegi (H=B)
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="RECTANGULAR_ONLY" className="text-[10px]">
+                  <ToggleGroupItem
+                    value="RECTANGULAR_ONLY"
+                    className="h-auto min-h-8 px-1 py-1 text-center text-[10px] leading-tight whitespace-normal"
+                  >
                     Persegi Panjang
                   </ToggleGroupItem>
                 </ToggleGroup>
@@ -385,7 +404,9 @@ export function SteelDesignParametersForm(): ReactElement {
         <Select
           value={steelGrade}
           onValueChange={(val) =>
-            beamSimulatorActions.setSteelParameters({ grade: val as SteelGrade })
+            beamSimulatorActions.setSteelParameters({
+              grade: val as SteelGrade,
+            })
           }
         >
           <SelectTrigger className="w-full">
@@ -427,40 +448,37 @@ export function SteelDesignParametersForm(): ReactElement {
       </Field>
 
       {/* 4. Filter Batasan Geometri Maksimum (Hmax & Bmax) */}
-      <div className="grid grid-cols-2 gap-2">
-        <Field>
-          <FieldLabel className="text-muted-foreground font-semibold">Batas Hmax</FieldLabel>
-          <InputGroup>
-            <InputGroupInput
-              type="number"
-              placeholder="Tanpa batas"
-              value={steelMaxHeightMm ? Number(steelMaxHeightMm) : ""}
-              onChange={(e) =>
-                beamSimulatorActions.setSteelParameters({
-                  maxHeightMm: e.target.value ? parseFloat(e.target.value) : undefined,
-                })
-              }
-            />
-            <InputGroupAddon align="inline-end">mm</InputGroupAddon>
-          </InputGroup>
-        </Field>
-
-        <Field>
-          <FieldLabel className="text-muted-foreground font-semibold">Batas Bmax</FieldLabel>
-          <InputGroup>
-            <InputGroupInput
-              type="number"
-              placeholder="Tanpa batas"
-              value={steelMaxWidthMm ? Number(steelMaxWidthMm) : ""}
-              onChange={(e) =>
-                beamSimulatorActions.setSteelParameters({
-                  maxWidthMm: e.target.value ? parseFloat(e.target.value) : undefined,
-                })
-              }
-            />
-            <InputGroupAddon align="inline-end">mm</InputGroupAddon>
-          </InputGroup>
-        </Field>
+      <div className="grid grid-cols-1 gap-2 min-[340px]:grid-cols-2">
+        {(
+          [
+            {
+              key: "maxHeightMm",
+              label: "Batas Hmax",
+              value: steelMaxHeightMm,
+            },
+            { key: "maxWidthMm", label: "Batas Bmax", value: steelMaxWidthMm },
+          ] as const
+        ).map(({ key, label, value }) => (
+          <Field key={key}>
+            <FieldLabel className="text-muted-foreground font-semibold">{label}</FieldLabel>
+            <InputGroup>
+              <InputGroupInput
+                type="number"
+                placeholder="Tanpa batas"
+                className="px-2 text-xs placeholder:text-[10px] sm:placeholder:text-[11px]"
+                value={value ? Number(value) : ""}
+                onChange={(e) =>
+                  beamSimulatorActions.setSteelParameters({
+                    [key]: e.target.value ? parseFloat(e.target.value) : undefined,
+                  })
+                }
+              />
+              <InputGroupAddon align="inline-end" className="pr-2 pl-1 text-[10px] sm:text-[11px]">
+                mm
+              </InputGroupAddon>
+            </InputGroup>
+          </Field>
+        ))}
       </div>
     </FieldGroup>
   );

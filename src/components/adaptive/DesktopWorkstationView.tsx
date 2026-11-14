@@ -317,6 +317,7 @@ export function DesktopWorkstationView(): ReactElement {
         cameraPreset={cameraPreset}
         onCameraPresetChange={setCameraPreset}
         onProjectionChange={setProjection}
+        showToolbar={false}
       />
 
       {/* 2. 2D Support Symbols Overlay */}
@@ -346,10 +347,10 @@ export function DesktopWorkstationView(): ReactElement {
       {/* 5. 3D Coordinate Axis Switcher */}
       <CoordinateAxisSwitcher />
 
-      {/* 6. Top Workstation Header: Window Quick Dock Bar + Telemetry Badge */}
-      <div className="pointer-events-none absolute inset-x-4 top-3 z-40 flex flex-wrap items-center justify-between gap-2">
+      {/* 6. Top Workstation Header: Window Quick Dock Bar + Camera Preset Switcher + Telemetry Badge */}
+      <div className="pointer-events-none absolute inset-x-3 top-3 z-40 flex flex-wrap items-center justify-between gap-2 xl:inset-x-4">
         <div
-          className="bg-card/85 border-border/40 pointer-events-auto flex flex-wrap items-center gap-1.5 rounded-lg border px-2 py-1.5 shadow-xl backdrop-blur-md"
+          className="bg-card/85 border-border/40 pointer-events-auto order-1 flex flex-wrap items-center gap-1 rounded-lg border px-1.5 py-1 shadow-xl backdrop-blur-md xl:gap-1.5 xl:px-2 xl:py-1.5"
           onPointerDown={(e) => e.stopPropagation()}
         >
           {(
@@ -381,8 +382,92 @@ export function DesktopWorkstationView(): ReactElement {
           })}
         </div>
 
+        {/* Camera Preset & Concrete Sub-Mode Toolbar */}
+        <div
+          role="toolbar"
+          aria-label="Kontrol kamera balok 3D"
+          className="bg-card/85 border-border/40 pointer-events-auto order-2 flex flex-wrap items-center gap-1 rounded-lg border px-1.5 py-1 shadow-xl backdrop-blur-md xl:py-1.5"
+          onPointerDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            type="button"
+            variant={cameraPreset === "ISOMETRIC_3D" ? "secondary" : "ghost"}
+            size="xs"
+            onClick={() => setCameraPreset("ISOMETRIC_3D")}
+            title="Kamera perspektif isometrik (tombol 3)"
+            className={cn(
+              "text-[11px] font-medium transition-colors",
+              cameraPreset === "ISOMETRIC_3D" &&
+                "bg-sky-500/20 font-bold text-sky-400 hover:bg-sky-500/30",
+            )}
+          >
+            3D Isometrik
+          </Button>
+          <Button
+            type="button"
+            variant={cameraPreset === "FRONT_2D" ? "secondary" : "ghost"}
+            size="xs"
+            onClick={() => setCameraPreset("FRONT_2D")}
+            title="Proyeksi ortografis tampak depan, sejajar overlay 2D (tombol 1)"
+            className={cn(
+              "text-[11px] font-medium transition-colors",
+              cameraPreset === "FRONT_2D" &&
+                "bg-sky-500/20 font-bold text-sky-400 hover:bg-sky-500/30",
+            )}
+          >
+            Tampak Depan 2D
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => window.dispatchEvent(new CustomEvent("app:camera-fit"))}
+            title="Pusatkan balok ke layar (tombol F / klik ganda)"
+            className="text-[11px] font-medium transition-colors"
+          >
+            Fit
+          </Button>
+
+          {store.materialKind === "CONCRETE" && (
+            <>
+              <span aria-hidden className="bg-border/60 mx-0.5 h-4 w-px" />
+              <Button
+                type="button"
+                variant={
+                  store.concreteViewMode === "SOLID_WITH_END_SECTION" ? "secondary" : "ghost"
+                }
+                size="xs"
+                onClick={() => beamSimulatorActions.setConcreteViewMode("SOLID_WITH_END_SECTION")}
+                title="Beton solid dengan gambar potongan ujung"
+                className={cn(
+                  "text-[11px] font-medium transition-colors",
+                  store.concreteViewMode === "SOLID_WITH_END_SECTION" &&
+                    "bg-sky-500/20 font-bold text-sky-400 hover:bg-sky-500/30",
+                )}
+              >
+                Solid + Potongan
+              </Button>
+              <Button
+                type="button"
+                variant={store.concreteViewMode === "WIREFRAME_REBAR_CAGE" ? "secondary" : "ghost"}
+                size="xs"
+                onClick={() => beamSimulatorActions.setConcreteViewMode("WIREFRAME_REBAR_CAGE")}
+                title="Selubung transparan dengan tulangan pokok & cincin sengkang"
+                className={cn(
+                  "text-[11px] font-medium transition-colors",
+                  store.concreteViewMode === "WIREFRAME_REBAR_CAGE" &&
+                    "bg-sky-500/20 font-bold text-sky-400 hover:bg-sky-500/30",
+                )}
+              >
+                Wireframe Tulangan
+              </Button>
+            </>
+          )}
+        </div>
+
         {/* Top-Right Telemetry Badge (GA4 Custom Epoch Visitor Counter) */}
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto order-3">
           <CustomEpochVisitorFlexBadge />
         </div>
       </div>
@@ -474,12 +559,17 @@ export function DesktopWorkstationView(): ReactElement {
       </DraggableFloatingWindow>
 
       {/* Window 6: Gestur & Asisten AI */}
-      <DraggableFloatingWindow id="GESTURE_AI_ASSISTANT">
+      <DraggableFloatingWindow
+        id="GESTURE_AI_ASSISTANT"
+        className="flex flex-col"
+        contentClassName="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto"
+      >
         <StructuralAiAssistantPanel
+          className="min-h-0 flex-1"
           onToggleCamera={tracking.toggleRunning}
           isCameraRunning={tracking.state.isRunning}
         />
-        <div className="mt-2.5">
+        <div className="shrink-0">
           <HandTrackingCameraPreview
             state={tracking.state}
             onToggleRunning={tracking.toggleRunning}

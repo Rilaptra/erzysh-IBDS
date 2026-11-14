@@ -73,9 +73,13 @@ export function SteelProfileCrossSectionSvg({
       className={className}
       data-component="SteelProfileCrossSectionSvg"
       style={{
-        display: "inline-block",
-        background: "rgba(15, 20, 22, 0.85)",
-        border: "1px solid rgba(148, 163, 184, 0.18)",
+        display: "block",
+        width: "100%",
+        maxWidth: width + 18,
+        marginInline: "auto",
+        boxSizing: "border-box",
+        background: "rgba(11, 16, 20, 0.96)",
+        border: "1px solid rgba(148, 163, 184, 0.22)",
         borderRadius: 8,
         padding: 8,
         ...style,
@@ -85,7 +89,7 @@ export function SteelProfileCrossSectionSvg({
         width={width}
         height={height}
         viewBox={`0 0 ${width} ${height}`}
-        style={{ display: "block" }}
+        style={{ display: "block", width: "100%", height: "auto" }}
       >
         {profileType === "IWF"
           ? (() => {

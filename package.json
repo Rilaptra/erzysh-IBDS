@@ -1,8 +1,9 @@
 {
   "name": "interactive-beam-simulator",
-  "version": "0.6.15",
+  "version": "0.6.16",
   "private": true,
   "description": "Interactive 3D Beam Deflection & Structural Design Simulator (SNI 2847:2019 & SNI 1729:2020)",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "wasm:build": "bun run scripts/wasm/build-mechanics-wasm.ts",
@@ -28,6 +29,7 @@
     "class-variance-authority": "0.7.1",
     "cn": "0.5.2",
     "gsap": "3.15.1",
+    "katex": "0.19.1",
     "lucide-react": "1.66.0",
     "next": "16.4.4",
     "radix-ui": "1.8.1",
@@ -40,11 +42,12 @@
     "@rilaptra/tui": "1.0.0",
     "@tailwindcss/postcss": "4.3.4",
     "@types/bun": "1.4.4",
+    "@types/katex": "0.16.8",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "postcss": "8.5.32",
     "tailwindcss": "4.3.4",
-    "typescript": "^5.8.2"
+    "typescript": "5.9.3"
   },
   "packageManager": "bun@1.4.4"
 }

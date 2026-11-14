@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.16] - 2026-11-14
+
+### ✨ Added
+
+- 📄 Complete 24-slide technical user manual in HTML and PDF format (`docs/manual.html`, `docs/Panduan_01_IBDS.pdf`)
+- ⚖️ Official MIT License and repository license badge (`LICENSE`, `README.md`)
+- 🛠️ Automated generated code digests in `.gitignore`
+
+### ⚡ Performance
+
+- ⬆️ Updated TypeScript dependency to v5.9.3 and KaTeX typography tooling for manual rendering
+
 ## [0.6.15] - 2026-11-13
 
 ### ✨ Added

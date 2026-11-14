@@ -35,6 +35,7 @@ export interface DraggableFloatingWindowProps {
   readonly defaultWidth?: number;
   readonly maxHeight?: number;
   readonly className?: string;
+  readonly contentClassName?: string;
   readonly style?: CSSProperties;
 }
 
@@ -47,6 +48,7 @@ export function DraggableFloatingWindow({
   defaultWidth = 360,
   maxHeight = 600,
   className,
+  contentClassName,
   style,
 }: DraggableFloatingWindowProps): ReactElement | null {
   const store = useFloatingWindowStore();
@@ -189,7 +191,7 @@ export function DraggableFloatingWindow({
       {/* Window Body (kept mounted when minimized for GESTURE_AI_ASSISTANT to preserve webcam stream) */}
       {!isMinimized || id === "GESTURE_AI_ASSISTANT" ? (
         <CardContent
-          className="overflow-y-auto p-3 text-slate-300"
+          className={cn("overflow-y-auto p-3 text-slate-300", contentClassName)}
           style={{
             display: isMinimized ? "none" : undefined,
             maxHeight: `min(${maxHeight}px, calc(100dvh - 7rem))`,

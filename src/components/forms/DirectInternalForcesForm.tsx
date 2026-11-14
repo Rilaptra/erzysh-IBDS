@@ -73,6 +73,10 @@ function parseCompleteNumber(raw: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export interface DirectInternalForcesFormProps {
+  readonly onAppliedSuccess?: () => void;
+}
+
 /**
  * Renders the Mode B Direct Factored Internal Forces form with draft buffering,
  * explicit submit/reset actions, and live structural optimization feedback banner.
@@ -81,7 +85,9 @@ function parseCompleteNumber(raw: string): number | null {
  * @example
  * <DirectInternalForcesForm />
  */
-export function DirectInternalForcesForm(): ReactElement {
+export function DirectInternalForcesForm({
+  onAppliedSuccess,
+}: DirectInternalForcesFormProps = {}): ReactElement {
   const store = useBeamSimulatorStore();
   const {
     materialKind,
@@ -221,6 +227,7 @@ export function DirectInternalForcesForm(): ReactElement {
     });
 
     floatingWindowActions.openWindow("OPTIMIZATION_RESULTS");
+    onAppliedSuccess?.();
 
     const now = new Date();
     setLastConfirmedTime(
@@ -395,11 +402,11 @@ export function DirectInternalForcesForm(): ReactElement {
       </FieldGroup>
 
       {/* 7. Tombol Konfirmasi / Hitung & Reset */}
-      <div className="mt-1 flex items-center gap-2">
+      <div className="mt-1 flex flex-wrap items-center gap-2">
         <Button
           type="submit"
           size="sm"
-          className="flex-1 bg-linear-to-r from-cyan-500 to-blue-600 text-xs font-bold text-white shadow-sm hover:from-cyan-600 hover:to-blue-700"
+          className="h-auto min-h-8 min-w-[11rem] flex-1 bg-linear-to-r from-cyan-500 to-blue-600 py-1.5 text-center text-xs leading-snug font-bold whitespace-normal text-white shadow-sm hover:from-cyan-600 hover:to-blue-700"
         >
           ⚡ Hitung & Terapkan Gaya Dalam
         </Button>
@@ -408,7 +415,7 @@ export function DirectInternalForcesForm(): ReactElement {
           variant="outline"
           size="sm"
           onClick={handleResetDefaults}
-          className="text-xs font-medium"
+          className="h-8 shrink-0 text-xs font-medium"
         >
           ↺ Reset
         </Button>

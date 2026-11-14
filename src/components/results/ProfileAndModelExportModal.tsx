@@ -10,7 +10,7 @@
 
 "use client";
 
-import { AlertCircleIcon, CheckCircle2Icon } from "lucide-react";
+import { AlertCircleIcon, CheckCircle2Icon, ChevronDownIcon } from "lucide-react";
 import React, { type ReactElement, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -25,6 +25,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import {
   buildAutoLispFromSimulatorState,
@@ -54,8 +56,15 @@ interface ExportFormatItem {
   readonly extension: string;
   readonly targetSoftware: string;
   readonly description: string;
-  readonly category: "CAD" | "BIM" | "CAE" | "3D_SOLID";
+  readonly category: "CAD" | "BIM" | "CAE" | "3D_SOLID" | "REPORT";
 }
+
+const REBAR_GRADE_FY_MAP: Record<string, number> = {
+  BJTP_30: 300,
+  BJTS_40: 400,
+  BJTS_50: 500,
+  BJTS_60: 600,
+};
 
 const EXPORT_FORMATS: ExportFormatItem[] = [
   {
@@ -122,6 +131,14 @@ const EXPORT_FORMATS: ExportFormatItem[] = [
     description: "Mesh segitiga 3D balok melendut.",
     category: "3D_SOLID",
   },
+  {
+    id: "calculation-sheet",
+    name: "Nota Desain Balok (A4/PDF)",
+    extension: ".html",
+    targetSoftware: "Browser Print / Save as PDF",
+    description: "Lembar perhitungan struktur SNI siap cetak A4 & PDF.",
+    category: "REPORT",
+  },
 ];
 
 /**
@@ -156,13 +173,94 @@ export function ProfileAndModelExportModal({
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isReportMetaOpen, setIsReportMetaOpen] = useState<boolean>(false);
+  const [projectTitle, setProjectTitle] = useState<string>("");
+  const [beamMark, setBeamMark] = useState<string>("");
+  const [engineerName, setEngineerName] = useState<string>("");
+  const [verifierName, setVerifierName] = useState<string>("");
+  const [approverName, setApproverName] = useState<string>("");
+  const [loadCombination, setLoadCombination] = useState<string>("");
+  const [reportDate, setReportDate] = useState<string>("");
 
-  const handleTriggerExport = (item: ExportFormatItem): void => {
+  const handleTriggerExport = async (item: ExportFormatItem): Promise<void> => {
     setIsExporting(true);
     setDownloadSuccess(null);
     setErrorMessage(null);
 
     try {
+      if (item.id === "calculation-sheet") {
+        const isConcrete = store.materialKind === "CONCRETE";
+        const phiMn = isConcrete
+          ? store.concreteOptimizationResult?.flexure.designMomentPhiMn
+          : store.steelOptimizationResult?.bestCandidate.interaction.phiMnx;
+        const phiVn = isConcrete
+          ? store.concreteOptimizationResult?.shear.designShearPhiVn
+          : undefined;
+
+        const response = await fetch("/api/report/calculation-sheet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            calculationSheetInput: {
+              projectTitle: projectTitle.trim() || undefined,
+              beamMark: beamMark.trim() || undefined,
+              engineerName: engineerName.trim() || undefined,
+              verifierName: verifierName.trim() || undefined,
+              approverName: approverName.trim() || undefined,
+              loadCombination: loadCombination.trim() || undefined,
+              materialKind: store.materialKind,
+              spanLengthM: Number(store.spanLengthM),
+              unbracedLengthM: Number(store.steelUnbracedLengthLbM),
+              supportType: store.supportOrientation,
+              maxDeflectionMm: Number(store.maxDeflectionMm),
+              deflectionLimitDenominator: store.deflectionLimitDenominator,
+              governingMuKnm: Number(store.governingForces.absoluteMaxMux),
+              governingVuKn: Number(store.governingForces.absoluteMaxVu),
+              governingTuKnm: Number(store.governingForces.absoluteMaxTu),
+              governingPuKn: Number(store.governingForces.absoluteMaxPu),
+              steelProfileName:
+                store.selectedSteelProfileName ??
+                store.steelOptimizationResult?.bestCandidate.properties.name ??
+                undefined,
+              steelGrade: store.steelGrade,
+              concreteDimensions: isConcrete
+                ? {
+                    bwMm: Number(store.concreteBwMm),
+                    hMm: Number(store.concreteHMm),
+                    coverMm: Number(store.concreteCoverMm),
+                    fcMpa: Number(store.concreteFcMpa),
+                    fyMpa: REBAR_GRADE_FY_MAP[store.longitudinalRebarGrade] ?? 400,
+                  }
+                : undefined,
+              flexuralCapacityPhiMnKnm: phiMn !== undefined ? Number(phiMn) : undefined,
+              shearCapacityPhiVnKn: phiVn !== undefined ? Number(phiVn) : undefined,
+              dateIso: reportDate || new Date().toISOString(),
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} saat membuat Nota Desain.`);
+        }
+
+        const html = await response.text();
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const openedTab = window.open(url, "_blank", "noopener,noreferrer");
+
+        if (openedTab) {
+          setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          setDownloadSuccess(
+            "Nota Desain Balok dibuka di tab baru (klik Cetak / Simpan PDF untuk ekspor A4).",
+          );
+        } else {
+          URL.revokeObjectURL(url);
+          downloadFile(html, "nota-desain-balok.html", "text/html;charset=utf-8");
+          setDownloadSuccess("Pop-up diblokir; file nota-desain-balok.html berhasil diunduh.");
+        }
+        return;
+      }
+
       let fileName = "";
       switch (item.id) {
         case "dxf": {
@@ -234,7 +332,7 @@ export function ProfileAndModelExportModal({
       }}
     >
       <DialogContent
-        className="flex max-h-[90vh] flex-col p-6 sm:max-w-xl"
+        className="flex max-h-[90dvh] flex-col p-4 sm:max-w-xl sm:p-6"
         onPointerDown={(e) => e.stopPropagation()}
       >
         <DialogHeader>
@@ -248,7 +346,7 @@ export function ProfileAndModelExportModal({
         </DialogHeader>
 
         {/* List of Formats */}
-        <div className="grid max-h-80 grid-cols-2 gap-2.5 overflow-y-auto py-1">
+        <div className="grid max-h-80 grid-cols-1 gap-2.5 overflow-y-auto py-1 sm:grid-cols-2">
           {EXPORT_FORMATS.map((item) => {
             const isSelected = selectedFormat === item.id;
             return (
@@ -286,6 +384,113 @@ export function ProfileAndModelExportModal({
           })}
         </div>
 
+        {/* Optional collapsible customization for Calculation Sheet */}
+        {selectedFormat === "calculation-sheet" ? (
+          <div className="border-border/50 bg-muted/20 rounded-lg border">
+            <button
+              type="button"
+              onClick={() => setIsReportMetaOpen((prev) => !prev)}
+              className="text-foreground flex w-full items-center justify-between px-3 py-2 text-left text-xs font-medium"
+            >
+              <span>Kustomisasi Nota Desain (Opsional)</span>
+              <ChevronDownIcon
+                className={cn(
+                  "text-muted-foreground size-4 transition-transform",
+                  isReportMetaOpen && "rotate-180",
+                )}
+              />
+            </button>
+            {isReportMetaOpen ? (
+              <div className="border-border/40 grid grid-cols-1 gap-2.5 border-t px-3 py-2.5 sm:grid-cols-2">
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="calc-project-title" className="text-[11px]">
+                    Nama Proyek
+                  </Label>
+                  <Input
+                    id="calc-project-title"
+                    value={projectTitle}
+                    onChange={(e) => setProjectTitle(e.target.value)}
+                    placeholder="Gedung Kantor Bertingkat IBDS - Paket A"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="calc-beam-mark" className="text-[11px]">
+                    Mark Balok
+                  </Label>
+                  <Input
+                    id="calc-beam-mark"
+                    value={beamMark}
+                    onChange={(e) => setBeamMark(e.target.value)}
+                    placeholder="B-101 (Balok Induk Lantai)"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="calc-load-combo" className="text-[11px]">
+                    Kombinasi Beban
+                  </Label>
+                  <Input
+                    id="calc-load-combo"
+                    value={loadCombination}
+                    onChange={(e) => setLoadCombination(e.target.value)}
+                    placeholder="1.2D + 1.6L"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="calc-engineer-name" className="text-[11px]">
+                    Perancang (Diajukan Oleh)
+                  </Label>
+                  <Input
+                    id="calc-engineer-name"
+                    value={engineerName}
+                    onChange={(e) => setEngineerName(e.target.value)}
+                    placeholder="IBDS Structural Engine"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="calc-report-date" className="text-[11px]">
+                    Tanggal Laporan
+                  </Label>
+                  <Input
+                    id="calc-report-date"
+                    type="date"
+                    value={reportDate}
+                    onChange={(e) => setReportDate(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="calc-verifier-name" className="text-[11px]">
+                    Diverifikasi Oleh
+                  </Label>
+                  <Input
+                    id="calc-verifier-name"
+                    value={verifierName}
+                    onChange={(e) => setVerifierName(e.target.value)}
+                    placeholder="Lead Structural Engineer"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="calc-approver-name" className="text-[11px]">
+                    Disetujui Oleh
+                  </Label>
+                  <Input
+                    id="calc-approver-name"
+                    value={approverName}
+                    onChange={(e) => setApproverName(e.target.value)}
+                    placeholder="Project Director"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* Success / Feedback notice */}
         {downloadSuccess ? (
           <Alert className="border-emerald-500/40 bg-emerald-500/10 py-2 text-emerald-400">
@@ -314,13 +519,15 @@ export function ProfileAndModelExportModal({
             disabled={isExporting}
             onClick={() => {
               const item = EXPORT_FORMATS.find((f) => f.id === selectedFormat);
-              if (item) handleTriggerExport(item);
+              if (item) void handleTriggerExport(item);
             }}
           >
             {isExporting ? (
               <>
                 <Spinner data-icon="inline-start" /> Memproses Ekspor…
               </>
+            ) : selectedFormat === "calculation-sheet" ? (
+              "Buka Nota Desain"
             ) : (
               "Unduh File Pilihan"
             )}

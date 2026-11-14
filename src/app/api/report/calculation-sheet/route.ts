@@ -6,7 +6,41 @@
  * SVG diagram visualizations, and clear ULS (Strength) & SLS (Deflection) compliance matrices.
  */
 
+import katex from "katex";
+
 import type { BeamSimulatorState } from "@/state/beam-simulator-store";
+
+/**
+ * Renders a LaTeX math expression to HTML+MathML using KaTeX.
+ *
+ * @param {string} formula LaTeX expression.
+ * @param {boolean} displayMode Whether to render in display mode.
+ * @returns {string} Rendered HTML string.
+ */
+function tex(formula: string, displayMode = false): string {
+  return katex.renderToString(formula, {
+    displayMode,
+    throwOnError: false,
+    strict: false,
+  });
+}
+
+function escapeHtml(raw: string): string {
+  return raw
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+const STEEL_GRADE_STRENGTH_MAP: Record<string, { fy: number; fu: number }> = {
+  BJ_34: { fy: 210, fu: 340 },
+  BJ_37: { fy: 240, fu: 370 },
+  BJ_41: { fy: 250, fu: 410 },
+  BJ_50: { fy: 290, fu: 500 },
+  BJ_55: { fy: 410, fu: 550 },
+};
 
 /**
  * Input parameters for generating a calculation sheet.
@@ -15,9 +49,13 @@ export interface CalculationSheetInput {
   readonly projectTitle?: string;
   readonly beamMark?: string;
   readonly engineerName?: string;
+  readonly verifierName?: string;
+  readonly approverName?: string;
   readonly dateIso?: string;
+  readonly loadCombination?: string;
   readonly materialKind?: "CONCRETE" | "STEEL";
   readonly spanLengthM?: number;
+  readonly unbracedLengthM?: number;
   readonly supportType?: string;
   readonly maxDeflectionMm?: number;
   readonly deflectionLimitDenominator?: number;
@@ -27,6 +65,9 @@ export interface CalculationSheetInput {
   readonly governingPuKn?: number;
   readonly steelProfileName?: string;
   readonly steelGrade?: string;
+  readonly steelFyMpa?: number;
+  readonly steelFuMpa?: number;
+  readonly elasticModulusMpa?: number;
   readonly concreteDimensions?: {
     readonly bwMm: number;
     readonly hMm: number;
@@ -45,9 +86,14 @@ export interface CalculationSheetInput {
  * @returns {string} Fully self-contained HTML document.
  */
 export function generateCalculationSheetHtml(input: CalculationSheetInput): string {
-  const project = input.projectTitle ?? "Gedung Kantor Bertingkat IBDS - Paket A";
-  const mark = input.beamMark ?? "B-101 (Balok Induk Lantai)";
-  const engineer = input.engineerName ?? "Antigravity Structural Engine";
+  const project = escapeHtml(
+    input.projectTitle?.trim() || "Gedung Kantor Bertingkat IBDS - Paket A",
+  );
+  const mark = escapeHtml(input.beamMark?.trim() || "B-101 (Balok Induk Lantai)");
+  const engineer = escapeHtml(input.engineerName?.trim() || "IBDS Structural Engine");
+  const verifier = escapeHtml(input.verifierName?.trim() || "Lead Structural Engineer");
+  const approver = escapeHtml(input.approverName?.trim() || "Project Director");
+  const loadCombo = escapeHtml(input.loadCombination?.trim() || "1.2D + 1.6L");
   const dateStr = input.dateIso
     ? new Date(input.dateIso).toLocaleDateString("id-ID", {
         day: "2-digit",
@@ -58,7 +104,14 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
 
   const isConcrete = input.materialKind === "CONCRETE";
   const span = input.spanLengthM ?? 6.0;
-  const support = input.supportType ?? "Sendi - Rol (Simply Supported)";
+  const unbracedLength = input.unbracedLengthM ?? span;
+  const support = escapeHtml(input.supportType?.trim() || "Sendi - Rol (Simply Supported)");
+  const steelGradeKey = input.steelGrade?.trim() || "BJ_37";
+  const mappedSteel = STEEL_GRADE_STRENGTH_MAP[steelGradeKey] ?? { fy: 240, fu: 370 };
+  const steelFy = input.steelFyMpa ?? mappedSteel.fy;
+  const steelFu = input.steelFuMpa ?? mappedSteel.fu;
+  const elasticModulus = input.elasticModulusMpa ?? 200_000;
+  const steelProfile = escapeHtml(input.steelProfileName?.trim() || "IWF 300x150x6.5x9");
   const defl = Math.abs(input.maxDeflectionMm ?? 12.4);
   const denom = input.deflectionLimitDenominator ?? 360;
   const allowDefl = (span * 1000) / denom;
@@ -85,6 +138,7 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calculation Sheet - ${mark}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.css" crossorigin="anonymous">
   <style>
     :root {
       --primary: #0F172A;
@@ -273,7 +327,7 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
       </tr>
       <tr>
         <td>Panjang Bentang Balok</td>
-        <td class="mono">L</td>
+        <td>${tex("L")}</td>
         <td class="mono"><strong>${span.toFixed(2)}</strong></td>
         <td>meter</td>
       </tr>
@@ -285,8 +339,8 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
       </tr>
       <tr>
         <td>Pengekangan Lateral Balok</td>
-        <td class="mono">L_b</td>
-        <td class="mono">${span.toFixed(2)}</td>
+        <td>${tex("L_b")}</td>
+        <td class="mono">${unbracedLength.toFixed(2)}</td>
         <td>meter</td>
       </tr>
     </table>
@@ -305,25 +359,25 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
           ? `
       <tr>
         <td>Dimensi Balok (Lebar x Tinggi)</td>
-        <td class="mono">b_w x h</td>
-        <td class="mono">${input.concreteDimensions?.bwMm ?? 300} x ${input.concreteDimensions?.hMm ?? 600}</td>
+        <td>${tex("b_w \\times h")}</td>
+        <td class="mono">${input.concreteDimensions?.bwMm ?? 300} &times; ${input.concreteDimensions?.hMm ?? 600}</td>
         <td>mm</td>
       </tr>
       <tr>
         <td>Kuat Tekan Silinder Beton</td>
-        <td class="mono">f'_c</td>
+        <td>${tex("f'_c")}</td>
         <td class="mono">${input.concreteDimensions?.fcMpa ?? 30.0}</td>
         <td>MPa</td>
       </tr>
       <tr>
         <td>Tegangan Leleh Tulangan Utama</td>
-        <td class="mono">f_y</td>
+        <td>${tex("f_y")}</td>
         <td class="mono">${input.concreteDimensions?.fyMpa ?? 420.0}</td>
         <td>MPa</td>
       </tr>
       <tr>
         <td>Tebal Selimut Bersih Beton</td>
-        <td class="mono">c_c</td>
+        <td>${tex("c_c")}</td>
         <td class="mono">${input.concreteDimensions?.coverMm ?? 40.0}</td>
         <td>mm</td>
       </tr>
@@ -332,19 +386,19 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
       <tr>
         <td>Profil Baja Aktif</td>
         <td class="mono">-</td>
-        <td class="mono"><strong>${input.steelProfileName ?? "IWF 300x150x6.5x9"}</strong></td>
+        <td class="mono"><strong>${steelProfile}</strong></td>
         <td>-</td>
       </tr>
       <tr>
         <td>Mutu Baja Struktural</td>
         <td class="mono">-</td>
-        <td class="mono">${input.steelGrade ?? "BJ_37"} (F_y = 240 MPa, F_u = 370 MPa)</td>
+        <td><span class="mono">${escapeHtml(steelGradeKey)}</span> (${tex(`F_y = ${steelFy}\\text{ MPa},\\; F_u = ${steelFu}\\text{ MPa}`)})</td>
         <td>-</td>
       </tr>
       <tr>
         <td>Modulus Elastisitas Baja</td>
-        <td class="mono">E</td>
-        <td class="mono">200,000</td>
+        <td>${tex("E")}</td>
+        <td class="mono">${elasticModulus.toLocaleString("en-US")}</td>
         <td>MPa</td>
       </tr>
       `
@@ -363,31 +417,31 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
       </tr>
       <tr>
         <td>Momen Lentur Maksimum</td>
-        <td class="mono">M_u</td>
+        <td>${tex("M_u")}</td>
         <td class="mono"><strong>${mu.toFixed(2)}</strong></td>
         <td>kNm</td>
-        <td>1.2D + 1.6L</td>
+        <td>${loadCombo}</td>
       </tr>
       <tr>
         <td>Gaya Geser Maksimum</td>
-        <td class="mono">V_u</td>
+        <td>${tex("V_u")}</td>
         <td class="mono"><strong>${vu.toFixed(2)}</strong></td>
         <td>kN</td>
-        <td>1.2D + 1.6L</td>
+        <td>${loadCombo}</td>
       </tr>
       <tr>
         <td>Momen Puntir Torsi</td>
-        <td class="mono">T_u</td>
+        <td>${tex("T_u")}</td>
         <td class="mono">${tu.toFixed(2)}</td>
         <td>kNm</td>
-        <td>1.2D + 1.6L</td>
+        <td>${loadCombo}</td>
       </tr>
       <tr>
-        <td>Gaya Aksial Aksial</td>
-        <td class="mono">P_u</td>
+        <td>Gaya Aksial</td>
+        <td>${tex("P_u")}</td>
         <td class="mono">${pu.toFixed(2)}</td>
         <td>kN</td>
-        <td>1.2D + 1.6L</td>
+        <td>${loadCombo}</td>
       </tr>
     </table>
 
@@ -403,15 +457,15 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
       </tr>
       <tr>
         <td>Kapasitas Lentur Penampang</td>
-        <td class="mono">M_u = ${mu.toFixed(1)} kNm</td>
-        <td class="mono">&phi;M_n = ${phiMn.toFixed(1)} kNm</td>
+        <td>${tex(`M_u = ${mu.toFixed(1)}\\text{ kNm}`)}</td>
+        <td>${tex(`\\phi M_n = ${phiMn.toFixed(1)}\\text{ kNm}`)}</td>
         <td class="mono"><strong>${dcrFlexure.toFixed(3)}</strong></td>
         <td><span class="badge ${dcrFlexure <= 1.0 ? "badge-ok" : "badge-fail"}">${dcrFlexure <= 1.0 ? "MEMENUHI" : "OVERSTRESS"}</span></td>
       </tr>
       <tr>
         <td>Kapasitas Geser Penampang</td>
-        <td class="mono">V_u = ${vu.toFixed(1)} kN</td>
-        <td class="mono">&phi;V_n = ${phiVn.toFixed(1)} kN</td>
+        <td>${tex(`V_u = ${vu.toFixed(1)}\\text{ kN}`)}</td>
+        <td>${tex(`\\phi V_n = ${phiVn.toFixed(1)}\\text{ kN}`)}</td>
         <td class="mono"><strong>${dcrShear.toFixed(3)}</strong></td>
         <td><span class="badge ${dcrShear <= 1.0 ? "badge-ok" : "badge-fail"}">${dcrShear <= 1.0 ? "MEMENUHI" : "OVERSTRESS"}</span></td>
       </tr>
@@ -429,16 +483,16 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
       </tr>
       <tr>
         <td>Lendutan Elastis Maksimum</td>
-        <td class="mono">&Delta;_max</td>
-        <td class="mono"><strong>-${defl.toFixed(2)} mm</strong></td>
-        <td class="mono">L / ${denom} = ${allowDefl.toFixed(2)} mm</td>
+        <td>${tex("\\Delta_{\\max}")}</td>
+        <td><strong>${tex(`-${defl.toFixed(2)}\\text{ mm}`)}</strong></td>
+        <td>${tex(`\\frac{L}{${denom}} = ${allowDefl.toFixed(2)}\\text{ mm}`)}</td>
         <td><span class="badge ${deflPass ? "badge-ok" : "badge-fail"}">${deflPass ? "MEMENUHI (PASS)" : "OVERDEFLECTION"}</span></td>
       </tr>
       <tr>
         <td>Persentase Terhadap Batas Izin</td>
         <td class="mono">% Lendutan</td>
         <td class="mono">${deflRatio.toFixed(1)}%</td>
-        <td class="mono">&le; 100.0%</td>
+        <td>${tex("\\le 100.0\\%")}</td>
         <td><span class="badge ${deflPass ? "badge-ok" : "badge-fail"}">${deflPass ? "AMAN" : "REVISI"}</span></td>
       </tr>
     </table>
@@ -467,17 +521,17 @@ export function generateCalculationSheetHtml(input: CalculationSheetInput): stri
       <div class="sig-col">
         <div>Diajukan Oleh:</div>
         <div class="sig-space"></div>
-        <div><strong>Structural Engineer</strong></div>
+        <div><strong>${engineer}</strong></div>
       </div>
       <div class="sig-col">
         <div>Diverifikasi Oleh:</div>
         <div class="sig-space"></div>
-        <div><strong>Lead Structural Engineer</strong></div>
+        <div><strong>${verifier}</strong></div>
       </div>
       <div class="sig-col">
         <div>Disetujui Oleh:</div>
         <div class="sig-space"></div>
-        <div><strong>Project Director</strong></div>
+        <div><strong>${approver}</strong></div>
       </div>
     </div>
   </div>

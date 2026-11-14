@@ -70,12 +70,12 @@ export function CustomEpochVisitorFlexBadge({
       role="status"
       aria-label={formattedBadge}
       className={cn(
-        "border-border/60 bg-card text-foreground hover:bg-muted/50 inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 font-mono text-[11px] shadow-md transition-all select-none",
+        "border-border/60 bg-card text-foreground hover:bg-muted/50 inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10px] shadow-md transition-all select-none sm:gap-2 sm:px-3 sm:text-[11px]",
         className,
       )}
     >
       {/* Pulsing indicator dot */}
-      <span className="relative flex size-2">
+      <span className="relative flex size-2 shrink-0">
         <span
           className={cn(
             "absolute inline-flex size-full animate-ping rounded-full opacity-75",
@@ -91,7 +91,7 @@ export function CustomEpochVisitorFlexBadge({
       </span>
 
       {/* Badge Text */}
-      <span className="font-semibold tracking-wide">
+      <span className="min-w-0 truncate font-semibold tracking-wide">
         {isLoading && !visitorCount ? "Mengambil data..." : formattedBadge}
       </span>
 
@@ -100,7 +100,7 @@ export function CustomEpochVisitorFlexBadge({
         type="button"
         aria-label="Refresh visitor count"
         onClick={handleManualRefresh}
-        className="text-muted-foreground hover:text-foreground ml-0.5 inline-flex cursor-pointer items-center justify-center p-0 transition-colors"
+        className="text-muted-foreground hover:text-foreground ml-0.5 inline-flex shrink-0 cursor-pointer items-center justify-center p-0 transition-colors"
       >
         <svg
           width="12"

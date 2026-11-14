@@ -128,11 +128,11 @@ export function SteelOptimizationRankingTable({
   const props = bestCandidate.properties;
 
   return (
-    <div className="flex flex-col gap-2.5 text-xs">
+    <div className="flex min-w-0 flex-col gap-2.5 text-xs">
       {/* 1. Header Rekomendasi Teratas */}
-      <Card size="sm" className="border-border/40 bg-card/60">
-        <CardContent className="flex items-center justify-between p-2.5">
-          <div>
+      <Card size="sm" className="border-border/50 bg-card/95 min-w-0">
+        <CardContent className="flex items-start justify-between gap-2 p-2.5">
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground text-[10px] font-medium">
                 PROFIL TERPILIH (SNI 1729)
@@ -169,9 +169,11 @@ export function SteelOptimizationRankingTable({
             </div>
           </div>
 
-          <div className="text-right">
-            <span className="text-muted-foreground text-[10px] font-medium">EFISIENSI DCR</span>
-            <div className="mt-0.5">
+          <div className="shrink-0 text-right">
+            <span className="text-muted-foreground text-[10px] font-medium whitespace-nowrap">
+              EFISIENSI DCR
+            </span>
+            <div className="mt-0.5 flex justify-end">
               <Badge
                 variant={Number(bestCandidate.governingDcr) <= 1.0 ? "secondary" : "destructive"}
                 className={cn(
@@ -200,7 +202,7 @@ export function SteelOptimizationRankingTable({
       </Card>
 
       {/* 2. Potongan SVG 2D Profil Baja */}
-      <div className="flex justify-center py-1">
+      <div className="flex justify-center py-0.5">
         <SteelProfileCrossSectionSvg
           profileType={result.profileType}
           profileName={props.name}
@@ -216,7 +218,7 @@ export function SteelOptimizationRankingTable({
       </div>
 
       {/* 3. Detail Kapasitas & Evaluasi Kelangsingan */}
-      <Card size="sm" className="border-border/40 bg-card/60">
+      <Card size="sm" className="border-border/50 bg-card/95 min-w-0">
         <CardContent className="flex flex-col gap-1 p-2.5 text-[11px] leading-relaxed">
           <div>
             • Klasifikasi Penampang:{" "}
@@ -248,29 +250,29 @@ export function SteelOptimizationRankingTable({
       </Card>
 
       {/* 4. Tabel Peringkat Kandidat (Klik baris untuk memilih profil) */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-[10px] font-semibold">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+          <span className="text-muted-foreground min-w-0 text-[10px] font-semibold">
             Peringkat Profil Ekonomis (Klik baris untuk pilih):
           </span>
-          <span className="text-muted-foreground text-[10px]">
+          <span className="text-muted-foreground shrink-0 text-[10px] whitespace-nowrap">
             {compliantCandidates.length} lulus (dari {result.evaluatedCount} diuji)
           </span>
         </div>
-        <ScrollArea className="border-border/40 h-32 w-full rounded-md border">
+        <ScrollArea className="border-border/50 bg-card/85 h-44 w-full min-w-0 rounded-md border sm:h-40">
           <Table className="text-[10px]">
             <TableHeader>
               <TableRow className="border-border/30 hover:bg-transparent">
-                <TableHead className="text-muted-foreground h-7 px-2 text-left text-[10px]">
+                <TableHead className="text-muted-foreground h-7 px-1.5 text-left text-[10px] sm:px-2">
                   Profil
                 </TableHead>
-                <TableHead className="text-muted-foreground h-7 px-2 text-right text-[10px]">
+                <TableHead className="text-muted-foreground h-7 px-1.5 text-right text-[10px] sm:px-2">
                   DCR
                 </TableHead>
-                <TableHead className="text-muted-foreground h-7 px-2 text-right text-[10px]">
+                <TableHead className="text-muted-foreground h-7 px-1.5 text-right text-[10px] sm:px-2">
                   Berat
                 </TableHead>
-                <TableHead className="text-muted-foreground h-7 px-2 text-center text-[10px]">
+                <TableHead className="text-muted-foreground h-7 px-1.5 text-center text-[10px] sm:px-2">
                   Status
                 </TableHead>
               </TableRow>
@@ -291,7 +293,7 @@ export function SteelOptimizationRankingTable({
                       isSelected && "bg-sky-500/15 font-bold",
                     )}
                   >
-                    <TableCell className="text-foreground px-2 py-1 font-semibold">
+                    <TableCell className="text-foreground px-1.5 py-1.5 font-semibold sm:px-2">
                       <div className="flex items-center gap-1">
                         <span>
                           {isSelected ? "▸ " : ""}
@@ -307,17 +309,17 @@ export function SteelOptimizationRankingTable({
                         ) : null}
                       </div>
                     </TableCell>
-                    <TableCell className="px-2 py-1 text-right font-mono">
+                    <TableCell className="px-1.5 py-1.5 text-right font-mono sm:px-2">
                       {(Number(c.governingDcr) * 100).toFixed(1)}%
                     </TableCell>
-                    <TableCell className="text-muted-foreground px-2 py-1 text-right font-mono">
+                    <TableCell className="text-muted-foreground px-1.5 py-1.5 text-right font-mono sm:px-2">
                       {Number(c.properties.unitWeightKgPerM).toFixed(1)} kg/m
                     </TableCell>
-                    <TableCell className="px-2 py-1 text-center">
+                    <TableCell className="px-1.5 py-1.5 text-center sm:px-2">
                       <Badge
                         variant={c.status === "OPTIMAL" ? "default" : "secondary"}
                         className={cn(
-                          "h-4 px-1.5 py-0 text-[9px] font-medium",
+                          "h-4 px-1 py-0 text-[8px] font-medium sm:px-1.5 sm:text-[9px]",
                           c.status === "OPTIMAL"
                             ? "border border-emerald-500/30 bg-emerald-500/20 text-emerald-400"
                             : "text-muted-foreground",
@@ -339,7 +341,7 @@ export function SteelOptimizationRankingTable({
         <Button
           type="button"
           onClick={onOpenExportModal}
-          className="mt-1 w-full bg-linear-to-r from-cyan-500 to-blue-600 font-bold text-white shadow-sm hover:from-cyan-600 hover:to-blue-700"
+          className="mt-1 h-auto min-h-9 w-full bg-linear-to-r from-cyan-500 to-blue-600 py-2 text-center leading-snug font-bold whitespace-normal text-white shadow-sm hover:from-cyan-600 hover:to-blue-700"
         >
           📦 Ekspor CAD (.dxf), SAP2000 (.s2k), & STEP (.step)
         </Button>

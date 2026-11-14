@@ -168,15 +168,15 @@ export function ExternalLoadInteractiveForm(): ReactElement {
           {pointLoads.map((pl, idx) => (
             <div
               key={pl.id}
-              className="bg-muted/30 border-border/30 flex items-center gap-1.5 rounded-lg border p-1.5"
+              className="bg-muted/30 border-border/30 flex flex-wrap items-center gap-1.5 rounded-lg border p-1.5 sm:flex-nowrap"
             >
               <Badge
                 variant="outline"
-                className="h-5 border-red-500/30 px-1.5 py-0 font-bold text-red-400"
+                className="h-5 shrink-0 border-red-500/30 px-1.5 py-0 font-bold text-red-400"
               >
                 {pl.id}
               </Badge>
-              <InputGroup className="w-24">
+              <InputGroup className="min-w-[5.25rem] flex-1 sm:w-24 sm:flex-none">
                 <InputGroupInput
                   type="number"
                   value={Number(pl.magnitude)}
@@ -187,7 +187,7 @@ export function ExternalLoadInteractiveForm(): ReactElement {
                 <InputGroupAddon align="inline-end">kN</InputGroupAddon>
               </InputGroup>
 
-              <InputGroup className="w-28">
+              <InputGroup className="min-w-[6rem] flex-1 sm:w-28 sm:flex-none">
                 <InputGroupAddon align="inline-start">x=</InputGroupAddon>
                 <InputGroupInput
                   type="number"
@@ -209,7 +209,7 @@ export function ExternalLoadInteractiveForm(): ReactElement {
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => handleRemovePointLoad(idx)}
-                className="text-muted-foreground hover:text-destructive ml-auto"
+                className="text-muted-foreground hover:text-destructive ml-auto shrink-0"
               >
                 <XIcon />
               </Button>
@@ -237,15 +237,15 @@ export function ExternalLoadInteractiveForm(): ReactElement {
           {distributedLoads.map((dl, idx) => (
             <div
               key={dl.id}
-              className="bg-muted/30 border-border/30 flex items-center gap-1.5 rounded-lg border p-1.5"
+              className="bg-muted/30 border-border/30 flex flex-wrap items-center gap-1.5 rounded-lg border p-1.5 sm:flex-nowrap"
             >
               <Badge
                 variant="outline"
-                className="h-5 border-emerald-500/30 px-1.5 py-0 font-bold text-emerald-400"
+                className="h-5 shrink-0 border-emerald-500/30 px-1.5 py-0 font-bold text-emerald-400"
               >
                 {dl.id}
               </Badge>
-              <InputGroup className="flex-1">
+              <InputGroup className="min-w-[7rem] flex-1">
                 <InputGroupInput
                   type="number"
                   value={Number(dl.magnitude)}
@@ -269,7 +269,7 @@ export function ExternalLoadInteractiveForm(): ReactElement {
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => handleRemoveDistLoad(idx)}
-                className="text-muted-foreground hover:text-destructive ml-auto"
+                className="text-muted-foreground hover:text-destructive ml-auto shrink-0"
               >
                 <XIcon />
               </Button>

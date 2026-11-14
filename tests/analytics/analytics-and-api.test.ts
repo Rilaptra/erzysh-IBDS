@@ -585,6 +585,32 @@ describe("Step 7: Structural Calculation Sheet Generator Tests", () => {
     expect(html).toContain("IWF 450x200x9x14");
     expect(html).toContain("9.00");
   });
+
+  it("supports customizable metadata, load combination, steel grade strengths, and HTML escaping", () => {
+    const html = generateCalculationSheetHtml({
+      projectTitle: "Jembatan <Utama> & Tol",
+      beamMark: "B-202",
+      engineerName: "Ir. Budi",
+      verifierName: "Dr. Ani",
+      approverName: "Direktur Proyek",
+      loadCombination: "1.4D",
+      materialKind: "STEEL",
+      spanLengthM: 8.0,
+      unbracedLengthM: 4.0,
+      steelGrade: "BJ_50",
+    });
+
+    expect(html).toContain("Jembatan &lt;Utama&gt; &amp; Tol");
+    expect(html).toContain("B-202");
+    expect(html).toContain("Ir. Budi");
+    expect(html).toContain("Dr. Ani");
+    expect(html).toContain("Direktur Proyek");
+    expect(html).toContain("1.4D");
+    expect(html).toContain("4.00");
+    expect(html).toContain("BJ_50");
+    expect(html).toContain("290");
+    expect(html).toContain("500");
+  });
 });
 
 // ============================================================================
