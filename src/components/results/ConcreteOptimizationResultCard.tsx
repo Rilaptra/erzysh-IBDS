@@ -133,6 +133,7 @@ export function ConcreteOptimizationResultCard({
       {onOpenExportModal ? (
         <Button
           type="button"
+          data-tutorial-export-trigger="true"
           onClick={onOpenExportModal}
           className="mt-1 h-auto min-h-9 w-full bg-linear-to-r from-cyan-500 to-blue-600 py-2 text-center leading-snug font-bold whitespace-normal text-white shadow-sm hover:from-cyan-600 hover:to-blue-700"
         >

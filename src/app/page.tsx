@@ -4,6 +4,7 @@ import {
   Building2Icon,
   ExternalLinkIcon,
   FileTextIcon,
+  Gamepad2Icon,
   HandIcon,
   MicIcon,
   RulerIcon,
@@ -120,6 +121,11 @@ export default function LandingPage() {
               <a href="#fitur">Fitur</a>
             </Button>
             <Button asChild variant="ghost" size="sm" className="hidden text-[11px] sm:inline-flex">
+              <Link href="/simulator?tutorial=1" prefetch={false}>
+                Tutorial
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="hidden text-[11px] sm:inline-flex">
               <Link href="/changelog" prefetch={false}>
                 Changelog
               </Link>
@@ -227,6 +233,24 @@ export default function LandingPage() {
                           className="transition-transform duration-200 group-hover:translate-x-0.5"
                           aria-hidden
                         />
+                      </Link>
+                    </Button>
+                  </div>
+                  <div data-hero="cta">
+                    <Button
+                      data-hero="cta-secondary"
+                      asChild
+                      size="lg"
+                      variant="outline"
+                      className="border-cyan-500/35 bg-cyan-950/35 px-3.5 font-semibold text-cyan-200 transition-colors hover:border-cyan-400/70 hover:bg-cyan-500/15 hover:text-cyan-100"
+                    >
+                      <Link
+                        href="/simulator?tutorial=1"
+                        prefetch={false}
+                        className="flex items-center gap-1.5"
+                      >
+                        <Gamepad2Icon className="size-4 text-cyan-300" aria-hidden />
+                        <span>Tutorial Interaktif</span>
                       </Link>
                     </Button>
                   </div>

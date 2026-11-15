@@ -419,6 +419,18 @@ export const beamSimulatorActions = {
     emitChange();
   },
 
+  setDiagramVisibility(diagram: keyof DiagramVisibilityFlags, visible: boolean): void {
+    if (currentState.visibleDiagrams[diagram] === visible) return;
+    currentState = {
+      ...currentState,
+      visibleDiagrams: {
+        ...currentState.visibleDiagrams,
+        [diagram]: visible,
+      },
+    };
+    emitChange();
+  },
+
   setDeflectionLimitDenominator(denominator: 180 | 240 | 360 | 480): void {
     currentState = { ...currentState, deflectionLimitDenominator: denominator };
     emitChange();

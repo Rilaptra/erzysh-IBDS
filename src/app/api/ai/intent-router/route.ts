@@ -9,7 +9,11 @@
  */
 
 import { appConfig } from "@/config/app-config";
-import { generateContextualSuggestions, matchRuleBasedIntent } from "@/lib/command-matcher";
+import {
+  generateContextualSuggestions,
+  isConversationalQuestion,
+  matchRuleBasedIntent,
+} from "@/lib/command-matcher";
 import { executeGeminiWithFailover } from "@/lib/gemini-api-failover";
 import type {
   CommandId,
@@ -70,7 +74,7 @@ DAFTAR COMMAND ID YANG TERSEDIA:
   * SET_CONCRETE_FC (params: fcMpa: number)
   * SET_CONCRETE_DIMENSIONS (params: bwMm: number, hMm: number)
 - DIAGRAM GAYA DALAM:
-  * TOGGLE_DIAGRAM_BMD, TOGGLE_DIAGRAM_SFD, TOGGLE_DIAGRAM_NFD, TOGGLE_DIAGRAM_TFD
+  * TOGGLE_DIAGRAM_BMD, TOGGLE_DIAGRAM_SFD, TOGGLE_DIAGRAM_NFD, TOGGLE_DIAGRAM_TFD (params opsional: { visibilityAction: "SHOW" | "HIDE" | "TOGGLE" })
   * SET_DIAGRAM_MODE_IN_PLACE, SET_DIAGRAM_MODE_STACKED, SET_DIAGRAM_MODE_WINDOW
 - TUMPUAN:
   * SET_SUPPORT_PINNED_ROLLER (sendi-rol), SET_SUPPORT_FIXED_ROLLER (jepit-rol), SET_SUPPORT_FIXED_FIXED (jepit-jepit), SET_SUPPORT_FIXED_PINNED (jepit-sendi), SET_SUPPORT_CANTILEVER (kantilever)
@@ -99,11 +103,12 @@ DAFTAR COMMAND ID YANG TERSEDIA:
   * AI_CONSULTATION (Gunakan jika pengguna bertanya siapa kamu, tanya tentang aplikasi ini/fiturnya, konsultasi lendutan/balok/SNI, atau menyapa).
 
 TUGAS ANDA:
-1. Identifikasi maksud pengguna:
-   - Jika pengguna memberi perintah simulator: petakan ke CommandId yang paling cocok.
-   - Jika pengguna bertanya siapa kamu, tanya tentang aplikasi IBDS atau fiturnya, konsultasi teknik, atau menyapa: petakan ke "AI_CONSULTATION", dan isi "spokenConfirmation" dengan jawaban lisan khas Ucuy yang ramah, cerdas, dan ringkas (maksimal 25 kata) agar nyaman didengar di audio Gemini Live.
-2. DUKUNGAN MULTI-COMMAND: Jika ada beberapa perintah dalam satu kalimat, masukkan semua aksi ke dalam array "actions" secara berurutan.
-3. Buat "spokenConfirmation": 1 kalimat padat, natural, ramah, khas Ucuy dalam Bahasa Indonesia.
+1. Identifikasi maksud pengguna dengan AKURAT (bedakan PERTANYAAN vs PERINTAH AKSI):
+   - Jika pengguna bertanya cara melakukan sesuatu (misal: "gimana cara menghilangkan BMD", "bagaimana cara ekspor DXF", "cara pakai fitur ini"), bertanya siapa kamu, bertanya tentang aplikasi IBDS, konsultasi teknik, atau menyapa: WAJIB petakan ke "AI_CONSULTATION" (JANGAN eksekusi command yang mengubah UI/diagram!), dan isi "spokenConfirmation" dengan jawaban panduan singkat khas Ucuy (maksimal 25 kata) agar nyaman didengar di audio Gemini Live.
+   - Jika pengguna memberi PERINTAH langsung ke simulator: petakan ke CommandId yang paling cocok.
+   - ATURAN KETAT STATUS AKTIF / NONAKTIF: Untuk perintah toggle diagram/fitur (misal "hilangkan BMD", "sembunyikan SFD", "matikan NFD"), wajib isi extractedParameters { "visibilityAction": "HIDE" } dan ucapkan konfirmasi bahwa diagram DINONAKTIFKAN / DISEMBUNYIKAN (JANGAN pernah menyebut "diaktifkan"!). Sebaliknya untuk menampilkan/mengaktifkan, isi { "visibilityAction": "SHOW" }. Selalu cocokkan polaritas konfirmasi dengan visibleDiagrams / state pada "State Saat Ini".
+2. DUKUNGAN MULTI-COMMAND: Jika ada beberapa perintah aksi dalam satu kalimat, masukkan semua aksi ke dalam array "actions" secara berurutan.
+3. Buat "spokenConfirmation": 1 kalimat padat, natural, ramah, AKURAT terhadap polaritas aksi (aktif vs nonaktif) dalam Bahasa Indonesia.
 4. Buat "suggestions": TEPAT 3 sampai 4 rekomendasi perintah lanjutan yang fluid, cerdas, kontekstual, dan bervariasi dalam Bahasa Indonesia agar pengguna tinggal klik tanpa perlu menghafal perintah.
 
 OUTPUT FORMAT JSON SAJA:
@@ -288,11 +293,30 @@ export async function POST(req: Request): Promise<Response> {
         "Buka jendela beban balok",
         "Tampilkan diagram geser SFD",
       ];
+    }
+
+    const mentionsDiagram =
+      lower.includes("bmd") ||
+      lower.includes("sfd") ||
+      lower.includes("nfd") ||
+      lower.includes("tfd") ||
+      lower.includes("diagram") ||
+      lower.includes("momen") ||
+      lower.includes("geser");
+
+    if (mentionsDiagram) {
+      fallbackSuggestions = [
+        "Sembunyikan diagram momen BMD",
+        "Tampilkan diagram momen BMD",
+        "Sembunyikan diagram geser SFD",
+        "Buka jendela diagram",
+      ];
     } else if (
       lower.includes("lendut") ||
       lower.includes("merah") ||
       lower.includes("aman") ||
       lower.includes("kenapa") ||
+      lower.includes("gimana") ||
       lower.includes("bagaimana") ||
       lower.includes("apa")
     ) {
@@ -305,22 +329,26 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const isQuestion =
+      isConversationalQuestion(transcript) ||
       lower.includes("kenapa") ||
+      lower.includes("gimana") ||
       lower.includes("bagaimana") ||
       lower.includes("apa") ||
       lower.includes("mengapa") ||
       lower.includes("bisa") ||
       lower.includes("saran");
 
+    const fallbackAnswer = mentionsDiagram
+      ? "Untuk menampilkan atau menyembunyikan diagram BMD, SFD, NFD, atau TFD, klik tombol diagram di Jendela 1 atau ucapkan perintah 'sembunyikan diagram BMD' atau 'tampilkan diagram BMD'."
+      : "Untuk evaluasi balok Anda, periksa lendutan izin atau jalankan optimasi profil pada jendela optimasi.";
+
     return Response.json(
       {
         commandId: isQuestion ? "AI_CONSULTATION" : null,
-        confidence: isQuestion ? 0.8 : 0,
+        confidence: isQuestion ? 0.85 : 0,
         extractedParameters: { raw: transcript },
         rawTranscript: transcript,
-        spokenConfirmation: isQuestion
-          ? "Untuk evaluasi balok Anda, periksa lendutan izin atau jalankan optimasi profil pada jendela optimasi."
-          : null,
+        spokenConfirmation: isQuestion ? fallbackAnswer : null,
         suggestions: fallbackSuggestions,
         message: isQuestion
           ? "Menjawab konsultasi teknik struktur."

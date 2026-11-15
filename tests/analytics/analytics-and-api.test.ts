@@ -10,6 +10,11 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import fs from "node:fs";
+import path from "node:path";
+
+import React from "react";
+import { renderToString } from "react-dom/server";
 
 import {
   matchRuleBasedIntent,
@@ -30,6 +35,7 @@ import {
   POST as calculationSheetPostHandler,
 } from "@/app/api/report/calculation-sheet/route";
 import manifest from "@/app/manifest";
+import { CustomEpochVisitorFlexBadge } from "@/components/telemetry/CustomEpochVisitorFlexBadge";
 import { isValidGa4MeasurementId } from "@/components/telemetry/GoogleAnalyticsScriptLoader";
 import {
   DEFAULT_FALLBACK_VISITOR_COUNT,
@@ -433,6 +439,28 @@ describe("Step 7: AI Natural Language Intent Router Tests", () => {
       expect(json.confidence).toBeGreaterThan(0.9);
       expect(json.extractedParameters.spanLengthM).toBe(14);
     });
+
+    it("routes how-to question 'gimana cara menghilangkan BMD' to AI_CONSULTATION without mutating BMD", async () => {
+      expect(matchRuleBasedIntent("gimana cara menghilangkan BMD")).toBeNull();
+      expect(matchRuleBasedIntent("gimana cara menghilangkan BMD dan SFD")).toBeNull();
+
+      const req = new Request("http://localhost:3000/api/ai/intent-router", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: "gimana cara menghilangkan BMD" }),
+      });
+
+      const res = await intentRouterPostHandler(req);
+      expect(res.status).toBe(200);
+
+      const json = (await res.json()) as {
+        commandId: string | null;
+        spokenConfirmation?: string;
+      };
+      expect(json.commandId).toBe("AI_CONSULTATION");
+      expect(json.spokenConfirmation).toBeTruthy();
+      expect(json.spokenConfirmation?.toLowerCase()).not.toContain("sudah diaktifkan");
+    });
   });
 });
 
@@ -634,5 +662,38 @@ describe("Step 7: PWA Web App Manifest Generator Tests", () => {
 
     const icon512 = pwaManifest.icons?.find((i) => i.sizes === "512x512");
     expect(icon512?.src).toBe("/icons/icon-512x512.png");
+  });
+});
+
+// ============================================================================
+// 6. CustomEpochVisitorFlexBadge UI/UX & Accessibility Structure Tests
+// ============================================================================
+
+describe("Step 7: CustomEpochVisitorFlexBadge UI/UX & Popover Tests", () => {
+  it("renders sibling trigger & refresh buttons cleanly without nested buttons", () => {
+    const html = renderToString(React.createElement(CustomEpochVisitorFlexBadge));
+    expect(html).toContain('data-testid="visitor-flex-badge"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('aria-label="Refresh visitor count"');
+
+    // Ensure trigger button closes before refresh button opens (no nested interactive buttons)
+    const buttonOpenCount = (html.match(/<button\b/g) ?? []).length;
+    const buttonCloseCount = (html.match(/<\/button>/g) ?? []).length;
+    expect(buttonOpenCount).toBe(2);
+    expect(buttonCloseCount).toBe(2);
+    expect(html.indexOf("</button>")).toBeLessThan(html.lastIndexOf("<button"));
+  });
+
+  it("uses vertical PopoverPrimitive layout without TooltipContent horizontal flex/arrow and isolates pointer events", () => {
+    const sourcePath = path.resolve(
+      process.cwd(),
+      "src/components/telemetry/CustomEpochVisitorFlexBadge.tsx",
+    );
+    const source = fs.readFileSync(sourcePath, "utf8");
+    expect(source).not.toContain("TooltipContent");
+    expect(source).toContain("PopoverPrimitive.Content");
+    expect(source).toContain("flex-col gap-3");
+    expect(source).toContain("onPointerDown={(e) => e.stopPropagation()}");
+    expect(source).toContain("onOpenAutoFocus");
   });
 });

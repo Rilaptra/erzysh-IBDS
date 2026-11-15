@@ -19,6 +19,82 @@ import type {
 import type { SteelGrade, SteelProfileType } from "@/types/steel-sni1729-types";
 
 // ============================================================================
+// Shared Gemini Live Speech Prompt & Question/Visibility Intent Helpers
+// ============================================================================
+
+export type VisibilityActionIntent = "SHOW" | "HIDE" | "TOGGLE";
+
+/**
+ * Shared system instruction for Gemini Live Audio speech synthesis so AI never flips
+ * boolean states (activated vs deactivated, shown vs hidden) or hallucinates actions on Q&A replies.
+ */
+export const GEMINI_LIVE_VOICE_SYSTEM_INSTRUCTION =
+  "Kamu adalah asisten suara AI bernama Ucuy untuk aplikasi teknik sipil Interactive Beam Deflection & Structural Design Simulator (IBDS). Tugasmu hanya membacakan atau menyampaikan ulang status aksi atau jawaban yang diberikan secara ramah, natural, jelas, dan ringkas (1 kalimat padat) dalam Bahasa Indonesia. ATURAN KETAT: DILARANG membalik, mengubah, atau mengarang status aktif/nonaktif, tampil/tersembunyi, maupun buka/tutup. Jika teks sumber menyatakan 'dinonaktifkan', 'disembunyikan', 'dimatikan', atau 'ditutup', wajib ucapkan kata negatif tersebut (JANGAN pernah menyebut 'diaktifkan' atau 'ditampilkan'). Jika teks sumber berisi jawaban penjelasan atau panduan cara pakai, sampaikan penjelasan tersebut secara langsung tanpa mengaku telah mengubah tampilan.";
+
+/**
+ * Wraps factual status/answer text for Gemini Live audio synthesis without distorting polarity.
+ */
+export function buildGeminiLiveSpeakPrompt(factualText: string): string {
+  return `Sampaikan secara natural, ramah, dan ringkas dalam Bahasa Indonesia tanpa mengubah status (aktif vs nonaktif, tampil vs tersembunyi) maupun fakta isi jawaban: "${factualText}"`;
+}
+
+/**
+ * Detects explanatory/how-to questions (e.g. "gimana cara menghilangkan BMD", "kenapa balok merah")
+ * that must be answered via AI consultation rather than treated as mutating UI commands.
+ */
+export function isConversationalQuestion(transcript: string): boolean {
+  const lower = transcript.trim().toLowerCase();
+  if (!lower) return false;
+
+  if (
+    /\b(gimana|bagaimana|kenapa|mengapa|apakah|caranya|cara\s+membuat|cara\s+pakainya)\b/i.test(
+      lower,
+    ) ||
+    /\b(apa\s+itu|apa\s+fungsi|apa\s+beda|apa\s+maksud|apa\s+arti|apa\s+sih)\b/i.test(lower) ||
+    /\b(tolong\s+jelas|jelaskan\s+tentang|minta\s+saran)\b/i.test(lower) ||
+    /\bcara\s+(menghilangkan|menyembunyikan|mematikan|menonaktifkan|menampilkan|mengaktifkan|mengubah|mengganti|menambah|menghapus|menggunakan|memakai|mengekspor|ekspor|export|membuka|menutup|buka|tutup)\b/i.test(
+      lower,
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Extracts explicit ON/OFF visibility intent from user utterance so commands like
+ * "sembunyikan BMD" or "tampilkan SFD" set deterministic state instead of blind toggle.
+ */
+export function extractVisibilityIntent(lower: string): VisibilityActionIntent {
+  if (
+    lower.includes("sembunyikan") ||
+    lower.includes("hilangkan") ||
+    lower.includes("matikan") ||
+    lower.includes("nonaktifkan") ||
+    lower.includes("tutup") ||
+    lower.includes("hapus tampilan") ||
+    /\b(hide|disable|off)\b/.test(lower)
+  ) {
+    return "HIDE";
+  }
+
+  if (
+    lower.includes("tampilkan") ||
+    lower.includes("munculkan") ||
+    lower.includes("nyalakan") ||
+    lower.includes("aktifkan") ||
+    lower.includes("lihat") ||
+    lower.includes("buka") ||
+    /\b(show|enable|on)\b/.test(lower)
+  ) {
+    return "SHOW";
+  }
+
+  return "TOGGLE";
+}
+
+// ============================================================================
 // Context-Aware Dynamic Suggestions Generator
 // ============================================================================
 
@@ -236,6 +312,115 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
     };
   }
 
+  // 0c. Interactive Game Tutorial ("IBDS Engineer Quest") Voice Controls
+  if (
+    lower.includes("mulai tutorial") ||
+    lower.includes("buka tutorial") ||
+    lower.includes("mulai panduan") ||
+    lower.includes("buka panduan") ||
+    lower.includes("tutorial interaktif") ||
+    lower.includes("mode tutorial")
+  ) {
+    return {
+      commandId: "AI_CONSULTATION",
+      confidence: 0.98,
+      extractedParameters: {
+        tutorialAction: "START",
+        spokenConfirmation:
+          "Membuka tutorial interaktif IBDS Engineer Quest. Mari selesaikan misi pertama bersama Ucuy!",
+      },
+      rawTranscript: raw,
+      spokenConfirmation:
+        "Membuka tutorial interaktif IBDS Engineer Quest. Mari selesaikan misi pertama bersama Ucuy!",
+      suggestions: [
+        "Beralih ke material baja",
+        "Lanjut tutorial",
+        "Bacakan ulang",
+        "Tutup tutorial",
+      ],
+    };
+  }
+
+  if (
+    lower.includes("lanjut tutorial") ||
+    lower.includes("langkah berikutnya") ||
+    lower.includes("misi berikutnya") ||
+    lower.includes("misi selanjutnya") ||
+    lower.includes("lanjut misi") ||
+    lower.includes("next tutorial")
+  ) {
+    return {
+      commandId: "AI_CONSULTATION",
+      confidence: 0.98,
+      extractedParameters: {
+        tutorialAction: "NEXT",
+        spokenConfirmation: "Melanjutkan ke misi tutorial berikutnya.",
+      },
+      rawTranscript: raw,
+      spokenConfirmation: "Melanjutkan ke misi tutorial berikutnya.",
+      suggestions: ["Ulangi penjelasan", "Langkah sebelumnya", "Tutup tutorial"],
+    };
+  }
+
+  if (
+    lower.includes("langkah sebelumnya") ||
+    lower.includes("misi sebelumnya") ||
+    lower.includes("kembali tutorial") ||
+    lower.includes("tutorial sebelumnya")
+  ) {
+    return {
+      commandId: "AI_CONSULTATION",
+      confidence: 0.98,
+      extractedParameters: {
+        tutorialAction: "PREV",
+        spokenConfirmation: "Kembali ke misi tutorial sebelumnya.",
+      },
+      rawTranscript: raw,
+      spokenConfirmation: "Kembali ke misi tutorial sebelumnya.",
+      suggestions: ["Lanjut tutorial", "Bacakan ulang", "Tutup tutorial"],
+    };
+  }
+
+  if (
+    lower.includes("ulangi penjelasan") ||
+    lower.includes("bacakan ulang") ||
+    lower.includes("ulangi tutorial") ||
+    lower.includes("ulangi narasi")
+  ) {
+    return {
+      commandId: "AI_CONSULTATION",
+      confidence: 0.98,
+      extractedParameters: {
+        tutorialAction: "REPEAT",
+        spokenConfirmation: "Mengulang penjelasan misi tutorial saat ini.",
+      },
+      rawTranscript: raw,
+      spokenConfirmation: "Mengulang penjelasan misi tutorial saat ini.",
+      suggestions: ["Lanjut tutorial", "Tutup tutorial"],
+    };
+  }
+
+  if (
+    lower.includes("tutup tutorial") ||
+    lower.includes("lewati tutorial") ||
+    lower.includes("selesai tutorial") ||
+    lower.includes("keluar tutorial") ||
+    lower.includes("hentikan tutorial") ||
+    lower.includes("stop tutorial")
+  ) {
+    return {
+      commandId: "AI_CONSULTATION",
+      confidence: 0.98,
+      extractedParameters: {
+        tutorialAction: "STOP",
+        spokenConfirmation: "Mode tutorial ditutup. Anda dapat membukanya kembali kapan saja.",
+      },
+      rawTranscript: raw,
+      spokenConfirmation: "Mode tutorial ditutup. Anda dapat membukanya kembali kapan saja.",
+      suggestions: ["Mulai tutorial", "Beralih ke material baja", "Ekspor ke AutoCAD DXF"],
+    };
+  }
+
   if (
     lower.includes("dua kali tepuk") ||
     lower.includes("tepuk dua kali") ||
@@ -254,6 +439,11 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
         "Atur bentang balok 8 meter",
       ],
     };
+  }
+
+  // 0d. Never execute simulator-mutating commands for how-to / diagnostic questions
+  if (isConversationalQuestion(raw)) {
+    return null;
   }
 
   // 1. Camera & 3D Viewport Controls (All Viewport Toolbar Buttons)
@@ -592,12 +782,19 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
     lower.includes("self weight") ||
     lower.includes("beban mati sendiri")
   ) {
+    const visibilityAction = extractVisibilityIntent(lower);
+    const confirmation =
+      visibilityAction === "SHOW"
+        ? "Perhitungan beban berat sendiri balok diaktifkan."
+        : visibilityAction === "HIDE"
+          ? "Perhitungan beban berat sendiri balok dinonaktifkan."
+          : "Status perhitungan beban berat sendiri balok ditoggle.";
     return {
       commandId: "TOGGLE_SELF_WEIGHT",
       confidence: 0.94,
-      extractedParameters: {},
+      extractedParameters: { visibilityAction },
       rawTranscript: raw,
-      spokenConfirmation: "Status perhitungan beban berat sendiri balok berhasil diubah.",
+      spokenConfirmation: confirmation,
       suggestions: ["Lihat diagram momen BMD", "Hitung optimasi profil", "Ubah bentang balok"],
     };
   }
@@ -742,20 +939,32 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
   }
 
   // 8. Internal Force Diagrams
+  const visibilityAction = extractVisibilityIntent(lower);
+  const buildDiagramToggleMatch = (
+    commandId:
+      "TOGGLE_DIAGRAM_BMD" | "TOGGLE_DIAGRAM_SFD" | "TOGGLE_DIAGRAM_NFD" | "TOGGLE_DIAGRAM_TFD",
+    label: string,
+  ): IntentRouterResult => ({
+    commandId,
+    confidence: 0.95,
+    extractedParameters: { visibilityAction },
+    rawTranscript: raw,
+    spokenConfirmation:
+      visibilityAction === "SHOW"
+        ? `${label} ditampilkan.`
+        : visibilityAction === "HIDE"
+          ? `${label} disembunyikan.`
+          : `${label} berhasil ditoggle.`,
+    suggestions: generateContextualSuggestions(commandId),
+  });
+
   if (
     lower.includes("diagram momen") ||
     lower.includes("bidang momen") ||
     lower.includes("bmd") ||
     lower.includes("bending moment")
   ) {
-    return {
-      commandId: "TOGGLE_DIAGRAM_BMD",
-      confidence: 0.95,
-      extractedParameters: {},
-      rawTranscript: raw,
-      spokenConfirmation: "Diagram Bidang Momen Lentur (BMD) berhasil ditoggle.",
-      suggestions: generateContextualSuggestions("TOGGLE_DIAGRAM_BMD"),
-    };
+    return buildDiagramToggleMatch("TOGGLE_DIAGRAM_BMD", "Diagram Bidang Momen Lentur (BMD)");
   }
   if (
     lower.includes("diagram geser") ||
@@ -764,14 +973,7 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
     lower.includes("sfd") ||
     lower.includes("shear force")
   ) {
-    return {
-      commandId: "TOGGLE_DIAGRAM_SFD",
-      confidence: 0.95,
-      extractedParameters: {},
-      rawTranscript: raw,
-      spokenConfirmation: "Diagram Bidang Gaya Geser (SFD) berhasil ditoggle.",
-      suggestions: generateContextualSuggestions("TOGGLE_DIAGRAM_SFD"),
-    };
+    return buildDiagramToggleMatch("TOGGLE_DIAGRAM_SFD", "Diagram Bidang Gaya Geser (SFD)");
   }
   if (
     lower.includes("diagram normal") ||
@@ -781,14 +983,10 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
     lower.includes("nfd") ||
     lower.includes("axial force")
   ) {
-    return {
-      commandId: "TOGGLE_DIAGRAM_NFD",
-      confidence: 0.95,
-      extractedParameters: {},
-      rawTranscript: raw,
-      spokenConfirmation: "Diagram Bidang Gaya Aksial / Normal (NFD) berhasil ditoggle.",
-      suggestions: generateContextualSuggestions("TOGGLE_DIAGRAM_NFD"),
-    };
+    return buildDiagramToggleMatch(
+      "TOGGLE_DIAGRAM_NFD",
+      "Diagram Bidang Gaya Aksial / Normal (NFD)",
+    );
   }
   if (
     lower.includes("momen torsi") ||
@@ -796,14 +994,7 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
     lower.includes("tfd") ||
     lower.includes("torsional moment")
   ) {
-    return {
-      commandId: "TOGGLE_DIAGRAM_TFD",
-      confidence: 0.95,
-      extractedParameters: {},
-      rawTranscript: raw,
-      spokenConfirmation: "Diagram Bidang Momen Torsi (TFD) berhasil ditoggle.",
-      suggestions: generateContextualSuggestions("TOGGLE_DIAGRAM_TFD"),
-    };
+    return buildDiagramToggleMatch("TOGGLE_DIAGRAM_TFD", "Diagram Bidang Momen Torsi (TFD)");
   }
   if (
     lower.includes("mode stacked") ||
@@ -1157,12 +1348,16 @@ export function matchSingleRuleIntent(transcript: string): IntentRouterResult | 
     };
   }
   if (lower.includes("asisten ai") || lower.includes("tanya ai") || lower.includes("konsultan")) {
+    const assistantAction = extractVisibilityIntent(lower);
     return {
       commandId: "TOGGLE_AI_ASSISTANT",
       confidence: 0.94,
-      extractedParameters: {},
+      extractedParameters: { visibilityAction: assistantAction },
       rawTranscript: raw,
-      spokenConfirmation: "Panel Asisten Rekayasa AI dibuka.",
+      spokenConfirmation:
+        assistantAction === "HIDE"
+          ? "Panel Asisten Rekayasa AI ditutup."
+          : "Panel Asisten Rekayasa AI dibuka.",
       suggestions: ["Nyalakan kamera", "Tanya saran optimasi balok", "Hitung optimasi penampang"],
     };
   }
@@ -1393,6 +1588,12 @@ export function matchRuleBasedIntent(transcript: string): IntentRouterResult | n
 
   // 1. Try single-intent match first for completely simple utterances
   const single = matchSingleRuleIntent(raw);
+
+  // If the utterance is a how-to / diagnostic question that didn't match an explicit persona/tutorial shortcut,
+  // do NOT split it into compound UI commands (e.g. "gimana cara menghilangkan BMD dan SFD").
+  if (!single && isConversationalQuestion(raw)) {
+    return null;
+  }
 
   // Check if utterance contains compound connectors or multiple window targets
   const clauses = splitCompoundClauses(raw);

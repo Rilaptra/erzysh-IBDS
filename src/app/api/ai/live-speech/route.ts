@@ -10,6 +10,10 @@
 import { NextResponse } from "next/server";
 
 import { appConfig, getGeminiApiKey, getGeminiApiKeys } from "@/config/app-config";
+import {
+  buildGeminiLiveSpeakPrompt,
+  GEMINI_LIVE_VOICE_SYSTEM_INSTRUCTION,
+} from "@/lib/command-matcher";
 import { markApiKeyRateLimited, maskApiKey, prioritizeApiKeys } from "@/lib/gemini-api-failover";
 
 const GEMINI_LIVE_MODEL = appConfig.ai.liveModel;
@@ -93,7 +97,7 @@ async function attemptLiveSpeechAudio(
           systemInstruction: {
             parts: [
               {
-                text: "Kamu adalah asisten suara bernama ucuy untuk aplikasi teknik sipil Interactive Beam Deflection & Structural Design Simulator (IBDS). Berikan konfirmasi suara Bahasa Indonesia yang natural, ramah, singkat (1 kalimat padat), dan jelas.",
+                text: GEMINI_LIVE_VOICE_SYSTEM_INSTRUCTION,
               },
             ],
           },
@@ -135,7 +139,7 @@ async function attemptLiveSpeechAudio(
                   role: "user",
                   parts: [
                     {
-                      text: `Konfirmasikan dengan singkat dan natural dalam Bahasa Indonesia: "${text}"`,
+                      text: buildGeminiLiveSpeakPrompt(text),
                     },
                   ],
                 },

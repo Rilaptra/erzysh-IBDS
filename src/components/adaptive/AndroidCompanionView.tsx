@@ -10,7 +10,8 @@
 
 "use client";
 
-import React, { type ReactElement, useState } from "react";
+import { Gamepad2 } from "lucide-react";
+import React, { type ReactElement, useEffect, useState } from "react";
 
 import { ErzyshDarkGridBackground } from "@/components/canvas/ErzyshDarkGridBackground";
 import { ConcreteDesignParametersForm } from "@/components/forms/ConcreteDesignParametersForm";
@@ -23,12 +24,15 @@ import { DeflectionServiceabilityBadge } from "@/components/results/DeflectionSe
 import { ProfileAndModelExportModal } from "@/components/results/ProfileAndModelExportModal";
 import { SteelOptimizationRankingTable } from "@/components/results/SteelOptimizationRankingTable";
 import { CustomEpochVisitorFlexBadge } from "@/components/telemetry/CustomEpochVisitorFlexBadge";
+import { InteractiveTutorialOverlay } from "@/components/tutorial/InteractiveTutorialOverlay";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useStructuralSolverEngine } from "@/hooks/use-structural-solver-engine";
+import { useWebSpeechCommand } from "@/hooks/use-web-speech-command";
 import { beamSimulatorActions, useBeamSimulatorStore } from "@/state/beam-simulator-store";
+import { tutorialTourActions, useTutorialTourStore } from "@/state/tutorial-tour-store";
 
 type AndroidCompanionTab = "RESULTS" | "INPUT" | "PARAMETERS";
 
@@ -47,8 +51,18 @@ const ANDROID_TAB_TRIGGER_CLASS =
 export function AndroidCompanionView(): ReactElement {
   const store = useBeamSimulatorStore();
   const { compliance, concreteResult, steelResult } = useStructuralSolverEngine();
+  const tutorial = useTutorialTourStore();
+  const voice = useWebSpeechCommand({ autoStart: false });
   const [activeTab, setActiveTab] = useState<AndroidCompanionTab>("RESULTS");
   const [isExportOpen, setIsExportOpen] = useState(false);
+
+  useEffect(() => {
+    const handleCloseExport = (): void => {
+      setIsExportOpen(false);
+    };
+    window.addEventListener("app:close-export-modal", handleCloseExport);
+    return () => window.removeEventListener("app:close-export-modal", handleCloseExport);
+  }, []);
 
   return (
     <ErzyshDarkGridBackground
@@ -67,10 +81,24 @@ export function AndroidCompanionView(): ReactElement {
             </p>
           </div>
 
-          <DeflectionServiceabilityBadge
-            compliance={compliance}
-            className="h-auto w-fit max-w-full flex-wrap justify-start py-1 text-[10px] leading-tight whitespace-normal"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="xs"
+              variant={tutorial.isActive ? "secondary" : "outline"}
+              onClick={() => tutorialTourActions.startTutorial(0)}
+              data-testid="mobile-tutorial-trigger-btn"
+              className="h-7 gap-1 border-cyan-500/40 bg-slate-900/70 px-2.5 text-[10px] font-bold text-cyan-200 hover:border-cyan-400/70 hover:bg-cyan-500/15"
+            >
+              <Gamepad2 className="h-3 w-3 text-cyan-300" />
+              Tutorial
+            </Button>
+
+            <DeflectionServiceabilityBadge
+              compliance={compliance}
+              className="h-auto w-fit max-w-full flex-wrap justify-start py-1 text-[10px] leading-tight whitespace-normal"
+            />
+          </div>
         </div>
       </header>
 
@@ -180,6 +208,7 @@ export function AndroidCompanionView(): ReactElement {
       </Tabs>
 
       <ProfileAndModelExportModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
+      <InteractiveTutorialOverlay voice={voice} onMobileTabChange={setActiveTab} />
     </ErzyshDarkGridBackground>
   );
 }

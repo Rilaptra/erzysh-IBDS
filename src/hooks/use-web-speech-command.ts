@@ -20,10 +20,18 @@ import { buildIdeaOpenModelXmlFromSimulatorState } from "@/core/exporters/ideast
 import { buildIfc4FromSimulatorState } from "@/core/exporters/ifc4-bim-revit-exporter";
 import { buildS2kFromSimulatorState } from "@/core/exporters/s2k-sap2000-exporter";
 import { buildStepAp214FromSimulatorState } from "@/core/exporters/step-solidworks-exporter";
-import { matchRuleBasedIntent } from "@/lib/command-matcher";
+import {
+  buildGeminiLiveSpeakPrompt,
+  GEMINI_LIVE_VOICE_SYSTEM_INSTRUCTION,
+  matchRuleBasedIntent,
+} from "@/lib/command-matcher";
 import { matchWakeWord } from "@/lib/wake-word-detector";
 import { beamSimulatorActions, getBeamSimulatorSnapshot } from "@/state/beam-simulator-store";
-import { floatingWindowActions, type FloatingWindowId } from "@/state/floating-window-store";
+import {
+  floatingWindowActions,
+  type FloatingWindowId,
+  getFloatingWindowState,
+} from "@/state/floating-window-store";
 import type { DistributedLoad } from "@/types/beam-loading-modes";
 import type { Kilonewton, KilonewtonPerMeter, Megapascal, Meter } from "@/types/branded-units";
 import {
@@ -238,7 +246,7 @@ export async function ensureGeminiLiveBidiWebSocket(): Promise<boolean> {
             systemInstruction: {
               parts: [
                 {
-                  text: "Kamu adalah asisten suara AI Gemini Live untuk aplikasi teknik sipil Interactive Beam Deflection & Structural Design Simulator (IBDS). Jawab dan konfirmasi setiap aksi dengan suara Bahasa Indonesia yang ramah, natural, jelas, dan ringkas (1 kalimat padat).",
+                  text: GEMINI_LIVE_VOICE_SYSTEM_INSTRUCTION,
                 },
               ],
             },
@@ -291,7 +299,7 @@ export async function ensureGeminiLiveBidiWebSocket(): Promise<boolean> {
                           role: "user",
                           parts: [
                             {
-                              text: `Konfirmasikan dengan singkat dan natural dalam Bahasa Indonesia: "${item.text}"`,
+                              text: buildGeminiLiveSpeakPrompt(item.text),
                             },
                           ],
                         },
@@ -379,12 +387,26 @@ export function isSelfFeedbackEcho(transcript: string, lastSpokenText: string): 
     "berhasil dimatikan",
     "berhasil ditoggle",
     "berhasil diubah",
+    "diaktifkan (ditampilkan)",
+    "dinonaktifkan (disembunyikan)",
     "diperbarui menjadi",
     "mode eco-thermal",
     "kamera webcam",
     "model autocad",
     "simulator struktur",
     "mungkin yang anda maksud",
+    "engineer quest",
+    "misi satu",
+    "misi dua",
+    "misi tiga",
+    "misi empat",
+    "misi lima",
+    "misi enam",
+    "misi tujuh",
+    "misi delapan",
+    "misi terakhir",
+    "melanjutkan ke misi tutorial",
+    "membuka tutorial interaktif",
   ];
 
   return echoKeywords.some((keyword) => t.includes(keyword));
@@ -433,7 +455,7 @@ export async function speakGeminiLiveResponse(
                   role: "user",
                   parts: [
                     {
-                      text: `Konfirmasikan dengan singkat dan natural dalam Bahasa Indonesia: "${text}"`,
+                      text: buildGeminiLiveSpeakPrompt(text),
                     },
                   ],
                 },
@@ -1596,6 +1618,105 @@ function _legacyRouteVoiceTranscriptToCommand(transcript: string): IntentRouterR
 // Direct Simulator Command Dispatcher
 // ============================================================================
 
+const FACTUAL_TOGGLE_COMMAND_IDS = new Set<CommandId>([
+  "TOGGLE_DIAGRAM_BMD",
+  "TOGGLE_DIAGRAM_SFD",
+  "TOGGLE_DIAGRAM_NFD",
+  "TOGGLE_DIAGRAM_TFD",
+  "TOGGLE_SELF_WEIGHT",
+  "TOGGLE_AI_ASSISTANT",
+  "TOGGLE_CAMERA_PREVIEW",
+]);
+
+function resolveRequestedVisibility(params: Record<string, unknown> = {}): boolean | null {
+  if (typeof params.visible === "boolean") {
+    return params.visible;
+  }
+  const rawAction =
+    typeof params.visibilityAction === "string"
+      ? params.visibilityAction
+      : typeof params.action === "string"
+        ? params.action
+        : "";
+  const normalized = rawAction.trim().toUpperCase();
+  if (
+    normalized === "SHOW" ||
+    normalized === "ENABLE" ||
+    normalized === "OPEN" ||
+    normalized === "START" ||
+    normalized === "ON"
+  ) {
+    return true;
+  }
+  if (
+    normalized === "HIDE" ||
+    normalized === "DISABLE" ||
+    normalized === "CLOSE" ||
+    normalized === "STOP" ||
+    normalized === "OFF"
+  ) {
+    return false;
+  }
+  return null;
+}
+
+function executeDiagramVisibilityCommand(
+  commandId: CommandId,
+  diagram: "bmd" | "sfd" | "nfd" | "tfd",
+  label: string,
+  params: Record<string, unknown>,
+  timestamp: number,
+): CommandExecutionResult {
+  const requested = resolveRequestedVisibility(params);
+  if (requested === null) {
+    beamSimulatorActions.toggleDiagramVisibility(diagram);
+  } else {
+    beamSimulatorActions.setDiagramVisibility(diagram, requested);
+  }
+  const isNowVisible = getBeamSimulatorSnapshot().visibleDiagrams[diagram];
+  return {
+    success: true,
+    commandId,
+    message: isNowVisible
+      ? `Visibilitas ${label} diaktifkan (ditampilkan).`
+      : `Visibilitas ${label} dinonaktifkan (disembunyikan).`,
+    timestamp,
+    payload: { diagram, visible: isNowVisible },
+  };
+}
+
+/**
+ * Selects the spoken confirmation text after command execution, preferring factual
+ * post-execution store state messages for toggle commands rather than pre-execution guesses.
+ */
+export function pickSpokenReply(match: IntentRouterResult, result: CommandExecutionResult): string {
+  const actionIds =
+    Array.isArray(match.actions) && match.actions.length > 0
+      ? match.actions.map((a) => a.commandId)
+      : [match.commandId];
+
+  if (actionIds.some((id) => FACTUAL_TOGGLE_COMMAND_IDS.has(id))) {
+    return result.message || match.spokenConfirmation || "Perintah berhasil dijalankan.";
+  }
+
+  return match.spokenConfirmation || result.message;
+}
+
+function buildIntentRouterStateSnapshot(): Record<string, unknown> {
+  const snap = getBeamSimulatorSnapshot();
+  return {
+    materialKind: snap.materialKind,
+    spanLengthM: snap.spanLengthM,
+    supportOrientation: snap.supportOrientation,
+    pointLoadsCount: snap.pointLoads.length,
+    distributedLoadsCount: snap.distributedLoads.length,
+    concreteViewMode: snap.concreteViewMode,
+    maxDeflectionMm: snap.maxDeflectionMm,
+    visibleDiagrams: snap.visibleDiagrams,
+    includeSelfWeight: snap.includeSelfWeight,
+  };
+}
+
 /**
  * Dispatches an identified CommandId directly into the Beam Simulator state actions.
  *
@@ -1668,40 +1789,40 @@ export function executeRegistryCommand(
 
       // 3. Diagram Toggles
       case "TOGGLE_DIAGRAM_BMD":
-        beamSimulatorActions.toggleDiagramVisibility("bmd");
-        return {
-          success: true,
+        return executeDiagramVisibilityCommand(
           commandId,
-          message: "Visibilitas Diagram Momen Lentur (BMD) berhasil ditoggle.",
+          "bmd",
+          "Diagram Momen Lentur (BMD)",
+          params,
           timestamp,
-        };
+        );
 
       case "TOGGLE_DIAGRAM_SFD":
-        beamSimulatorActions.toggleDiagramVisibility("sfd");
-        return {
-          success: true,
+        return executeDiagramVisibilityCommand(
           commandId,
-          message: "Visibilitas Diagram Gaya Geser (SFD) berhasil ditoggle.",
+          "sfd",
+          "Diagram Gaya Geser (SFD)",
+          params,
           timestamp,
-        };
+        );
 
       case "TOGGLE_DIAGRAM_NFD":
-        beamSimulatorActions.toggleDiagramVisibility("nfd");
-        return {
-          success: true,
+        return executeDiagramVisibilityCommand(
           commandId,
-          message: "Visibilitas Diagram Gaya Aksial (NFD) berhasil ditoggle.",
+          "nfd",
+          "Diagram Gaya Aksial (NFD)",
+          params,
           timestamp,
-        };
+        );
 
       case "TOGGLE_DIAGRAM_TFD":
-        beamSimulatorActions.toggleDiagramVisibility("tfd");
-        return {
-          success: true,
+        return executeDiagramVisibilityCommand(
           commandId,
-          message: "Visibilitas Diagram Momen Torsi (TFD) berhasil ditoggle.",
+          "tfd",
+          "Diagram Momen Torsi (TFD)",
+          params,
           timestamp,
-        };
+        );
 
       // 4. Diagram Display Modes
       case "SET_DIAGRAM_MODE_IN_PLACE":
@@ -1873,14 +1994,25 @@ export function executeRegistryCommand(
           timestamp,
         };
 
-      case "TOGGLE_AI_ASSISTANT":
-        floatingWindowActions.toggleWindow("GESTURE_AI_ASSISTANT");
+      case "TOGGLE_AI_ASSISTANT": {
+        const requested = resolveRequestedVisibility(params);
+        if (requested === true) {
+          floatingWindowActions.openWindow("GESTURE_AI_ASSISTANT");
+        } else if (requested === false) {
+          floatingWindowActions.closeWindow("GESTURE_AI_ASSISTANT");
+        } else {
+          floatingWindowActions.toggleWindow("GESTURE_AI_ASSISTANT");
+        }
+        const isAssistantOpen = getFloatingWindowState().windows.GESTURE_AI_ASSISTANT.isOpen;
         return {
           success: true,
           commandId,
-          message: "Jendela Asisten AI dan Gestur berhasil ditoggle.",
+          message: isAssistantOpen
+            ? "Jendela Asisten AI dan Gestur dibuka."
+            : "Jendela Asisten AI dan Gestur ditutup.",
           timestamp,
         };
+      }
 
       case "TOGGLE_CAMERA_PREVIEW": {
         const action = (params?.action as string) || "TOGGLE";
@@ -1915,11 +2047,17 @@ export function executeRegistryCommand(
         const store = getBeamSimulatorSnapshot();
         const res = buildDxfFromSimulatorState(store);
         downloadFileBrowser(res.content, res.fileName, res.mimeType);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("app:dxf-exported", { detail: { fileName: res.fileName } }),
+          );
+        }
         return {
           success: true,
           commandId,
           message: `File AutoCAD DXF (${res.fileName}) berhasil diekspor dan diunduh otomatis!`,
           timestamp,
+          payload: { fileName: res.fileName },
         };
       }
 
@@ -2177,13 +2315,15 @@ export function executeRegistryCommand(
 
       case "TOGGLE_SELF_WEIGHT": {
         const snap = getBeamSimulatorSnapshot();
-        const nextVal = !snap.includeSelfWeight;
+        const requested = resolveRequestedVisibility(params);
+        const nextVal = requested === null ? !snap.includeSelfWeight : requested;
         beamSimulatorActions.setIncludeSelfWeight(nextVal);
         return {
           success: true,
           commandId,
           message: `Perhitungan berat sendiri balok ${nextVal ? "diaktifkan" : "dinonaktifkan"}.`,
           timestamp,
+          payload: { includeSelfWeight: nextVal },
         };
       }
 
@@ -2246,6 +2386,13 @@ export function executeRegistryCommand(
       }
 
       case "AI_CONSULTATION": {
+        const tutorialAction =
+          typeof params?.tutorialAction === "string" ? params.tutorialAction : undefined;
+        if (tutorialAction && typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("app:tutorial-control", { detail: { action: tutorialAction } }),
+          );
+        }
         const spoken =
           typeof params?.spokenConfirmation === "string"
             ? params.spokenConfirmation
@@ -2257,6 +2404,7 @@ export function executeRegistryCommand(
           commandId,
           message: spoken,
           timestamp,
+          payload: tutorialAction ? { tutorialAction } : undefined,
         };
       }
 
@@ -2472,21 +2620,12 @@ export function useWebSpeechCommand(
   // Asynchronously queries Gemini AI to generate fluid, context-aware command suggestions
   const refreshAiSuggestions = useCallback(async (currentTranscript: string) => {
     try {
-      const snap = getBeamSimulatorSnapshot();
       const res = await fetch("/api/ai/intent-router", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           transcript: currentTranscript,
-          currentState: {
-            materialKind: snap.materialKind,
-            spanLengthM: snap.spanLengthM,
-            supportOrientation: snap.supportOrientation,
-            pointLoadsCount: snap.pointLoads.length,
-            distributedLoadsCount: snap.distributedLoads.length,
-            concreteViewMode: snap.concreteViewMode,
-            maxDeflectionMm: snap.maxDeflectionMm,
-          },
+          currentState: buildIntentRouterStateSnapshot(),
         }),
       });
       if (res.ok) {
@@ -2570,6 +2709,61 @@ export function useWebSpeechCommand(
       }, 350);
     }
   }, [safeStart]);
+
+  // Shared async fallback to /api/ai/intent-router for natural language questions & complex intents
+  const resolveTranscriptViaAiRouter = useCallback(
+    async (utterance: string, greetingPrefix?: string): Promise<boolean> => {
+      try {
+        const apiRes = await fetch("/api/ai/intent-router", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transcript: utterance,
+            currentState: buildIntentRouterStateSnapshot(),
+          }),
+        });
+        if (!apiRes.ok) return false;
+
+        const apiMatch = (await apiRes.json()) as IntentRouterResult;
+        if (
+          apiMatch &&
+          (apiMatch.confidence > 0.6 ||
+            apiMatch.commandId === "AI_CONSULTATION" ||
+            Boolean(apiMatch.spokenConfirmation))
+        ) {
+          if (apiMatch.suggestions && apiMatch.suggestions.length > 0) {
+            setSuggestions(apiMatch.suggestions);
+          } else if (apiMatch.commandId) {
+            setSuggestions(generateContextualSuggestions(apiMatch.commandId));
+          }
+
+          let replyText = apiMatch.spokenConfirmation;
+          if (apiMatch.commandId && apiMatch.commandId !== "AI_CONSULTATION") {
+            const result = executeBatch(apiMatch);
+            replyText = pickSpokenReply(apiMatch, result);
+          } else if (!replyText) {
+            replyText = "Pertanyaan Anda telah dicatat oleh sistem IBDS.";
+          }
+
+          const finalReply = greetingPrefix ? `${greetingPrefix} ${replyText}` : replyText;
+          lastSpokenTextRef.current = finalReply;
+          setFeedbackMessage(`💬 ${finalReply}`);
+          void speakGeminiLiveResponse(finalReply, pauseSttForPlayback, resumeSttAfterPlayback);
+          return true;
+        }
+
+        if (apiMatch?.suggestions && apiMatch.suggestions.length > 0) {
+          setSuggestions(apiMatch.suggestions);
+          setFeedbackMessage(`💬 ${apiMatch.message || utterance}`);
+          return true;
+        }
+      } catch {
+        // Ignore fetch error
+      }
+      return false;
+    },
+    [executeBatch, pauseSttForPlayback, resumeSttAfterPlayback],
+  );
 
   // Check browser support and initialize SpeechRecognition
   useEffect(() => {
@@ -2766,7 +2960,7 @@ export function useWebSpeechCommand(
 
           setTranscript(text);
 
-          // If user uttered a compound instruction with wake word, e.g. "halo cuy ubah ke baja"
+          // If user uttered a compound instruction or question with wake word
           if (wake.remainingText) {
             const remainingMatch = routeVoiceTranscriptToCommand(wake.remainingText);
             if (remainingMatch) {
@@ -2776,13 +2970,28 @@ export function useWebSpeechCommand(
                   : generateContextualSuggestions(remainingMatch.commandId),
               );
               const result = executeBatch(remainingMatch);
-              const replyText = `${greeting} ${remainingMatch.spokenConfirmation || result.message}`;
+              const replyText = `${greeting} ${pickSpokenReply(remainingMatch, result)}`;
               lastSpokenTextRef.current = replyText;
               setFeedbackMessage(`🎙️ ${replyText}`);
               void speakGeminiLiveResponse(replyText, pauseSttForPlayback, resumeSttAfterPlayback);
               void refreshAiSuggestions(wake.remainingText);
               return;
             }
+
+            void (async () => {
+              const handled = await resolveTranscriptViaAiRouter(wake.remainingText!, greeting);
+              if (!handled && isMountedRef.current) {
+                const confirmMsg = `${greeting} Voice command aktif, silakan ulangi perintah atau pertanyaan Anda.`;
+                lastSpokenTextRef.current = confirmMsg;
+                setFeedbackMessage(`🎙️ ${confirmMsg}`);
+                void speakGeminiLiveResponse(
+                  confirmMsg,
+                  pauseSttForPlayback,
+                  resumeSttAfterPlayback,
+                );
+              }
+            })();
+            return;
           }
 
           // Pure wake word activation
@@ -2811,7 +3020,7 @@ export function useWebSpeechCommand(
         }
 
         const result = executeBatch(match);
-        const replyText = match.spokenConfirmation || result.message;
+        const replyText = pickSpokenReply(match, result);
         lastSpokenTextRef.current = replyText;
         void speakGeminiLiveResponse(replyText, pauseSttForPlayback, resumeSttAfterPlayback);
 
@@ -2820,65 +3029,9 @@ export function useWebSpeechCommand(
       } else {
         // Fallback: asynchronously check Gemini intent router API if rule didn't match
         void (async () => {
-          try {
-            const snap = getBeamSimulatorSnapshot();
-            const apiRes = await fetch("/api/ai/intent-router", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                transcript: text,
-                currentState: {
-                  materialKind: snap.materialKind,
-                  spanLengthM: snap.spanLengthM,
-                  supportOrientation: snap.supportOrientation,
-                  pointLoadsCount: snap.pointLoads.length,
-                  distributedLoadsCount: snap.distributedLoads.length,
-                  concreteViewMode: snap.concreteViewMode,
-                  maxDeflectionMm: snap.maxDeflectionMm,
-                },
-              }),
-            });
-            if (apiRes.ok) {
-              const apiMatch = (await apiRes.json()) as IntentRouterResult;
-              if (
-                apiMatch &&
-                (apiMatch.confidence > 0.6 ||
-                  apiMatch.commandId === "AI_CONSULTATION" ||
-                  Boolean(apiMatch.spokenConfirmation))
-              ) {
-                if (apiMatch.suggestions && apiMatch.suggestions.length > 0) {
-                  setSuggestions(apiMatch.suggestions);
-                } else if (apiMatch.commandId) {
-                  setSuggestions(generateContextualSuggestions(apiMatch.commandId));
-                }
-
-                let replyText = apiMatch.spokenConfirmation;
-                if (apiMatch.commandId && apiMatch.commandId !== "AI_CONSULTATION") {
-                  const result = executeBatch(apiMatch);
-                  replyText = apiMatch.spokenConfirmation || result.message;
-                } else if (!replyText) {
-                  replyText = "Pertanyaan Anda telah dicatat oleh sistem IBDS.";
-                }
-
-                lastSpokenTextRef.current = replyText;
-                setFeedbackMessage(`💬 ${replyText}`);
-                void speakGeminiLiveResponse(
-                  replyText,
-                  pauseSttForPlayback,
-                  resumeSttAfterPlayback,
-                );
-                return;
-              }
-
-              // Conversational/unmatched: update fluid suggestions from Gemini!
-              if (apiMatch?.suggestions && apiMatch.suggestions.length > 0) {
-                setSuggestions(apiMatch.suggestions);
-                setFeedbackMessage(`💬 ${apiMatch.message || text}`);
-                return;
-              }
-            }
-          } catch {
-            // Ignore fetch error
+          const handled = await resolveTranscriptViaAiRouter(text);
+          if (handled || !isMountedRef.current) {
+            return;
           }
 
           // Unrecognized command: Update suggestions on HUD quietly.
@@ -2994,9 +3147,12 @@ export function useWebSpeechCommand(
   }, [
     autoStart,
     continuousListening,
+    executeBatch,
     executeCommand,
     language,
     pauseSttForPlayback,
+    refreshAiSuggestions,
+    resolveTranscriptViaAiRouter,
     resumeSttAfterPlayback,
     safeStart,
   ]);
@@ -3086,7 +3242,7 @@ export function useWebSpeechCommand(
         }
 
         const result = executeBatch(match);
-        const replyText = match.spokenConfirmation || result.message;
+        const replyText = pickSpokenReply(match, result);
         lastSpokenTextRef.current = replyText;
         void speakGeminiLiveResponse(replyText, pauseSttForPlayback, resumeSttAfterPlayback);
 
@@ -3094,74 +3250,40 @@ export function useWebSpeechCommand(
         void refreshAiSuggestions(trimmed);
         return result;
       } else {
+        setFeedbackMessage(`💬 Memproses "${trimmed}"...`);
         void (async () => {
-          try {
-            const snap = getBeamSimulatorSnapshot();
-            const apiRes = await fetch("/api/ai/intent-router", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                transcript: trimmed,
-                currentState: {
-                  materialKind: snap.materialKind,
-                  spanLengthM: snap.spanLengthM,
-                  supportOrientation: snap.supportOrientation,
-                },
-              }),
-            });
-            if (apiRes.ok) {
-              const apiMatch = (await apiRes.json()) as IntentRouterResult;
-              if (
-                apiMatch &&
-                (apiMatch.confidence > 0.6 ||
-                  apiMatch.commandId === "AI_CONSULTATION" ||
-                  Boolean(apiMatch.spokenConfirmation))
-              ) {
-                if (apiMatch.suggestions && apiMatch.suggestions.length > 0) {
-                  setSuggestions(apiMatch.suggestions);
-                } else if (apiMatch.commandId) {
-                  setSuggestions(generateContextualSuggestions(apiMatch.commandId));
-                }
-
-                let replyText = apiMatch.spokenConfirmation;
-                if (apiMatch.commandId && apiMatch.commandId !== "AI_CONSULTATION") {
-                  const res = executeBatch(apiMatch);
-                  replyText = apiMatch.spokenConfirmation || res.message;
-                } else if (!replyText) {
-                  replyText = "Pertanyaan Anda telah dicatat oleh sistem IBDS.";
-                }
-
-                lastSpokenTextRef.current = replyText;
-                setFeedbackMessage(`💬 ${replyText}`);
-                void speakGeminiLiveResponse(
-                  replyText,
-                  pauseSttForPlayback,
-                  resumeSttAfterPlayback,
-                );
-                return;
-              }
-              if (apiMatch?.suggestions && apiMatch.suggestions.length > 0) {
-                setSuggestions(apiMatch.suggestions);
-                setFeedbackMessage(`💬 ${apiMatch.message || trimmed}`);
-                return;
-              }
-            }
-          } catch {
-            const reco = getCommandSuggestions(trimmed, 4);
-            setSuggestions(reco);
+          const handled = await resolveTranscriptViaAiRouter(trimmed);
+          if (handled || !isMountedRef.current) {
+            return;
+          }
+          const reco = getCommandSuggestions(trimmed, 4);
+          setSuggestions(reco);
+          setFeedbackMessage(`Perintah tidak dikenali: "${trimmed}"`);
+          if (optionsRef.current.playAudioFeedback ?? true) {
+            synthesizeAudioTone("FAILURE");
           }
         })();
-
-        const reco = getCommandSuggestions(trimmed, 4);
-        setSuggestions(reco);
-        setFeedbackMessage(`Perintah tidak dikenali: "${trimmed}"`);
-        if (optionsRef.current.playAudioFeedback ?? true) {
-          synthesizeAudioTone("FAILURE");
-        }
         return null;
       }
     },
-    [executeCommand, pauseSttForPlayback, refreshAiSuggestions, resumeSttAfterPlayback],
+    [
+      executeBatch,
+      pauseSttForPlayback,
+      refreshAiSuggestions,
+      resolveTranscriptViaAiRouter,
+      resumeSttAfterPlayback,
+    ],
+  );
+
+  const speakFeedback = useCallback(
+    async (text: string): Promise<void> => {
+      if (!text.trim()) {
+        return;
+      }
+      lastSpokenTextRef.current = text;
+      await speakGeminiLiveResponse(text, pauseSttForPlayback, resumeSttAfterPlayback);
+    },
+    [pauseSttForPlayback, resumeSttAfterPlayback],
   );
 
   return {
@@ -3178,7 +3300,7 @@ export function useWebSpeechCommand(
     testAudioTone,
     executeCommand,
     executeTranscript,
-    speakFeedback: speakGeminiLiveResponse,
+    speakFeedback,
   };
 }
 

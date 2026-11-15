@@ -23,10 +23,15 @@ import {
 } from "@/hooks/use-mediapipe-hand-tracking";
 import {
   executeRegistryCommand,
+  pickSpokenReply,
   routeVoiceTranscriptToCommand,
   useWebSpeechCommand,
   type UseWebSpeechCommandResult,
 } from "@/hooks/use-web-speech-command";
+import {
+  buildGeminiLiveSpeakPrompt,
+  GEMINI_LIVE_VOICE_SYSTEM_INSTRUCTION,
+} from "@/lib/command-matcher";
 import { getBeamSimulatorSnapshot } from "@/state/beam-simulator-store";
 import type { Meter } from "@/types/branded-units";
 import { type CommandId, CommandRegistryError } from "@/types/command-registry-types";
@@ -380,6 +385,37 @@ describe("Step 7: Multimodal Interactions & Voice Command Registry", () => {
       const resToggle = executeRegistryCommand("TOGGLE_DIAGRAM_BMD");
       expect(resToggle.success).toBe(true);
       expect(getBeamSimulatorSnapshot().visibleDiagrams.bmd).toBe(!initialBmd);
+
+      // Explicit hide / show must set deterministic state & accurate factual feedback
+      const hideMatch = routeVoiceTranscriptToCommand("hilangkan diagram bmd");
+      expect(hideMatch?.commandId).toBe("TOGGLE_DIAGRAM_BMD");
+      expect(hideMatch?.extractedParameters.visibilityAction).toBe("HIDE");
+      const resHide = executeRegistryCommand(hideMatch!.commandId, hideMatch!.extractedParameters);
+      expect(getBeamSimulatorSnapshot().visibleDiagrams.bmd).toBe(false);
+      expect(resHide.message.toLowerCase()).toContain("dinonaktifkan");
+      expect(pickSpokenReply(hideMatch!, resHide).toLowerCase()).toContain("dinonaktifkan");
+
+      const showMatch = routeVoiceTranscriptToCommand("tampilkan diagram bmd");
+      expect(showMatch?.extractedParameters.visibilityAction).toBe("SHOW");
+      const resShow = executeRegistryCommand(showMatch!.commandId, showMatch!.extractedParameters);
+      expect(getBeamSimulatorSnapshot().visibleDiagrams.bmd).toBe(true);
+      expect(resShow.message.toLowerCase()).toContain("diaktifkan");
+
+      // Even if a pre-execution spokenConfirmation is ambiguous/wrong, pickSpokenReply uses actual store state
+      executeRegistryCommand("TOGGLE_DIAGRAM_BMD", { visibilityAction: "SHOW" });
+      const ambiguousToggle = routeVoiceTranscriptToCommand("toggle diagram bmd")!;
+      const resFlipOff = executeRegistryCommand(
+        ambiguousToggle.commandId,
+        ambiguousToggle.extractedParameters,
+      );
+      expect(getBeamSimulatorSnapshot().visibleDiagrams.bmd).toBe(false);
+      expect(pickSpokenReply(ambiguousToggle, resFlipOff).toLowerCase()).toContain("dinonaktifkan");
+
+      // Gemini Live prompts explicitly preserve ON/OFF polarity
+      expect(GEMINI_LIVE_VOICE_SYSTEM_INSTRUCTION).toContain("DILARANG membalik");
+      expect(buildGeminiLiveSpeakPrompt("Visibilitas BMD dinonaktifkan.")).toContain(
+        "Visibilitas BMD dinonaktifkan.",
+      );
     });
 
     test("handles unknown CommandId with CommandRegistryError", () => {

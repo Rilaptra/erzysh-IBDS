@@ -11,6 +11,7 @@
 
 "use client";
 
+import { Gamepad2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import React, { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
 
@@ -37,6 +38,7 @@ import { ConcreteOptimizationResultCard } from "@/components/results/ConcreteOpt
 import { ProfileAndModelExportModal } from "@/components/results/ProfileAndModelExportModal";
 import { SteelOptimizationRankingTable } from "@/components/results/SteelOptimizationRankingTable";
 import { CustomEpochVisitorFlexBadge } from "@/components/telemetry/CustomEpochVisitorFlexBadge";
+import { InteractiveTutorialOverlay } from "@/components/tutorial/InteractiveTutorialOverlay";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { DraggableFloatingWindow } from "@/components/windows/DraggableFloatingWindow";
@@ -52,6 +54,7 @@ import {
   type FloatingWindowId,
   useFloatingWindowStore,
 } from "@/state/floating-window-store";
+import { tutorialTourActions, useTutorialTourStore } from "@/state/tutorial-tour-store";
 import type { PointLoad } from "@/types/beam-loading-modes";
 import type { Kilonewton, Meter } from "@/types/branded-units";
 
@@ -63,6 +66,7 @@ const DynamicBeam3DViewport = dynamic(() => import("@/components/canvas/Beam3DEx
 export function DesktopWorkstationView(): ReactElement {
   const store = useBeamSimulatorStore();
   const windowStore = useFloatingWindowStore();
+  const tutorial = useTutorialTourStore();
   const {
     meshViews,
     rebarCageViews,
@@ -110,13 +114,20 @@ export function DesktopWorkstationView(): ReactElement {
     return () => window.removeEventListener("app:camera-preset", handlePreset);
   }, []);
 
-  // Export modal voice trigger listener
+  // Export modal voice & tutorial listener
   useEffect(() => {
     const handleExport = () => {
       setIsExportModalOpen((prev) => !prev);
     };
+    const handleCloseExport = () => {
+      setIsExportModalOpen(false);
+    };
     window.addEventListener("app:toggle-export-modal", handleExport);
-    return () => window.removeEventListener("app:toggle-export-modal", handleExport);
+    window.addEventListener("app:close-export-modal", handleCloseExport);
+    return () => {
+      window.removeEventListener("app:toggle-export-modal", handleExport);
+      window.removeEventListener("app:close-export-modal", handleCloseExport);
+    };
   }, []);
 
   // Compute 2D screen projection and station along 3D beam axis (adapted from prototype/hand-tracking/engine.ts)
@@ -350,6 +361,7 @@ export function DesktopWorkstationView(): ReactElement {
       {/* 6. Top Workstation Header: Window Quick Dock Bar + Camera Preset Switcher + Telemetry Badge */}
       <div className="pointer-events-none absolute inset-x-3 top-3 z-40 flex flex-wrap items-center justify-between gap-2 xl:inset-x-4">
         <div
+          data-tutorial-id="window-dock"
           className="bg-card/85 border-border/40 pointer-events-auto order-1 flex flex-wrap items-center gap-1 rounded-lg border px-1.5 py-1 shadow-xl backdrop-blur-md xl:gap-1.5 xl:px-2 xl:py-1.5"
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -386,6 +398,7 @@ export function DesktopWorkstationView(): ReactElement {
         <div
           role="toolbar"
           aria-label="Kontrol kamera balok 3D"
+          data-tutorial-id="camera-toolbar"
           className="bg-card/85 border-border/40 pointer-events-auto order-2 flex flex-wrap items-center gap-1 rounded-lg border px-1.5 py-1 shadow-xl backdrop-blur-md xl:py-1.5"
           onPointerDown={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
@@ -466,8 +479,25 @@ export function DesktopWorkstationView(): ReactElement {
           )}
         </div>
 
-        {/* Top-Right Telemetry Badge (GA4 Custom Epoch Visitor Counter) */}
-        <div className="pointer-events-auto order-3">
+        {/* Top-Right Telemetry Badge & Tutorial Trigger */}
+        <div
+          className="pointer-events-auto order-3 flex items-center gap-1.5"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Button
+            type="button"
+            size="xs"
+            variant={tutorial.isActive ? "secondary" : "outline"}
+            onClick={() => tutorialTourActions.startTutorial(0)}
+            data-testid="desktop-tutorial-trigger-btn"
+            className={cn(
+              "bg-card/85 h-7 gap-1 border-cyan-500/40 px-2.5 text-[11px] font-bold backdrop-blur-md transition-colors hover:border-cyan-400/70 hover:bg-cyan-500/15 hover:text-cyan-200",
+              tutorial.isActive && "border-cyan-400 bg-cyan-500/20 text-cyan-200",
+            )}
+          >
+            <Gamepad2 className="h-3.5 w-3.5 text-cyan-300" />
+            Tutorial
+          </Button>
           <CustomEpochVisitorFlexBadge />
         </div>
       </div>
@@ -656,6 +686,13 @@ export function DesktopWorkstationView(): ReactElement {
         onToggleListening={voice.toggleListening}
         suggestions={voice.suggestions}
         onSelectSuggestion={voice.executeTranscript}
+      />
+
+      {/* 11. Interactive Tutorial Overlay (IBDS Engineer Quest) */}
+      <InteractiveTutorialOverlay
+        voice={voice}
+        cameraPreset={cameraPreset}
+        isHandTrackingActive={tracking.state.isRunning}
       />
     </ErzyshDarkGridBackground>
   );

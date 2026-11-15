@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.18] - 2026-11-15
+
+### ✨ Added
+
+- 🧭 Interactive step-by-step onboarding tour (IBDS Engineer Quest) with voice command guidance and spotlight HUD
+- 🎮 Quick tutorial trigger buttons on landing page, desktop workstation toolbar, and Android companion header
+- 🎙️ Enhanced AI intent router and speech prompt grounding to strictly separate conversational queries from action commands
+
+### 🛠️ Maintenance
+
+- 🔄 Refactored telemetry visitor badge with Radix popover and smooth hover/pin light-dismiss mechanics
+
 ## [0.6.17] - 2026-11-14
 
 ### ✨ Added

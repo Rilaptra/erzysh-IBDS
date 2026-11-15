@@ -267,6 +267,11 @@ export function ProfileAndModelExportModal({
           const res = buildDxfFromSimulatorState(store);
           downloadFile(res.content, res.fileName, res.mimeType);
           fileName = res.fileName;
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("app:dxf-exported", { detail: { fileName: res.fileName } }),
+            );
+          }
           break;
         }
         case "lsp": {
@@ -332,8 +337,27 @@ export function ProfileAndModelExportModal({
       }}
     >
       <DialogContent
+        data-tutorial-export-modal="true"
         className="flex max-h-[90dvh] flex-col p-4 sm:max-w-xl sm:p-6"
         onPointerDown={(e) => e.stopPropagation()}
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("[data-tutorial-hud='true']")) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("[data-tutorial-hud='true']")) {
+            e.preventDefault();
+          }
+        }}
+        onFocusOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("[data-tutorial-hud='true']")) {
+            e.preventDefault();
+          }
+        }}
       >
         <DialogHeader>
           <DialogTitle className="text-foreground text-base font-bold">
@@ -352,6 +376,8 @@ export function ProfileAndModelExportModal({
             return (
               <Card
                 key={item.id}
+                data-tutorial-export-format={item.id}
+                data-selected={isSelected ? "true" : "false"}
                 onClick={() => setSelectedFormat(item.id)}
                 className={cn(
                   "cursor-pointer gap-1 rounded-lg border p-3 py-3 transition-all",
@@ -516,6 +542,7 @@ export function ProfileAndModelExportModal({
           </Button>
           <Button
             size="sm"
+            data-tutorial-export-download="true"
             disabled={isExporting}
             onClick={() => {
               const item = EXPORT_FORMATS.find((f) => f.id === selectedFormat);

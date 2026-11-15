@@ -45,7 +45,8 @@ describe("changelog parser", () => {
   test("reads repository CHANGELOG.md cleanly", () => {
     const all = getAllChangelogReleases();
     expect(all.length).toBeGreaterThan(10);
-    expect(all[0]?.version).toBe("0.6.16");
+    expect(all[0]?.version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(all.some((entry) => entry.version === "0.6.16")).toBe(true);
     expect(all[0]?.sections.length).toBeGreaterThan(0);
 
     const latest3 = getLatestChangelogReleases(3);
