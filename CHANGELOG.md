@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.19] - 2026-11-15
+
+### ✨ Added
+
+- Add `LoadVisualization2DOverlay` to render point loads (P) and distributed loads (q) in screen-space
+- Support distinct positive (+) and negative (-) color themes for SFD, BMD, NFD, and TFD diagrams
+- Enhance SAP2000 `.s2k` exporter material properties tables and restraint assignments
+
+### 🛠️ Maintenance
+
+- Update version and build timestamp for release pipeline
+
 ## [0.6.18] - 2026-11-15
 
 ### ✨ Added

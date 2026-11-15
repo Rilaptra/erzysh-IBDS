@@ -9,7 +9,7 @@
 
 "use client";
 
-import React, { type CSSProperties, type ReactElement, useMemo } from "react";
+import React, { type CSSProperties, type ReactElement, useId, useMemo } from "react";
 
 import type { ZeroCopyStationViews } from "@/core/mechanics/wasm-mechanics-bridge";
 import type { DiagramDisplayMode, DiagramVisibilityFlags } from "@/state/beam-simulator-store";
@@ -26,29 +26,37 @@ export interface MultiModeDiagram2DOverlayProps {
   readonly style?: CSSProperties;
 }
 
-/** Diagram colors adhering to civil engineering CAD conventions. */
-const DIAGRAM_THEME = {
+/** Diagram colors adhering to civil engineering CAD conventions with distinct positive/negative pairs per force type. */
+export const DIAGRAM_THEME = {
   sfd: {
-    stroke: "#10B981", // Emerald Green
-    fill: "rgba(16, 185, 129, 0.18)",
+    stroke: "#10B981", // Emerald Green (+)
+    fill: "rgba(16, 185, 129, 0.22)",
+    negStroke: "#F97316", // Orange (-)
+    negFill: "rgba(249, 115, 22, 0.22)",
     label: "SFD (Gaya Geser Vu)",
     unit: "kN",
   },
   bmd: {
-    stroke: "#06B6D4", // Cyan
-    fill: "rgba(6, 182, 212, 0.18)",
+    stroke: "#06B6D4", // Cyan (+)
+    fill: "rgba(6, 182, 212, 0.22)",
+    negStroke: "#F43F5E", // Rose/Coral (-)
+    negFill: "rgba(244, 63, 94, 0.22)",
     label: "BMD (Bidang Momen Mux)",
     unit: "kNm",
   },
   nfd: {
-    stroke: "#A855F7", // Purple
-    fill: "rgba(168, 85, 247, 0.18)",
+    stroke: "#A855F7", // Purple (+)
+    fill: "rgba(168, 85, 247, 0.22)",
+    negStroke: "#EC4899", // Magenta/Pink (-)
+    negFill: "rgba(236, 72, 153, 0.22)",
     label: "NFD (Gaya Aksial Pu)",
     unit: "kN",
   },
   tfd: {
-    stroke: "#F59E0B", // Amber
-    fill: "rgba(245, 158, 11, 0.18)",
+    stroke: "#F59E0B", // Amber (+)
+    fill: "rgba(245, 158, 11, 0.22)",
+    negStroke: "#818CF8", // Indigo (-)
+    negFill: "rgba(129, 140, 248, 0.22)",
     label: "TFD (Momen Torsi Tu)",
     unit: "kNm",
   },
@@ -90,13 +98,15 @@ function buildDiagramSvgPath(
 }
 
 /**
- * Standalone Single 2D Diagram Graph Card.
+ * Standalone Single 2D Diagram Graph Card with per-diagram distinct positive (+) and negative (-) colors.
  */
 export function SingleDiagramCard({
   title,
   unit,
   strokeColor,
   fillColor,
+  negativeStrokeColor = "#F43F5E",
+  negativeFillColor = "rgba(244, 63, 94, 0.22)",
   stations,
   values,
   width = 440,
@@ -106,11 +116,18 @@ export function SingleDiagramCard({
   readonly unit: string;
   readonly strokeColor: string;
   readonly fillColor: string;
+  readonly negativeStrokeColor?: string;
+  readonly negativeFillColor?: string;
   readonly stations: Float64Array;
   readonly values: Float64Array;
   readonly width?: number;
   readonly height?: number;
 }): ReactElement {
+  const clipBaseId = useId();
+  const posClipId = `${clipBaseId}-pos`;
+  const negClipId = `${clipBaseId}-neg`;
+  const centerY = height / 2;
+
   let min = 0;
   let max = 0;
   for (let i = 0; i < values.length; i++) {
@@ -139,14 +156,23 @@ export function SingleDiagramCard({
         style={{
           display: "flex",
           justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
           fontSize: 11,
           color: "#94A3B8",
           marginBottom: 4,
+          flexWrap: "wrap",
         }}
       >
         <span style={{ fontWeight: 600, color: strokeColor }}>{title}</span>
-        <span>
-          Max: +{max.toFixed(1)} {unit} | Min: {min.toFixed(1)} {unit}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: strokeColor }}>
+            (+) +{max.toFixed(1)} {unit}
+          </span>
+          <span style={{ color: "#475569" }}>|</span>
+          <span style={{ color: negativeStrokeColor }}>
+            (-) {min.toFixed(1)} {unit}
+          </span>
         </span>
       </div>
 
@@ -156,21 +182,37 @@ export function SingleDiagramCard({
         viewBox={`0 0 ${width} ${height}`}
         style={{ display: "block" }}
       >
+        <defs>
+          <clipPath id={posClipId}>
+            <rect x="0" y="0" width={width} height={centerY} />
+          </clipPath>
+          <clipPath id={negClipId}>
+            <rect x="0" y={centerY} width={width} height={height - centerY} />
+          </clipPath>
+        </defs>
+
         {/* Baseline Center Zero */}
         <line
           x1="0"
-          y1={height / 2}
+          y1={centerY}
           x2={width}
-          y2={height / 2}
+          y2={centerY}
           stroke="#334155"
           strokeWidth="1"
           strokeDasharray="3 3"
         />
 
-        {/* Filled polygon */}
-        <path d={fillPath} fill={fillColor} />
-        {/* Outline Stroke */}
-        <path d={strokePath} fill="none" stroke={strokeColor} strokeWidth="2" />
+        {/* Positive Region (>= 0) */}
+        <g clipPath={`url(#${posClipId})`}>
+          <path d={fillPath} fill={fillColor} />
+          <path d={strokePath} fill="none" stroke={strokeColor} strokeWidth="2" />
+        </g>
+
+        {/* Negative Region (< 0) */}
+        <g clipPath={`url(#${negClipId})`}>
+          <path d={fillPath} fill={negativeFillColor} />
+          <path d={strokePath} fill="none" stroke={negativeStrokeColor} strokeWidth="2" />
+        </g>
       </svg>
     </div>
   );
@@ -220,6 +262,8 @@ export function MultiModeDiagram2DOverlay({
             unit={DIAGRAM_THEME.bmd.unit}
             strokeColor={DIAGRAM_THEME.bmd.stroke}
             fillColor={DIAGRAM_THEME.bmd.fill}
+            negativeStrokeColor={DIAGRAM_THEME.bmd.negStroke}
+            negativeFillColor={DIAGRAM_THEME.bmd.negFill}
             stations={stationsM}
             values={bendingMomentMajorKnm}
             width={spanWidthPx}
@@ -233,6 +277,8 @@ export function MultiModeDiagram2DOverlay({
             unit={DIAGRAM_THEME.sfd.unit}
             strokeColor={DIAGRAM_THEME.sfd.stroke}
             fillColor={DIAGRAM_THEME.sfd.fill}
+            negativeStrokeColor={DIAGRAM_THEME.sfd.negStroke}
+            negativeFillColor={DIAGRAM_THEME.sfd.negFill}
             stations={stationsM}
             values={shearForceKn}
             width={spanWidthPx}
@@ -246,6 +292,8 @@ export function MultiModeDiagram2DOverlay({
             unit={DIAGRAM_THEME.nfd.unit}
             strokeColor={DIAGRAM_THEME.nfd.stroke}
             fillColor={DIAGRAM_THEME.nfd.fill}
+            negativeStrokeColor={DIAGRAM_THEME.nfd.negStroke}
+            negativeFillColor={DIAGRAM_THEME.nfd.negFill}
             stations={stationsM}
             values={normalForceKn}
             width={spanWidthPx}
@@ -259,6 +307,8 @@ export function MultiModeDiagram2DOverlay({
             unit={DIAGRAM_THEME.tfd.unit}
             strokeColor={DIAGRAM_THEME.tfd.stroke}
             fillColor={DIAGRAM_THEME.tfd.fill}
+            negativeStrokeColor={DIAGRAM_THEME.tfd.negStroke}
+            negativeFillColor={DIAGRAM_THEME.tfd.negFill}
             stations={stationsM}
             values={torsionMomentKnm}
             width={spanWidthPx}
@@ -295,6 +345,8 @@ export function MultiModeDiagram2DOverlay({
             unit={DIAGRAM_THEME.bmd.unit}
             strokeColor={DIAGRAM_THEME.bmd.stroke}
             fillColor={DIAGRAM_THEME.bmd.fill}
+            negativeStrokeColor={DIAGRAM_THEME.bmd.negStroke}
+            negativeFillColor={DIAGRAM_THEME.bmd.negFill}
             stations={stationsM}
             values={bendingMomentMajorKnm}
             width={spanWidthPx}

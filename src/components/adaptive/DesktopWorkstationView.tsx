@@ -24,7 +24,9 @@ import type {
 import { CoordinateAxisSwitcher } from "@/components/canvas/CoordinateAxisSwitcher";
 import { DeflectionHudAndColorbar } from "@/components/canvas/DeflectionHudAndColorbar";
 import { ErzyshDarkGridBackground } from "@/components/canvas/ErzyshDarkGridBackground";
+import { LoadVisualization2DOverlay } from "@/components/canvas/LoadVisualization2DOverlay";
 import {
+  DIAGRAM_THEME,
   MultiModeDiagram2DOverlay,
   SingleDiagramCard,
 } from "@/components/canvas/MultiModeDiagram2DOverlay";
@@ -338,6 +340,16 @@ export function DesktopWorkstationView(): ReactElement {
         endBScreen={projection?.endBScreen ?? null}
       />
 
+      {/* 2b. 2D External Loads Overlay (Point & Distributed Loads) */}
+      <LoadVisualization2DOverlay
+        visible={store.loadingMode === "MODE_A_EXTERNAL_LOADS"}
+        spanLengthM={Number(store.spanLengthM)}
+        pointLoads={store.pointLoads}
+        distributedLoads={store.distributedLoads}
+        endAScreen={projection?.endAScreen ?? null}
+        endBScreen={projection?.endBScreen ?? null}
+      />
+
       {/* 3. 2D Diagram Overlay (Mode 1 & Mode 2) */}
       <MultiModeDiagram2DOverlay
         stationViews={stationViews}
@@ -547,9 +559,11 @@ export function DesktopWorkstationView(): ReactElement {
           <div className="flex flex-col gap-1.5">
             <SingleDiagramCard
               title="BMD — Bidang Momen Lentur (Mux)"
-              unit="kNm"
-              strokeColor="#06B6D4"
-              fillColor="rgba(6, 182, 212, 0.18)"
+              unit={DIAGRAM_THEME.bmd.unit}
+              strokeColor={DIAGRAM_THEME.bmd.stroke}
+              fillColor={DIAGRAM_THEME.bmd.fill}
+              negativeStrokeColor={DIAGRAM_THEME.bmd.negStroke}
+              negativeFillColor={DIAGRAM_THEME.bmd.negFill}
               stations={stationViews.stationsM}
               values={stationViews.bendingMomentMajorKnm}
               width={420}
@@ -557,9 +571,11 @@ export function DesktopWorkstationView(): ReactElement {
             />
             <SingleDiagramCard
               title="SFD — Bidang Gaya Geser (Vu)"
-              unit="kN"
-              strokeColor="#10B981"
-              fillColor="rgba(16, 185, 129, 0.18)"
+              unit={DIAGRAM_THEME.sfd.unit}
+              strokeColor={DIAGRAM_THEME.sfd.stroke}
+              fillColor={DIAGRAM_THEME.sfd.fill}
+              negativeStrokeColor={DIAGRAM_THEME.sfd.negStroke}
+              negativeFillColor={DIAGRAM_THEME.sfd.negFill}
               stations={stationViews.stationsM}
               values={stationViews.shearForceKn}
               width={420}
@@ -567,9 +583,11 @@ export function DesktopWorkstationView(): ReactElement {
             />
             <SingleDiagramCard
               title="NFD — Bidang Gaya Aksial (Pu)"
-              unit="kN"
-              strokeColor="#A855F7"
-              fillColor="rgba(168, 85, 247, 0.18)"
+              unit={DIAGRAM_THEME.nfd.unit}
+              strokeColor={DIAGRAM_THEME.nfd.stroke}
+              fillColor={DIAGRAM_THEME.nfd.fill}
+              negativeStrokeColor={DIAGRAM_THEME.nfd.negStroke}
+              negativeFillColor={DIAGRAM_THEME.nfd.negFill}
               stations={stationViews.stationsM}
               values={stationViews.normalForceKn}
               width={420}

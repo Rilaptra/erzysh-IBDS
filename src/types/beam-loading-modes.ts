@@ -57,7 +57,7 @@ export const STANDARD_RESTRAINTS: Record<
 > = {
   FIXED: { ux: true, uy: true, uz: true, rx: true, ry: true, rz: true },
   PINNED: { ux: true, uy: true, uz: true, rx: false, ry: false, rz: false },
-  ROLLER: { ux: false, uy: true, uz: true, rx: false, ry: false, rz: false },
+  ROLLER: { ux: false, uy: false, uz: true, rx: false, ry: false, rz: false },
   FREE: { ux: false, uy: false, uz: false, rx: false, ry: false, rz: false },
 };
 

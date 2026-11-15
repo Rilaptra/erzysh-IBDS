@@ -444,22 +444,33 @@ describe("Step 7: AI Natural Language Intent Router Tests", () => {
       expect(matchRuleBasedIntent("gimana cara menghilangkan BMD")).toBeNull();
       expect(matchRuleBasedIntent("gimana cara menghilangkan BMD dan SFD")).toBeNull();
 
-      const req = new Request("http://localhost:3000/api/ai/intent-router", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: "gimana cara menghilangkan BMD" }),
-      });
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ error: { message: "Mocked offline" } }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        })) as unknown as typeof fetch;
 
-      const res = await intentRouterPostHandler(req);
-      expect(res.status).toBe(200);
+      try {
+        const req = new Request("http://localhost:3000/api/ai/intent-router", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transcript: "gimana cara menghilangkan BMD" }),
+        });
 
-      const json = (await res.json()) as {
-        commandId: string | null;
-        spokenConfirmation?: string;
-      };
-      expect(json.commandId).toBe("AI_CONSULTATION");
-      expect(json.spokenConfirmation).toBeTruthy();
-      expect(json.spokenConfirmation?.toLowerCase()).not.toContain("sudah diaktifkan");
+        const res = await intentRouterPostHandler(req);
+        expect(res.status).toBe(200);
+
+        const json = (await res.json()) as {
+          commandId: string | null;
+          spokenConfirmation?: string;
+        };
+        expect(json.commandId).toBe("AI_CONSULTATION");
+        expect(json.spokenConfirmation).toBeTruthy();
+        expect(json.spokenConfirmation?.toLowerCase()).not.toContain("sudah diaktifkan");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
     });
   });
 });

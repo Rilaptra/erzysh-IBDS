@@ -167,15 +167,15 @@ describe("Step 6: Multi-Format CAD / BIM / CAE Exporters", () => {
         u1: "Yes",
         u2: "Yes",
         u3: "Yes",
-        r1: "Yes",
+        r1: "No",
         r2: "No",
         r3: "No",
       });
       expect(pinRol.joint2).toEqual({
         u1: "No",
-        u2: "Yes",
+        u2: "No",
         u3: "Yes",
-        r1: "Yes",
+        r1: "No",
         r2: "No",
         r3: "No",
       });
@@ -191,9 +191,9 @@ describe("Step 6: Multi-Format CAD / BIM / CAE Exporters", () => {
       });
       expect(fixRol.joint2).toEqual({
         u1: "No",
-        u2: "Yes",
+        u2: "No",
         u3: "Yes",
-        r1: "Yes",
+        r1: "No",
         r2: "No",
         r3: "No",
       });
@@ -232,17 +232,111 @@ describe("Step 6: Multi-Format CAD / BIM / CAE Exporters", () => {
 
       expect(s2k.fileName).toContain(".s2k");
       expect(s2k.content).toContain('TABLE:  "PROGRAM CONTROL"');
+      expect(s2k.content).toContain('Version=22.2.0   CurrUnits="KN, mm, C"');
+      expect(s2k.content).toContain('TABLE:  "MATERIAL PROPERTIES 01 - GENERAL"');
       expect(s2k.content).toContain(
         'TABLE:  "MATERIAL PROPERTIES 02 - BASIC MECHANICAL PROPERTIES"',
       );
+      expect(s2k.content).toContain('TABLE:  "MATERIAL PROPERTIES 03A - STEEL DATA"');
       expect(s2k.content).toContain('TABLE:  "FRAME SECTION PROPERTIES 01 - GENERAL"');
+      expect(s2k.content).not.toContain("FilletRadius=");
       expect(s2k.content).toContain('TABLE:  "JOINT COORDINATES"');
       expect(s2k.content).toContain('TABLE:  "JOINT RESTRAINT ASSIGNMENTS"');
       expect(s2k.content).toContain('TABLE:  "CONNECTIVITY - FRAME"');
       expect(s2k.content).toContain('TABLE:  "FRAME SECTION ASSIGNMENTS"');
+      expect(s2k.content).toContain('AnalSect="IWF-300x150x6.5x9.0"');
       expect(s2k.content).toContain('TABLE:  "LOAD PATTERN DEFINITIONS"');
+      expect(s2k.content).toContain('TABLE:  "LOAD CASE DEFINITIONS"');
+      expect(s2k.content).toContain('TABLE:  "CASE - STATIC 1 - LOAD ASSIGNMENTS"');
       expect(s2k.content).toContain('TABLE:  "FRAME LOADS - DISTRIBUTED"');
+      expect(s2k.content).toContain("FOverLA=0.015   FOverLB=0.015");
       expect(s2k.content).toContain("END TABLE DATA");
+    });
+
+    it("exports SAP2000 v22.2.0 compatible .s2k for IWF 100x100x17.2 BJ41 6m with point & distributed loads", () => {
+      const s2k = exportBeamToS2k({
+        spanLengthMm: 6000,
+        supportOrientation: "PINNED_ROLLER",
+        coordinateMode: "Z-Up",
+        crossSection: {
+          kind: "STEEL_IWF",
+          profileName: "WF 100 x 100 x 17,2",
+          dMm: 100,
+          bfMm: 100,
+          twMm: 6,
+          tfMm: 8,
+          rMm: 10,
+          steelGrade: "BJ_41",
+        },
+        includeSelfWeight: true,
+        pointLoads: [{ id: "P1", magnitude: 50 as any, position: 3 as any }],
+        distributedLoads: [
+          {
+            id: "Q1",
+            magnitude: 15 as any,
+            startPosition: 0 as any,
+            endPosition: 6 as any,
+          },
+        ],
+      });
+
+      expect(s2k.content).toContain("Material=BJ41   Type=Steel");
+      expect(s2k.content).toContain("Material=BJ41   Fy=0.25   Fu=0.41");
+      expect(s2k.content).toContain("t3=100   t2=100   tf=8   tw=6");
+      expect(s2k.content).toContain("XorR=6000   Y=0   Z=0");
+      expect(s2k.content).toContain("RelDist=0.5   AbsDist=3000   Force=50");
+      expect(s2k.content).toContain(
+        "RelDistA=0   RelDistB=1   AbsDistA=0   AbsDistB=6000   FOverLA=0.015   FOverLB=0.015",
+      );
+      expect(s2k.content).not.toContain("Val=");
+      expect(s2k.content).not.toContain("ValA=");
+    });
+
+    it("defaults to XZ plane DOFs and emits 1.0x factored IBDS_ULT combo with AutoGen=No for steel & concrete", () => {
+      const steelS2k = exportBeamToS2k({
+        spanLengthMm: 6000,
+        supportOrientation: "PINNED_ROLLER",
+        coordinateMode: "Z-Up",
+        crossSection: {
+          kind: "STEEL_IWF",
+          profileName: "WF 400 x 200 x 56.6",
+          dMm: 396,
+          bfMm: 199,
+          twMm: 7.0,
+          tfMm: 11.0,
+          rMm: 16.0,
+          steelGrade: "BJ_37",
+        },
+      });
+      expect(steelS2k.content).toContain("UX=Yes   UY=No   UZ=Yes   RX=No   RY=Yes   RZ=No");
+      expect(steelS2k.content).toContain('TABLE:  "AUTO COMBINATION OPTION DATA 01 - GENERAL"');
+      expect(steelS2k.content).toContain("DesignType=Steel   AutoGen=No");
+      expect(steelS2k.content).toContain('TABLE:  "COMBINATION DEFINITIONS"');
+      expect(steelS2k.content).toContain(
+        'ComboName=IBDS_ULT   ComboType="Linear Add"   AutoDesign=No   CaseName=DEAD   ScaleFactor=1   SteelDesign=Strength   ConcDesign=None',
+      );
+      expect(steelS2k.content).toContain("ComboName=IBDS_ULT   CaseName=LIVE   ScaleFactor=1");
+
+      const customXyzS2k = exportBeamToS2k({
+        spanLengthMm: 6000,
+        supportOrientation: "PINNED_ROLLER",
+        coordinateMode: "CustomXYZ",
+        crossSection: {
+          kind: "CONCRETE_RECT",
+          sectionName: "RC 400x650",
+          bwMm: 400,
+          hMm: 650,
+          coverMm: 40,
+          fcMpa: 25,
+          longitudinalRebarGrade: "BJTS_40",
+          stirrupRebarGrade: "BJTP_24",
+          tensileBars: { count: 4, diameterMm: 19 },
+          compressiveBars: { count: 2, diameterMm: 13 },
+          stirrup: { legs: 2, diameterMm: 10, spacingMm: 150 },
+        },
+      });
+      expect(customXyzS2k.content).toContain("UX=Yes   UY=Yes   UZ=Yes   RX=Yes   RY=Yes   RZ=Yes");
+      expect(customXyzS2k.content).toContain("SteelDesign=None   ConcDesign=Strength");
     });
 
     it("throws structured S2kExportError when span is non-positive", () => {
