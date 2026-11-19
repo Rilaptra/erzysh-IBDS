@@ -561,6 +561,7 @@ describe("Challenger Empirical Suite: Complex Compositions & Variant Stress-Test
 
 describe("Challenger Empirical Suite: Single Source of Truth (SST) Dynamic Propagation", () => {
   const coreFilePath = path.resolve(process.cwd(), "src/components/ui/core.tsx");
+  const tempCoreFilePath = path.resolve(process.cwd(), "src/components/ui/__core_sst_test__.tsx");
 
   test("mutating palette color in core.tsx immediately alters <CoreThemeStyle /> CSS output", () => {
     const originalContent = fs.readFileSync(coreFilePath, "utf8");
@@ -569,27 +570,27 @@ describe("Challenger Empirical Suite: Single Source of Truth (SST) Dynamic Propa
     try {
       expect(originalContent).toContain('primary: "#06b6d4",');
 
-      // Mutate palette.colors.primary in core.tsx
+      // Write mutated copy to an isolated sibling file so parallel tests importing core.tsx never race
       const modifiedContent = originalContent.replace(
         'primary: "#06b6d4",',
         `primary: "${testColorHex}",`,
       );
-      fs.writeFileSync(coreFilePath, modifiedContent, "utf8");
+      fs.writeFileSync(tempCoreFilePath, modifiedContent, "utf8");
 
       // Execute subprocess with fresh module evaluation
       const output = execSync(
-        "bun -e \"import React from 'react'; import { renderToString } from 'react-dom/server'; import { CoreThemeStyle } from './src/components/ui/core'; console.log(renderToString(React.createElement(CoreThemeStyle)));\"",
+        "bun -e \"import React from 'react'; import { renderToString } from 'react-dom/server'; import { CoreThemeStyle } from './src/components/ui/__core_sst_test__'; console.log(renderToString(React.createElement(CoreThemeStyle)));\"",
         { encoding: "utf8", cwd: process.cwd() },
       );
 
       expect(output).toContain(`--primary:${testColorHex};`);
       expect(output).not.toContain("--primary:#06b6d4;");
     } finally {
-      // Restore core.tsx unconditionally
-      fs.writeFileSync(coreFilePath, originalContent, "utf8");
+      // Remove isolated temp file unconditionally
+      fs.rmSync(tempCoreFilePath, { force: true });
     }
 
-    // Verify restoration
+    // Verify original core.tsx output remains intact
     const restoredOutput = execSync(
       "bun -e \"import React from 'react'; import { renderToString } from 'react-dom/server'; import { CoreThemeStyle } from './src/components/ui/core'; console.log(renderToString(React.createElement(CoreThemeStyle)));\"",
       { encoding: "utf8", cwd: process.cwd() },

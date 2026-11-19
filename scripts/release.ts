@@ -8,12 +8,23 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { c, Confirm, Notification, Select, ToastBuilder, write } from "@rilaptra/tui";
+import { ANSI, c, Notification, ToastBuilder, write } from "@rilaptra/tui";
 import Bun from "bun";
 
 import { getGeminiApiKeys } from "../src/config/app-config";
 import { isQuotaOrAuthError, maskApiKey } from "../src/lib/gemini-api-failover";
 import { ZyLog } from "../src/lib/zylog";
+import {
+  CancellationController,
+  isReleaseCancelledError,
+  promptConfirm,
+  promptSelect,
+  ReleaseCancelledError,
+  ReleaseTransaction,
+  restoreTerminalState,
+  type RollbackReport,
+  throwIfCancelled,
+} from "./lib/release-cancellation";
 import { runVerification } from "./verify";
 
 const log = ZyLog.withScope("RELEASE");
@@ -82,61 +93,46 @@ function ensureConventionalCommit(rawMsg: string, defaultScope = "release"): str
 // Native Bun Shell Helper
 // ============================================================================
 
+interface ShellOptions {
+  readonly silent?: boolean;
+  readonly cwd?: string;
+  readonly signal?: AbortSignal;
+  readonly cancelCtrl?: CancellationController;
+}
+
 const Shell = {
-  exec(cmd: string | string[], opts: { silent?: boolean; cwd?: string } = {}) {
-    const cmdArr = Array.isArray(cmd) ? cmd : cmd.split(" ");
-    const cmdStr = Array.isArray(cmd) ? cmd.join(" ") : cmd;
-    if (!opts.silent) log.cmd(cmdStr);
-
-    const proc = Bun.spawnSync(cmdArr, {
-      cwd: opts.cwd || process.cwd(),
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    const output = proc.stdout.toString().trim();
-    const error = proc.stderr.toString().trim();
-    return {
-      success: proc.exitCode === 0,
-      code: proc.exitCode,
-      output,
-      error,
-    };
-  },
-
-  run(cmd: string | string[], opts: { silent?: boolean; cwd?: string } = {}) {
-    const res = this.exec(cmd, opts);
-    if (!res.success) {
-      throw new Error(
-        `Command failed: ${Array.isArray(cmd) ? cmd.join(" ") : cmd}\n${c.red(res.error || res.output)}`,
-      );
-    }
-    return res.output;
-  },
-
-  async execAsync(cmd: string | string[], opts: { silent?: boolean; cwd?: string } = {}) {
+  async execAsync(cmd: string | string[], opts: ShellOptions = {}) {
+    throwIfCancelled(opts.signal);
     const cmdArr = Array.isArray(cmd) ? cmd : cmd.split(" ");
     const cmdStr = Array.isArray(cmd) ? cmd.join(" ") : cmd;
     if (!opts.silent) log.cmd(cmdStr);
 
     const proc = Bun.spawn(cmdArr, {
       cwd: opts.cwd || process.cwd(),
+      stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
     });
 
-    const exitCode = await proc.exited;
-    const output = (await new Response(proc.stdout).text()).trim();
-    const error = (await new Response(proc.stderr).text()).trim();
+    const untrack = opts.cancelCtrl?.trackProcess(proc);
+    try {
+      const exitCode = await proc.exited;
+      throwIfCancelled(opts.signal);
+      const output = (await new Response(proc.stdout).text()).trim();
+      const error = (await new Response(proc.stderr).text()).trim();
 
-    return {
-      success: exitCode === 0,
-      code: exitCode,
-      output,
-      error,
-    };
+      return {
+        success: exitCode === 0,
+        code: exitCode,
+        output,
+        error,
+      };
+    } finally {
+      untrack?.();
+    }
   },
 
-  async runAsync(cmd: string | string[], opts: { silent?: boolean; cwd?: string } = {}) {
+  async runAsync(cmd: string | string[], opts: ShellOptions = {}) {
     const res = await this.execAsync(cmd, opts);
     if (!res.success) {
       throw new Error(
@@ -154,6 +150,7 @@ const Shell = {
 const ui = {
   spinnerInterval: null as ReturnType<typeof setInterval> | null,
   startSpinner(text: string) {
+    if (this.spinnerInterval) clearInterval(this.spinnerInterval);
     const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     let i = 0;
     process.stdout.write(c.cyan(`  ⠋ ${text}`));
@@ -162,9 +159,18 @@ const ui = {
     }, 80);
   },
   stopSpinner(success: boolean, text: string) {
-    if (this.spinnerInterval) clearInterval(this.spinnerInterval);
+    if (this.spinnerInterval) {
+      clearInterval(this.spinnerInterval);
+      this.spinnerInterval = null;
+    }
     const icon = success ? c.green("✓") : c.red("✗");
     process.stdout.write(`\r\x1b[2K  ${icon} ${text}\n`);
+  },
+  clearSpinner() {
+    if (!this.spinnerInterval) return;
+    clearInterval(this.spinnerInterval);
+    this.spinnerInterval = null;
+    process.stdout.write(`\r\x1b[2K${ANSI.SHOW_CURSOR}`);
   },
   step(num: number, total: number, title: string) {
     write(`\n${c.cyanBold(`▶ [STEP ${num}/${total}] ${title}`)}\n`);
@@ -211,17 +217,37 @@ const AIManager = {
   MODEL: "gemini-3.5-flash-lite",
   availableModels: [] as string[],
 
-  async fetchModels(): Promise<boolean> {
+  assertNotAborted(signal?: AbortSignal): void {
+    if (!signal?.aborted) return;
+    if (signal.reason instanceof Error) {
+      throw signal.reason;
+    }
+    const err = new Error("Proses dibatalkan oleh pengguna.");
+    err.name = "AbortError";
+    throw err;
+  },
+
+  isAbortError(err: unknown, signal?: AbortSignal): boolean {
+    return (
+      Boolean(signal?.aborted) ||
+      (err instanceof Error && (err.name === "AbortError" || err.name === "ReleaseCancelledError"))
+    );
+  },
+
+  async fetchModels(signal?: AbortSignal): Promise<boolean> {
+    this.assertNotAborted(signal);
     const keys = this.getApiKeys();
     if (keys.length === 0) return false;
 
     ui.startSpinner("Fetching available Gemini models...");
     for (const key of keys) {
+      this.assertNotAborted(signal);
       try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models`, {
           headers: {
             "x-goog-api-key": key,
           },
+          signal,
         });
         if (!res.ok) {
           if (res.status === 429 || res.status === 400 || res.status === 403) {
@@ -237,7 +263,12 @@ const AIManager = {
 
         ui.stopSpinner(true, `Found ${this.availableModels.length} available Gemini models.`);
         return true;
-      } catch {
+      } catch (err) {
+        if (this.isAbortError(err, signal)) {
+          ui.clearSpinner?.();
+          this.assertNotAborted(signal);
+          throw err;
+        }
         continue;
       }
     }
@@ -249,7 +280,9 @@ const AIManager = {
     oldWebVer: string,
     oldWasmVer: string,
     diff: string,
+    signal?: AbortSignal,
   ): Promise<AiReleaseDecision> {
+    this.assertNotAborted(signal);
     const keys = this.getApiKeys();
     if (keys.length === 0) throw new Error("No GEMINI_API_KEY / AI_PROVIDER_API_KEY found.");
 
@@ -280,6 +313,7 @@ ${cleanDiff}
 
     let lastError: unknown = null;
     for (let keyIdx = 0; keyIdx < keys.length; keyIdx++) {
+      this.assertNotAborted(signal);
       const currentKey = keys[keyIdx]!;
       try {
         const res = await fetch(
@@ -294,6 +328,7 @@ ${cleanDiff}
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: { temperature: 0.2 },
             }),
+            signal,
           },
         );
 
@@ -358,6 +393,11 @@ ${cleanDiff}
           readmeBlocks: typeof parsed.readmeBlocks === "string" ? parsed.readmeBlocks.trim() : "",
         };
       } catch (err) {
+        if (this.isAbortError(err, signal)) {
+          ui.clearSpinner?.();
+          this.assertNotAborted(signal);
+          throw err;
+        }
         lastError = err;
         if (keyIdx + 1 < keys.length) {
           const nextKey = keys[keyIdx + 1]!;
@@ -389,8 +429,6 @@ class ReleaseManager {
     releaseTs: join(this.root, "scripts", "release.ts"),
   };
 
-  private backups: Record<string, string> = {};
-
   private manualBump(oldVer: string): string {
     const parts = oldVer.split(".").map((n) => Number.parseInt(n, 10) || 0);
     while (parts.length < 3) parts.push(0);
@@ -398,20 +436,57 @@ class ReleaseManager {
     return parts.slice(0, 3).join(".");
   }
 
-  private async pickModel(): Promise<string> {
-    const select = new Select<string>().title("Pilih model AI Gemini:").pageSize(10);
-    for (const model of AIManager.availableModels) {
-      select.add(model === AIManager.MODEL ? `${model} (current)` : model, model);
-    }
-    return select.run();
+  private async pickModel(signal?: AbortSignal): Promise<string> {
+    return promptSelect({
+      title: "Pilih model AI Gemini:",
+      pageSize: 10,
+      options: AIManager.availableModels.map((model) => ({
+        label: model === AIManager.MODEL ? `${model} (current)` : model,
+        value: model,
+      })),
+      signal,
+    });
   }
 
-  private async persistDefaultModel(model: string): Promise<void> {
+  private async persistDefaultModel(model: string, tx: ReleaseTransaction): Promise<void> {
     const content = await Bun.file(this.paths.releaseTs).text();
     const updated = content.replace(/^(\s*MODEL:\s*")[^"]+(")/m, `$1${model}$2`);
     if (updated !== content) {
+      await tx.backupFile(this.paths.releaseTs);
+      tx.markFileModified(this.paths.releaseTs);
       await Bun.write(this.paths.releaseTs, updated);
       ui.success(`Default model disimpan permanen di scripts/release.ts: ${c.bold(model)}`);
+    }
+  }
+
+  private printRollbackReport(report: RollbackReport): void {
+    if (report.commitAlreadyPushed) {
+      ui.warn(
+        "Commit sudah terlanjur di-push ke origin sebelum dibatalkan; commit lokal dipertahankan demi konsistensi remote.",
+      );
+    } else {
+      if (report.rebaseAborted) {
+        ui.info("Rollback: git rebase yang tertunda dibatalkan (rebase --abort).");
+      }
+      if (report.tagReverted) {
+        ui.info(`Rollback: tag lokal '${report.tagReverted}' dipulihkan.`);
+      }
+      if (report.commitReverted) {
+        ui.info("Rollback: commit lokal yang belum di-push dikembalikan (soft-reset).");
+      }
+      if (report.indexRestored) {
+        ui.info("Rollback: Git staging/index dikembalikan ke kondisi awal.");
+      }
+      if (report.filesRestored.length > 0) {
+        ui.info(`Rollback: file dipulihkan (${report.filesRestored.join(", ")}).`);
+      }
+      if (report.filesDeleted.length > 0) {
+        ui.info(`Rollback: file baru dibersihkan (${report.filesDeleted.join(", ")}).`);
+      }
+    }
+
+    for (const warning of report.warnings) {
+      ui.warn(warning);
     }
   }
 
@@ -423,30 +498,46 @@ class ReleaseManager {
     const noPush = process.argv.includes("--no-push");
     const noTag = process.argv.includes("--no-tag");
 
+    const cancelCtrl = new CancellationController();
+    const tx = new ReleaseTransaction(this.root);
+    cancelCtrl.install({
+      onBeforeAbort: () => ui.clearSpinner(),
+    });
+    const shellOpts: ShellOptions = {
+      silent: true,
+      signal: cancelCtrl.signal,
+      cancelCtrl,
+    };
+
     try {
       const currentBranch =
-        Shell.exec("git rev-parse --abbrev-ref HEAD", { silent: true }).output || "flash";
+        (await Shell.execAsync("git rev-parse --abbrev-ref HEAD", shellOpts)).output || "flash";
       ui.info(`Active Branch: ${c.cyanBold(currentBranch)}`);
 
+      // Snapshot Git state before touching the index so cancellation restores it cleanly
+      tx.captureGitSnapshot();
+
       // Stage intent-to-add for untracked files so git diff HEAD captures newly created files
-      Shell.exec("git add -N .", { silent: true });
+      tx.markIndexTouched();
+      await Shell.execAsync("git add -N .", shellOpts);
 
       // 1. Detect Changes & Build Options
       ui.step(1, 8, "Detect Changes & Build Options");
-      const diff = Shell.exec("git diff HEAD", { silent: true }).output;
+      const diff = (await Shell.execAsync("git diff HEAD", shellOpts)).output;
 
       if (!diff.trim()) {
         ui.warn("Tidak ada perubahan file yang belum di-commit (working tree clean).");
         if (!noPush) {
           const shouldPushOnly = isAutoYes
             ? true
-            : await new Confirm({
+            : await promptConfirm({
                 title: `Push branch '${currentBranch}' ke origin sekarang?`,
                 initialValue: true,
-              }).run();
+                signal: cancelCtrl.signal,
+              });
           if (shouldPushOnly) {
             ui.startSpinner(`Pushing ${currentBranch} to origin...`);
-            await this.smartPush(currentBranch);
+            await this.smartPush(currentBranch, shellOpts, tx);
             ui.stopSpinner(true, `Branch '${currentBranch}' berhasil di-push ke origin.`);
           }
         }
@@ -476,10 +567,11 @@ class ReleaseManager {
       let buildWeb = false;
       const hasNextApp = existsSync(join(this.root, "src", "app"));
       if (webChanged && hasNextApp && !isAutoYes) {
-        buildWeb = await new Confirm({
+        buildWeb = await promptConfirm({
           title: "Ada perubahan di src/ — mau jalankan full build Next.js?",
           initialValue: false,
-        }).run();
+          signal: cancelCtrl.signal,
+        });
       }
       if (!buildWeb) {
         ui.info(
@@ -489,47 +581,55 @@ class ReleaseManager {
 
       let skipWasmBuild = true;
       if (rustChanged && !isAutoYes) {
-        const buildRust = await new Confirm({
+        const buildRust = await promptConfirm({
           title: "Ada perubahan di crates/mechanics-3d-wasm — mau build WASM sekarang?",
           initialValue: true,
-        }).run();
+          signal: cancelCtrl.signal,
+        });
         skipWasmBuild = !buildRust;
       }
 
       // 2. Code Verification Gate
+      throwIfCancelled(cancelCtrl.signal);
       ui.step(
         2,
         8,
         `Code Verification (Fmt + TypeScript + Catalogs + Unit Tests${buildWeb ? " + Build" : ""})`,
       );
-      const verified = await runVerification({ build: buildWeb, rustTest: rustChanged });
+      const verified = await runVerification({
+        build: buildWeb,
+        rustTest: rustChanged,
+        signal: cancelCtrl.signal,
+      });
       if (!verified) {
         throw new Error("Verifikasi kode gagal. Perbaiki error di atas sebelum commit/release.");
       }
 
       // 3. AI Model Setup
+      throwIfCancelled(cancelCtrl.signal);
       ui.step(3, 8, "AI Model Configuration");
       let useAI = true;
 
       if (AIManager.getApiKeys().length > 0) {
-        const modelsFetched = await AIManager.fetchModels();
+        const modelsFetched = await AIManager.fetchModels(cancelCtrl.signal);
         if (modelsFetched && AIManager.availableModels.length > 0) {
           if (AIManager.availableModels.includes(AIManager.MODEL)) {
             let keep = true;
             if (!isAutoYes) {
-              keep = await new Confirm({
+              keep = await promptConfirm({
                 title: `Tetap lanjut dengan model AI ${AIManager.MODEL}?`,
                 initialValue: true,
-              }).run();
+                signal: cancelCtrl.signal,
+              });
             }
             if (!keep) {
-              AIManager.MODEL = await this.pickModel();
-              await this.persistDefaultModel(AIManager.MODEL);
+              AIManager.MODEL = await this.pickModel(cancelCtrl.signal);
+              await this.persistDefaultModel(AIManager.MODEL, tx);
             }
           } else {
             ui.warn(`Model default ${AIManager.MODEL} tidak tersedia — pilih pengganti.`);
-            AIManager.MODEL = await this.pickModel();
-            await this.persistDefaultModel(AIManager.MODEL);
+            AIManager.MODEL = await this.pickModel(cancelCtrl.signal);
+            await this.persistDefaultModel(AIManager.MODEL, tx);
           }
           ui.success(`Menggunakan model AI: ${c.bold(AIManager.MODEL)}`);
         } else {
@@ -541,6 +641,7 @@ class ReleaseManager {
       }
 
       // 4. AI Versioning & Commit Message Execution
+      throwIfCancelled(cancelCtrl.signal);
       ui.step(4, 8, "AI Version & Conventional Commit Analysis");
       const oldWebVer =
         (JSON.parse(await Bun.file(this.paths.package).text()) as { version?: string }).version ??
@@ -561,7 +662,12 @@ class ReleaseManager {
       if (useAI) {
         ui.startSpinner(`Consulting ${AIManager.MODEL}...`);
         try {
-          const aiResult = await AIManager.generateReleaseData(oldWebVer, oldWasmVer, diff);
+          const aiResult = await AIManager.generateReleaseData(
+            oldWebVer,
+            oldWasmVer,
+            diff,
+            cancelCtrl.signal,
+          );
           ui.stopSpinner(
             true,
             `AI Decision: Web ➜ ${c.greenBold(aiResult.webVersion)} | WASM ➜ ${c.greenBold(aiResult.wasmVersion)}`,
@@ -572,16 +678,23 @@ class ReleaseManager {
           changelogEntry = aiResult.changelog;
           commitMsg = aiResult.commitMessage;
         } catch (e: unknown) {
+          if (isReleaseCancelledError(e) || cancelCtrl.isCancelled) {
+            ui.clearSpinner();
+            throw e;
+          }
           const errMsg = e instanceof Error ? e.message : String(e);
           ui.stopSpinner(false, `AI Failed: ${errMsg}`);
           let fallback = true;
           if (!isAutoYes) {
-            fallback = await new Confirm({
+            fallback = await promptConfirm({
               title: "Fallback ke manual patch bump?",
               initialValue: true,
-            }).run();
+              signal: cancelCtrl.signal,
+            });
           }
-          if (!fallback) throw new Error("Dibatalkan oleh user.");
+          if (!fallback) {
+            throw new ReleaseCancelledError("USER", "manual fallback ditolak");
+          }
 
           if (webChanged) newWebVer = this.manualBump(oldWebVer);
           if (rustChanged) newWasmVer = this.manualBump(oldWasmVer);
@@ -595,30 +708,57 @@ class ReleaseManager {
         changelogEntry = `## [${newWebVer}] - ${new Date().toISOString().split("T")[0]}\n\n### 🛠️ Maintenance\n- Manual patch release v${newWebVer}.\n\n`;
       }
 
-      await this.backup();
+      await tx.backupFiles([
+        this.paths.package,
+        this.paths.cargo,
+        this.paths.changelog,
+        this.paths.versionTs,
+        this.paths.readme,
+      ]);
 
       // 5. Update Configurations
+      throwIfCancelled(cancelCtrl.signal);
       ui.step(5, 8, "Writing Configurations & Changelog");
       ui.startSpinner("Updating package.json, version.ts, CHANGELOG.md, README.md...");
+
+      tx.markFileModified(this.paths.package);
       await this.writePackageJson(newWebVer);
-      if (hasCargo && rustChanged) await this.syncToCargo(newWasmVer);
+
+      if (hasCargo && rustChanged) {
+        tx.markFileModified(this.paths.cargo);
+        await this.syncToCargo(newWasmVer);
+      }
+
+      tx.markFileModified(this.paths.versionTs);
       await this.syncToVersionTs(newWebVer, newWasmVer);
+
+      tx.markFileModified(this.paths.changelog);
       await this.updateChangelogFile(changelogEntry);
-      await this.syncToReadme(newWebVer);
+
+      await this.syncToReadme(newWebVer, tx);
 
       // Format modified config files with bun fmt so pre-commit hook passes 100%
-      Shell.exec("bun fmt", { silent: true });
+      await Shell.execAsync(["bun", "fmt"], shellOpts);
       ui.stopSpinner(true, "Configurations & CHANGELOG.md synced and formatted.");
 
       // 6. Build Rust WASM Binary
       if (hasCargo && !skipWasmBuild) {
+        throwIfCancelled(cancelCtrl.signal);
         ui.step(6, 8, "Compiling Rust WASM Engine");
         ui.info("Running bun run wasm:build:\n");
         const proc = Bun.spawn(["bun", "run", "wasm:build"], {
+          stdin: "ignore",
           stdout: "inherit",
           stderr: "inherit",
         });
-        const exitCode = await proc.exited;
+        const untrackWasm = cancelCtrl.trackProcess(proc);
+        let exitCode: number;
+        try {
+          exitCode = await proc.exited;
+        } finally {
+          untrackWasm();
+        }
+        throwIfCancelled(cancelCtrl.signal);
         if (exitCode !== 0) throw new Error("WASM build failed.");
         ui.success("Rust WASM compiled successfully.");
       } else {
@@ -627,28 +767,37 @@ class ReleaseManager {
       }
 
       // 7. Git Commit & Tag
+      throwIfCancelled(cancelCtrl.signal);
       ui.step(7, 8, "Git Commit & Tag");
       ui.startSpinner("Staging and committing changes...");
-      Shell.run("git add -A", { silent: true });
-      Shell.run(["git", "commit", "-m", commitMsg], { silent: true });
+      tx.markIndexTouched();
+      await Shell.runAsync(["git", "add", "-A"], shellOpts);
+
+      throwIfCancelled(cancelCtrl.signal);
+      await Shell.runAsync(["git", "commit", "-m", commitMsg], shellOpts);
 
       if (!noTag) {
+        throwIfCancelled(cancelCtrl.signal);
         const tagName = `web-v${newWebVer}`;
-        const tagExists = Shell.exec(["git", "tag", "-l", tagName], { silent: true }).output;
-        if (tagExists) Shell.run(["git", "tag", "-d", tagName], { silent: true });
-        Shell.run(["git", "tag", tagName], { silent: true });
+        tx.recordTagBeforeCreate(tagName);
+        const tagExists = (await Shell.execAsync(["git", "tag", "-l", tagName], shellOpts)).output;
+        if (tagExists) {
+          await Shell.runAsync(["git", "tag", "-d", tagName], shellOpts);
+        }
+        await Shell.runAsync(["git", "tag", tagName], shellOpts);
         ui.stopSpinner(true, `Committed & Tagged (${tagName} on ${currentBranch})`);
       } else {
         ui.stopSpinner(true, `Committed on branch ${currentBranch} (tag skipped)`);
       }
 
       // 8. Deploy to Origin
+      throwIfCancelled(cancelCtrl.signal);
       ui.step(8, 8, "Deploy to Origin");
       if (!noPush) {
         ui.startSpinner(`Pushing branch '${currentBranch}' to origin...`);
-        await this.smartPush(currentBranch);
+        await this.smartPush(currentBranch, shellOpts, tx);
         if (!noTag) {
-          await this.smartPushTag(`web-v${newWebVer}`);
+          await this.smartPushTag(`web-v${newWebVer}`, shellOpts, tx);
         }
         ui.stopSpinner(true, `Pushed to origin/${currentBranch} successfully`);
       } else {
@@ -658,9 +807,26 @@ class ReleaseManager {
       write(`📝 Commit   : ${c.dim(commitMsg)}\n`);
       await this.summary(currentBranch, newWebVer, newWasmVer, skipWasmBuild);
     } catch (error: unknown) {
+      ui.clearSpinner();
+      await cancelCtrl.waitForActiveProcesses();
+      restoreTerminalState();
+      const report = await tx.rollback();
+
+      if (isReleaseCancelledError(error) || cancelCtrl.isCancelled) {
+        const cancelErr = isReleaseCancelledError(error)
+          ? error
+          : (cancelCtrl.reason ?? new ReleaseCancelledError("USER", "dibatalkan"));
+        write(`\n${c.yellowBold(`⚠ ${cancelErr.message}`)}\n`);
+        this.printRollbackReport(report);
+        write(`${c.green("✨ Workspace aman & bersih untuk dilanjutkan.")}\n`);
+        cancelCtrl.uninstall();
+        process.exit(cancelErr.exitCode);
+      }
+
       const errMsg = error instanceof Error ? error.message : String(error);
       log.error("🔥 PIPELINE FAILED!");
       ui.error(errMsg);
+      this.printRollbackReport(report);
       try {
         await ToastBuilder.create(errMsg)
           .setTitle("🔥 IBDS Release Failed")
@@ -669,8 +835,12 @@ class ReleaseManager {
       } catch {
         // Ignore toast errors in headless environments
       }
-      await this.rollback();
+      cancelCtrl.uninstall();
       process.exit(1);
+    } finally {
+      ui.clearSpinner();
+      cancelCtrl.uninstall();
+      restoreTerminalState();
     }
   }
 
@@ -713,74 +883,50 @@ class ReleaseManager {
     await Bun.write(this.paths.changelog, newContent);
   }
 
-  private async syncToReadme(version: string): Promise<void> {
+  private async syncToReadme(version: string, tx: ReleaseTransaction): Promise<void> {
     if (!(await Bun.file(this.paths.readme).exists())) return;
     const content = await Bun.file(this.paths.readme).text();
     const updated = content
       .replace(/RELEASE-v\d+\.\d+\.\d+--alpha/g, `RELEASE-v${version}--alpha`)
       .replace(/Version-\d+\.\d+\.\d+(?:-[a-z]+)?-blue/g, `Version-${version}-blue`);
     if (updated !== content) {
+      tx.markFileModified(this.paths.readme);
       await Bun.write(this.paths.readme, updated);
     }
   }
 
-  private async smartPush(branch: string): Promise<void> {
-    const push = await Shell.execAsync(["git", "push", "-u", "origin", branch], {
-      silent: true,
-    });
+  private async smartPush(
+    branch: string,
+    shellOpts: ShellOptions,
+    tx: ReleaseTransaction,
+  ): Promise<void> {
+    const push = await Shell.execAsync(["git", "push", "-u", "origin", branch], shellOpts);
     if (!push.success) {
       if (push.error.includes("fetch first") || push.error.includes("non-fast-forward")) {
-        await Shell.runAsync(["git", "pull", "--rebase", "origin", branch], {
-          silent: true,
-        });
-        await Shell.runAsync(["git", "push", "-u", "origin", branch], {
-          silent: true,
-        });
+        tx.markRebaseStarted();
+        await Shell.runAsync(["git", "pull", "--rebase", "origin", branch], shellOpts);
+        await Shell.runAsync(["git", "push", "-u", "origin", branch], shellOpts);
       } else {
         throw new Error(push.error || push.output);
       }
     }
+    tx.markCommitPushed();
   }
 
-  private async smartPushTag(tag: string): Promise<void> {
-    const push = await Shell.execAsync(["git", "push", "origin", tag], {
-      silent: true,
-    });
+  private async smartPushTag(
+    tag: string,
+    shellOpts: ShellOptions,
+    tx: ReleaseTransaction,
+  ): Promise<void> {
+    const push = await Shell.execAsync(["git", "push", "origin", tag], shellOpts);
     if (!push.success) {
       if (push.error.includes("already exists")) {
-        await Shell.runAsync(["git", "push", "--force", "origin", tag], {
-          silent: true,
-        });
+        await Shell.runAsync(["git", "push", "--force", "origin", tag], shellOpts);
       } else {
         throw new Error(push.error || push.output);
       }
     }
-  }
-
-  private async backup(): Promise<void> {
-    this.backups.package = await Bun.file(this.paths.package).text();
-    if (await Bun.file(this.paths.cargo).exists()) {
-      this.backups.cargo = await Bun.file(this.paths.cargo).text();
-    }
-    if (await Bun.file(this.paths.changelog).exists()) {
-      this.backups.changelog = await Bun.file(this.paths.changelog).text();
-    }
-    if (await Bun.file(this.paths.versionTs).exists()) {
-      this.backups.versionTs = await Bun.file(this.paths.versionTs).text();
-    }
-    if (await Bun.file(this.paths.readme).exists()) {
-      this.backups.readme = await Bun.file(this.paths.readme).text();
-    }
-  }
-
-  private async rollback(): Promise<void> {
-    ui.warn("Rolling back modified configuration files...");
-    if (this.backups.package) await Bun.write(this.paths.package, this.backups.package);
-    if (this.backups.cargo) await Bun.write(this.paths.cargo, this.backups.cargo);
-    if (this.backups.changelog) await Bun.write(this.paths.changelog, this.backups.changelog);
-    if (this.backups.versionTs) await Bun.write(this.paths.versionTs, this.backups.versionTs);
-    if (this.backups.readme) await Bun.write(this.paths.readme, this.backups.readme);
-    ui.success("System restored (Config files reverted).");
+    tx.markTagPushed();
   }
 
   private async summary(

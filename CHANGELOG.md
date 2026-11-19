@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.20] - 2026-11-19
+
+### 🛠️ Maintenance
+
+- upgrade Next.js to version 16.4.5 and update dependency lockfile
+- add release-cancellation utility and hotkey signal handling script
+
 ## [0.6.19] - 2026-11-15
 
 ### ✨ Added
