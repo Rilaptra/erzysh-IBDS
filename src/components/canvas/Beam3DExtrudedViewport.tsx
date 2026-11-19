@@ -126,6 +126,12 @@ export interface ViewportProjectionSnapshot {
   readonly endAScreen: ScreenProjection | null;
   /** Screen projection of the end B cross-section centroid (`null` without a mesh). */
   readonly endBScreen: ScreenProjection | null;
+  /** Unit vertical world axis (`Z-Up` -> `[0,0,1]`, `Y-Up` -> `[0,1,0]`, or `CustomXYZ`). */
+  readonly worldUp: Vec3Tuple;
+  /** World-space top-flange anchor at beam end A (`s = 0`, mm), or `null` without a mesh. */
+  readonly beamTopAWorld: Vec3Tuple | null;
+  /** World-space top-flange anchor at beam end B (`s = L`, mm), or `null` without a mesh. */
+  readonly beamTopBWorld: Vec3Tuple | null;
 }
 
 /** Props of {@link Beam3DExtrudedViewport}. */
@@ -1412,6 +1418,7 @@ interface SceneDrawState {
   topologyKey: string;
   bounds: SceneBounds | null;
   endAnchors: { readonly a: Vec3Tuple; readonly b: Vec3Tuple } | null;
+  topAnchors: { readonly a: Vec3Tuple; readonly b: Vec3Tuple } | null;
 }
 
 function createEmptyScene(): SceneDrawState {
@@ -1427,6 +1434,7 @@ function createEmptyScene(): SceneDrawState {
     topologyKey: "",
     bounds: null,
     endAnchors: null,
+    topAnchors: null,
   };
 }
 
@@ -1444,6 +1452,8 @@ interface RendererRuntime {
   needsFit: boolean;
   readonly matrices: CameraMatrices;
   readonly lastSnapshotMatrix: Float32Array;
+  readonly lastSnapshotWorldMeta: Float32Array;
+  lastSnapshotHasTopAnchors: boolean;
   lastSnapshotWidth: number;
   lastSnapshotHeight: number;
   lastSnapshotPreset: CameraPreset | null;
@@ -1498,6 +1508,7 @@ function syncSceneBuffers(rt: RendererRuntime, props: Beam3DExtrudedViewportProp
     scene.cageEndBCount = 0;
     scene.bounds = null;
     scene.endAnchors = null;
+    scene.topAnchors = null;
     return;
   }
 
@@ -1531,11 +1542,14 @@ function syncSceneBuffers(rt: RendererRuntime, props: Beam3DExtrudedViewportProp
   const bounds = computeSceneBounds(mesh.positionsF32);
   scene.bounds = bounds;
   const { minS, maxS } = computeSpanExtent(mesh.positionsF32, rt.basis.span);
+  const { maxS: maxU } = computeSpanExtent(mesh.positionsF32, rt.basis.up);
   const centerS = dot3(bounds.center, rt.basis.span);
-  scene.endAnchors = {
-    a: add3(bounds.center, scale3(rt.basis.span, minS - centerS)),
-    b: add3(bounds.center, scale3(rt.basis.span, maxS - centerS)),
-  };
+  const centerU = dot3(bounds.center, rt.basis.up);
+  const anchorA = add3(bounds.center, scale3(rt.basis.span, minS - centerS));
+  const anchorB = add3(bounds.center, scale3(rt.basis.span, maxS - centerS));
+  const upToTop = scale3(rt.basis.up, maxU - centerU);
+  scene.endAnchors = { a: anchorA, b: anchorB };
+  scene.topAnchors = { a: add3(anchorA, upToTop), b: add3(anchorB, upToTop) };
 
   if (!cage || cage.indicesU32.length === 0) {
     scene.cageIndexCount = 0;
@@ -1855,15 +1869,47 @@ function emitProjectionSnapshot(
   const callback = props.onProjectionChange;
   if (!callback) return;
   const viewProjection = rt.matrices.viewProjection;
+  const topAnchors = rt.scene.topAnchors;
+  const hasTopAnchors = topAnchors !== null;
+  const up = rt.basis.up;
+  const meta = rt.lastSnapshotWorldMeta;
   let changed =
     widthCss !== rt.lastSnapshotWidth ||
     heightCss !== rt.lastSnapshotHeight ||
-    rt.lastSnapshotPreset !== rt.camera.preset;
+    rt.lastSnapshotPreset !== rt.camera.preset ||
+    hasTopAnchors !== rt.lastSnapshotHasTopAnchors ||
+    up[0] !== meta[0] ||
+    up[1] !== meta[1] ||
+    up[2] !== meta[2];
+  if (!changed && topAnchors) {
+    if (
+      topAnchors.a[0] !== meta[3] ||
+      topAnchors.a[1] !== meta[4] ||
+      topAnchors.a[2] !== meta[5] ||
+      topAnchors.b[0] !== meta[6] ||
+      topAnchors.b[1] !== meta[7] ||
+      topAnchors.b[2] !== meta[8]
+    ) {
+      changed = true;
+    }
+  }
   for (let i = 0; !changed && i < 16; i++) {
     if (viewProjection[i] !== rt.lastSnapshotMatrix[i]) changed = true;
   }
   if (!changed) return;
   rt.lastSnapshotMatrix.set(viewProjection);
+  meta[0] = up[0];
+  meta[1] = up[1];
+  meta[2] = up[2];
+  if (topAnchors) {
+    meta[3] = topAnchors.a[0];
+    meta[4] = topAnchors.a[1];
+    meta[5] = topAnchors.a[2];
+    meta[6] = topAnchors.b[0];
+    meta[7] = topAnchors.b[1];
+    meta[8] = topAnchors.b[2];
+  }
+  rt.lastSnapshotHasTopAnchors = hasTopAnchors;
   rt.lastSnapshotWidth = widthCss;
   rt.lastSnapshotHeight = heightCss;
   rt.lastSnapshotPreset = rt.camera.preset;
@@ -1877,6 +1923,9 @@ function emitProjectionSnapshot(
       cameraPreset: rt.camera.preset,
       endAScreen,
       endBScreen,
+      worldUp: up,
+      beamTopAWorld: topAnchors ? topAnchors.a : null,
+      beamTopBWorld: topAnchors ? topAnchors.b : null,
     });
   } catch (callbackError) {
     console.error("[Beam3DExtrudedViewport] onProjectionChange callback threw:", callbackError);
@@ -2294,6 +2343,8 @@ export function Beam3DExtrudedViewport(props: Beam3DExtrudedViewportProps): Reac
         viewProjection: new Float32Array(16),
       },
       lastSnapshotMatrix: new Float32Array(16),
+      lastSnapshotWorldMeta: new Float32Array(9),
+      lastSnapshotHasTopAnchors: false,
       lastSnapshotWidth: -1,
       lastSnapshotHeight: -1,
       lastSnapshotPreset: null,

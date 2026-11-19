@@ -346,6 +346,7 @@ export function DesktopWorkstationView(): ReactElement {
         spanLengthM={Number(store.spanLengthM)}
         pointLoads={store.pointLoads}
         distributedLoads={store.distributedLoads}
+        projection={projection}
         endAScreen={projection?.endAScreen ?? null}
         endBScreen={projection?.endBScreen ?? null}
       />
@@ -355,6 +356,8 @@ export function DesktopWorkstationView(): ReactElement {
         stationViews={stationViews}
         displayMode={store.diagramDisplayMode}
         visibility={store.visibleDiagrams}
+        projection={projection}
+        spanLengthM={Number(store.spanLengthM)}
         endAScreen={projection?.endAScreen ?? null}
         endBScreen={projection?.endBScreen ?? null}
       />

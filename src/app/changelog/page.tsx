@@ -63,18 +63,22 @@ export default function ChangelogPage(): ReactElement {
 
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         {/* Page Header */}
-        <section className="mb-10 flex flex-col gap-6">
+        <section className="erzysh-fade-up mb-10 flex flex-col gap-6">
           <div className="flex flex-col gap-3">
             <Badge
               variant="outline"
               className="w-fit border-cyan-400/25 bg-[#0c1a2c]/80 text-[11px] text-cyan-200"
             >
+              <span
+                aria-hidden="true"
+                className="erzysh-badge-beacon size-1.5 rounded-full bg-cyan-400"
+              />
               <HistoryIcon className="size-3 text-cyan-400" aria-hidden="true" />
               <span>RELEASE NOTES · CHANGELOG.md</span>
             </Badge>
             <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
               Changelog &amp;{" "}
-              <span className="bg-linear-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-transparent">
+              <span className="erzysh-gradient-text bg-linear-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-transparent">
                 Riwayat Pembaruan
               </span>
             </h1>
@@ -88,15 +92,22 @@ export default function ChangelogPage(): ReactElement {
           <dl
             className={cn(
               glassPanelClass,
-              "grid grid-cols-2 divide-y divide-cyan-500/15 sm:grid-cols-4 sm:divide-x sm:divide-y-0",
+              "relative grid grid-cols-2 divide-y divide-cyan-500/15 overflow-hidden sm:grid-cols-4 sm:divide-x sm:divide-y-0",
             )}
           >
+            <span
+              aria-hidden="true"
+              className="erzysh-scanline pointer-events-none absolute top-0 left-0 h-px w-36 bg-linear-to-r from-transparent via-cyan-400/60 to-transparent"
+            />
             <div className="p-4">
               <dt className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
                 Versi Saat Ini
               </dt>
               <dd className="mt-1 flex items-center gap-1.5 font-mono text-sm font-bold text-cyan-300">
-                <SparklesIcon className="size-3.5 text-cyan-400" aria-hidden="true" />
+                <SparklesIcon
+                  className="erzysh-badge-beacon size-3.5 text-cyan-400"
+                  aria-hidden="true"
+                />
                 <span>v{latest?.version ?? APP_VERSION}</span>
               </dd>
             </div>
@@ -127,7 +138,9 @@ export default function ChangelogPage(): ReactElement {
           </dl>
         </section>
 
-        <ChangelogExplorer releases={releases} latestVersion={latest?.version} />
+        <div className="erzysh-changelog-shell erzysh-fade-up" style={{ animationDelay: "100ms" }}>
+          <ChangelogExplorer releases={releases} latestVersion={latest?.version} />
+        </div>
       </main>
 
       <footer className="mt-12 border-t border-cyan-500/15 bg-[#050a14]/75 py-8 text-[11px] text-slate-500 backdrop-blur-md">

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.21] - 2026-11-19
+
+### ✨ Added
+
+- 🌍 Perspective-accurate 3D structural load vector projection for point and distributed loads along the active world gravity axis (`Z-Up`, `Y-Up`, or `CustomXYZ`).
+- ⚡ Automated badge collision avoidance, smart label stacking, and vertical shaft clearance for load symbols in `LoadVisualization2DOverlay` and `Beam3DExtrudedViewport`.
+- 🎨 Enhanced CAD telemetry background styling with idle grid drift and ambient breath micro-animations.
+
 ## [0.6.20] - 2026-11-19
 
 ### 🛠️ Maintenance

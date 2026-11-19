@@ -266,8 +266,96 @@
   }
 }
 
+@keyframes erzyshSimGridDrift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(40px, 40px, 0);
+  }
+}
+
+@keyframes erzyshAmbientBreath {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(0, -6px, 0) scale(1.05);
+  }
+}
+
+@keyframes erzyshHudSweep {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -12vh, 0);
+  }
+  15%,
+  85% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 108vh, 0);
+  }
+}
+
+@keyframes erzyshBadgeBeacon {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes erzyshFloatGentle {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -2.5px, 0);
+  }
+}
+
+@keyframes erzyshCardShimmer {
+  0% {
+    opacity: 0;
+    transform: translate3d(-135%, 0, 0) skewX(-18deg);
+  }
+  20% {
+    opacity: 0.6;
+  }
+  45%,
+  100% {
+    opacity: 0;
+    transform: translate3d(260%, 0, 0) skewX(-18deg);
+  }
+}
+
 .erzysh-gradient-text {
   background-size: 200% auto;
+}
+
+.erzysh-changelog-shell ol > li article {
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms ease;
+}
+
+.erzysh-changelog-shell ol > li article:hover {
+  transform: translate3d(0, -1.5px, 0);
+}
+
+.erzysh-changelog-shell ol > li:first-child article {
+  position: relative;
+  overflow: hidden;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -285,6 +373,98 @@
 
   .erzysh-scanline {
     animation: erzyshScanline 5.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  .erzysh-sim-grid-drift {
+    animation: erzyshSimGridDrift 28s linear infinite;
+    will-change: transform;
+  }
+
+  .erzysh-ambient-breath {
+    animation: erzyshAmbientBreath 10s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  .erzysh-hud-sweep {
+    animation: erzyshHudSweep 14s linear infinite;
+    will-change: transform, opacity;
+  }
+
+  .erzysh-badge-beacon {
+    animation: erzyshBadgeBeacon 3.2s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  .erzysh-float-gentle {
+    animation: erzyshFloatGentle 5.5s ease-in-out infinite;
+  }
+
+  .erzysh-changelog-shell ol > li {
+    animation: erzyshFadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .erzysh-changelog-shell ol > li:nth-child(1) {
+    animation-delay: 40ms;
+  }
+
+  .erzysh-changelog-shell ol > li:nth-child(2) {
+    animation-delay: 90ms;
+  }
+
+  .erzysh-changelog-shell ol > li:nth-child(3) {
+    animation-delay: 140ms;
+  }
+
+  .erzysh-changelog-shell ol > li:nth-child(4) {
+    animation-delay: 190ms;
+  }
+
+  .erzysh-changelog-shell ol > li:nth-child(n + 5) {
+    animation-delay: 220ms;
+  }
+
+  .erzysh-changelog-shell ol > li:first-child > span[aria-hidden="true"] {
+    animation: erzyshBadgeBeacon 2.8s ease-in-out infinite;
+  }
+
+  .erzysh-changelog-shell ol > li:first-child article::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 38%;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(34, 211, 238, 0.055) 50%,
+      transparent 100%
+    );
+    animation: erzyshCardShimmer 10s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erzysh-fade-up,
+  .erzysh-glow-pulse,
+  .erzysh-gradient-text,
+  .erzysh-scanline,
+  .erzysh-sim-grid-drift,
+  .erzysh-ambient-breath,
+  .erzysh-hud-sweep,
+  .erzysh-badge-beacon,
+  .erzysh-float-gentle,
+  .erzysh-changelog-shell ol > li,
+  .erzysh-changelog-shell ol > li:first-child > span[aria-hidden="true"],
+  .erzysh-changelog-shell ol > li:first-child article::after {
+    animation: none !important;
+  }
+
+  .erzysh-hud-sweep {
+    display: none;
+  }
+
+  .erzysh-changelog-shell ol > li article:hover {
+    transform: none;
   }
 }
 
