@@ -12,6 +12,7 @@
 
 import type { ReactElement } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import {
@@ -60,9 +61,15 @@ export function MaterialAndLoadModeSelector(): ReactElement {
           </ToggleGroupItem>
           <ToggleGroupItem
             value="CONCRETE"
-            className="h-auto min-h-8 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
+            className="h-auto min-h-8 flex-wrap justify-center gap-1 px-2 py-1.5 text-center text-[11px] leading-tight whitespace-normal sm:text-xs"
           >
-            Beton (SNI 2847)
+            <span>Beton (SNI 2847)</span>
+            <Badge
+              variant="outline"
+              className="h-4 border-amber-500/40 bg-amber-500/15 px-1.5 py-0 text-[9px] font-semibold tracking-wider text-amber-300 uppercase"
+            >
+              Beta
+            </Badge>
           </ToggleGroupItem>
         </ToggleGroup>
       </Field>

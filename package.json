@@ -1,6 +1,6 @@
 {
   "name": "interactive-beam-simulator",
-  "version": "0.6.21",
+  "version": "0.6.22",
   "private": true,
   "description": "Interactive 3D Beam Deflection & Structural Design Simulator (SNI 2847:2019 & SNI 1729:2020)",
   "license": "MIT",
@@ -12,6 +12,7 @@
     "start": "bun --bun next start",
     "lint": "bun scripts/verify.ts",
     "lint:full": "bun scripts/verify.ts --build",
+    "diff": "bun scripts/diffReplacer.ts .ai/patch.md",
     "sync-version": "bun scripts/sync-version.ts",
     "commit": "bun scripts/release.ts",
     "typecheck": "bun check -b",
@@ -22,7 +23,8 @@
     "commit:ai": "bun run scripts/ai/ai-commit-helper.ts",
     "pr:ai": "bun run scripts/ai/ai-pr-summary.ts",
     "hooks:install": "bun run scripts/ci/install-git-hooks.ts",
-    "data:validate": "bun run scripts/data/validate-sni-catalogs.ts",
+    "data:validate": "bun run scripts/data/validate-sni-catalogs.ts && bun run scripts/data/validate-presentation-cards.ts",
+    "presentation:sync-assets": "bun run scripts/docs/sync-presentation-assets.ts",
     "pwa:icons": "bun run scripts/pwa/generate-pwa-icons.ts"
   },
   "dependencies": {

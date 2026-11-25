@@ -657,3 +657,184 @@
     font-size: 0.75rem;
   }
 }
+
+/* Presentation Page: CSS Scroll-Driven Progress Bar, Native <dialog>, Responsive Table & Print Mode */
+.erzysh-pres-timeline-scope {
+  timeline-scope: --pres-scroll;
+}
+
+.erzysh-pres-scroller {
+  scroll-timeline: --pres-scroll block;
+}
+
+@keyframes erzyshPresProgressGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.erzysh-pres-progress-bar {
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: scroll()) {
+    .erzysh-pres-progress-bar {
+      animation: erzyshPresProgressGrow linear both;
+      animation-timeline: --pres-scroll;
+    }
+  }
+}
+
+dialog.erzysh-native-dialog:modal {
+  overscroll-behavior: contain;
+  margin: auto;
+  max-width: min(94vw, 68rem);
+  max-height: 90dvh;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+dialog.erzysh-native-dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: rgba(2, 6, 14, 0.8);
+  backdrop-filter: blur(6px);
+}
+
+.erzysh-pres-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 720px;
+}
+
+.erzysh-pres-deck-active .erzysh-pres-section {
+  content-visibility: visible;
+  contain-intrinsic-size: auto;
+}
+
+.erzysh-table-wrapper {
+  overflow-x: auto;
+  container-type: inline-size;
+}
+
+.erzysh-responsive-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.erzysh-responsive-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: #0b1628;
+}
+
+.erzysh-responsive-table tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: #091221;
+}
+
+@container (width < 600px) {
+  .erzysh-responsive-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .erzysh-responsive-table tbody,
+  .erzysh-responsive-table tr,
+  .erzysh-responsive-table th,
+  .erzysh-responsive-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .erzysh-responsive-table tr {
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(34, 211, 238, 0.16);
+    border-radius: 0.5rem;
+    background-color: rgba(6, 13, 25, 0.75);
+    padding: 0.5rem 0.65rem;
+  }
+
+  .erzysh-responsive-table tbody th {
+    position: static;
+    background: transparent;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    padding: 0.25rem 0 0.4rem;
+    margin-bottom: 0.3rem;
+    text-align: left;
+  }
+
+  .erzysh-responsive-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.22rem 0;
+    text-align: right;
+  }
+
+  .erzysh-responsive-table td::before {
+    content: attr(data-label);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-align: left;
+  }
+}
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  html,
+  body {
+    overflow: visible !important;
+    height: auto !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .erzysh-presentation-shell {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .erzysh-pres-section {
+    content-visibility: visible !important;
+    contain-intrinsic-size: auto !important;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .erzysh-pres-section:last-of-type {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+}

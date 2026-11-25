@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.22] - 2026-11-25
+
+### ✨ Added
+
+- Add `ValidationCaseCardItem` component for displaying structural benchmark comparisons with status badges and evidence slots
+- Add `ValidationProofSection` component for managing and filtering validation case cards with search and local draft support
+
 ## [0.6.21] - 2026-11-19
 
 ### ✨ Added

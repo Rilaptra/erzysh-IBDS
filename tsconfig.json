@@ -35,5 +35,11 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "prototype", ".tmp-step-context"]
+  "exclude": [
+    "node_modules",
+    "prototype",
+    ".tmp-step-context",
+    ".tmp-presentation-context",
+    "scripts/diffReplacer.ts"
+  ]
 }

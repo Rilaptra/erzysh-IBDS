@@ -7,18 +7,24 @@
  * radial vignette, and a soft teal/cyan ambient glow.
  */
 
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 
 import { cn } from "@/lib/utils";
 
 export interface ErzyshPageShellProps {
   readonly children: ReactNode;
   readonly className?: string;
+  readonly scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
-export function ErzyshPageShell({ children, className }: ErzyshPageShellProps): ReactElement {
+export function ErzyshPageShell({
+  children,
+  className,
+  scrollRef,
+}: ErzyshPageShellProps): ReactElement {
   return (
     <div
+      ref={scrollRef}
       className={cn(
         "text-foreground relative h-dvh w-full overflow-x-hidden overflow-y-auto scroll-smooth bg-[#050a14] select-text",
         className,

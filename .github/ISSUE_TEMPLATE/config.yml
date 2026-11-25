@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Live Simulator (erzysh-IBDS)
+    url: https://erzysh-ibds.vercel.app/simulator
+    about: Jalankan simulasi defleksi balok 3D dan optimasi penampang SNI langsung di browser.
+  - name: Halaman Presentasi Interaktif
+    url: https://erzysh-ibds.vercel.app/presentation
+    about: Lihat arsitektur, sumber perhitungan SNI, bukti validasi SAP2000/Excel, dan panduan lengkap.
+  - name: Buku Panduan Pengguna (USER_MANUAL.md)
+    url: https://github.com/Rilaptra/erzysh-IBDS/blob/main/USER_MANUAL.md
+    about: Baca dokumentasi lengkap penggunaan aplikasi, ekspor CAD/BIM, AI Ucuy, dan troubleshooting.

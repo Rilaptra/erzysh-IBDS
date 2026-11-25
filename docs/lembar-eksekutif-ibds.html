@@ -1,0 +1,2726 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Lembar Eksekutif IBDS — Interactive 3D Beam Deflection & Structural Design Simulator
+    </title>
+    <style>
+      :root {
+        color-scheme: dark;
+
+        /* Authentic IBDS Erzysh Dark Void Palette */
+        --bg-void: #050a14;
+        --bg-grid: #122133;
+        --surface-card: rgba(10, 19, 34, 0.95);
+        --surface-inset: #070e1b;
+        --surface-elevated: #0f192b;
+
+        --text-main: #f8fafc;
+        --text-body: #cbd5e1;
+        --text-muted: #94a3b8;
+
+        /* IBDS Accent Spectrum */
+        --cyan: #22d3ee;
+        --cyan-core: #06b6d4;
+        --sky: #38bdf8;
+        --violet: #8b5cf6;
+        --purple: #a855f7;
+        --emerald: #10b981;
+        --amber: #f59e0b;
+        --orange: #f97316;
+        --red: #ef4444;
+
+        --border-panel: rgba(56, 189, 248, 0.25);
+        --border-subtle: rgba(148, 163, 184, 0.18);
+        --font-sans:
+          "Geist", "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+        --font-mono:
+          "JetBrains Mono", "Cascadia Code", ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+
+      html.theme-light {
+        color-scheme: light;
+        --bg-void: #f4f7fb;
+        --bg-grid: #dce6f2;
+        --surface-card: #ffffff;
+        --surface-inset: #f8fafc;
+        --surface-elevated: #eef4fb;
+
+        --text-main: #0f172a;
+        --text-body: #1e293b;
+        --text-muted: #475569;
+
+        --cyan: #0891b2;
+        --cyan-core: #0284c7;
+        --sky: #0369a1;
+        --violet: #6d28d9;
+        --purple: #7c3aed;
+        --emerald: #059669;
+        --amber: #d97706;
+        --orange: #ea580c;
+        --border-panel: rgba(15, 23, 42, 0.16);
+        --border-subtle: rgba(15, 23, 42, 0.11);
+      }
+
+      @page {
+        size: A3 portrait;
+        margin: 0;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: var(--font-sans);
+        color: var(--text-main);
+        background-color: #02050b;
+        line-height: 1.38;
+        -webkit-font-smoothing: antialiased;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      html.theme-light body {
+        background-color: #cbd5e1;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      p,
+      ul,
+      ol,
+      dl,
+      dt,
+      dd,
+      figure {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      div,
+      section,
+      header,
+      footer,
+      article,
+      aside,
+      nav {
+        box-sizing: border-box;
+      }
+
+      svg {
+        display: block;
+      }
+
+      code {
+        font-family: var(--font-mono);
+        font-size: 0.94em;
+        white-space: nowrap;
+        color: var(--sky);
+      }
+
+      /* Non-overlapping top screen control bar (hidden automatically when printing) */
+      .no-print-bar {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 8px 16px;
+        background: rgba(5, 10, 20, 0.92);
+        border-bottom: 1px solid rgba(56, 189, 248, 0.28);
+        backdrop-filter: blur(10px);
+      }
+
+      .toolbar-hint {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: #94a3b8;
+        margin-inline-end: 8px;
+      }
+
+      .toolbar-btn {
+        appearance: none;
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        background: rgba(15, 25, 43, 0.95);
+        color: #e2e8f0;
+        font-family: var(--font-sans);
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 7px;
+        cursor: pointer;
+        transition:
+          background-color 0.15s ease,
+          border-color 0.15s ease;
+      }
+
+      .toolbar-btn:hover {
+        background: rgba(6, 182, 212, 0.22);
+        border-color: #22d3ee;
+      }
+
+      .toolbar-btn.primary {
+        background: linear-gradient(90deg, #22d3ee 0%, #38bdf8 50%, #8b5cf6 100%);
+        color: #04101c;
+        border: none;
+        font-weight: 700;
+      }
+
+      .preview-stage {
+        display: flex;
+        justify-content: center;
+        padding: 18px 16px 28px;
+      }
+
+      /* Exact A3 Portrait Sheet Container: 297mm x 420mm */
+      .a3-sheet {
+        position: relative;
+        width: 297mm;
+        height: 420mm;
+        overflow: hidden;
+        padding: 8mm 10.5mm 7.5mm 10.5mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 3mm;
+        background-color: var(--bg-void);
+        background-image:
+          radial-gradient(circle at 18% 18%, rgba(34, 211, 238, 0.14) 0%, transparent 46%),
+          radial-gradient(circle at 84% 26%, rgba(139, 92, 246, 0.14) 0%, transparent 48%),
+          radial-gradient(circle at 52% 88%, rgba(16, 185, 129, 0.08) 0%, transparent 45%),
+          linear-gradient(to right, var(--bg-grid) 1px, transparent 1px),
+          linear-gradient(to bottom, var(--bg-grid) 1px, transparent 1px);
+        background-size:
+          100% 100%,
+          100% 100%,
+          100% 100%,
+          10mm 10mm,
+          10mm 10mm;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65);
+      }
+
+      html.theme-light .a3-sheet {
+        background-image:
+          radial-gradient(circle at 18% 18%, rgba(6, 182, 212, 0.09) 0%, transparent 46%),
+          radial-gradient(circle at 84% 26%, rgba(139, 92, 246, 0.08) 0%, transparent 48%),
+          linear-gradient(to right, var(--bg-grid) 1px, transparent 1px),
+          linear-gradient(to bottom, var(--bg-grid) 1px, transparent 1px);
+        background-size:
+          100% 100%,
+          100% 100%,
+          10mm 10mm,
+          10mm 10mm;
+      }
+
+      @media screen {
+        body.fit-screen .a3-sheet {
+          zoom: 0.76;
+        }
+      }
+
+      @media print {
+        html,
+        body {
+          width: 297mm;
+          height: 420mm;
+          background: var(--bg-void) !important;
+        }
+        .no-print-bar {
+          display: none !important;
+        }
+        .preview-stage {
+          padding: 0;
+          display: block;
+        }
+        .a3-sheet {
+          zoom: 1 !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+          page-break-after: avoid;
+          break-after: avoid;
+        }
+      }
+
+      /* Glassmorphism CAD Panel */
+      .cad-panel {
+        position: relative;
+        background: var(--surface-card);
+        border: 1px solid var(--border-panel);
+        border-radius: 2.8mm;
+        padding: 2.8mm 3.3mm;
+      }
+
+      .cad-panel::before {
+        content: "";
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline: 10%;
+        height: 1.5px;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(34, 211, 238, 0.75) 35%,
+          rgba(139, 92, 246, 0.68) 68%,
+          transparent 100%
+        );
+      }
+
+      .section-kicker {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        padding-block-end: 1.4mm;
+        margin-block-end: 2mm;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+
+      .kicker-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--font-mono);
+        font-size: 8.5pt;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: var(--cyan);
+        white-space: nowrap;
+      }
+
+      .kicker-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--cyan);
+        flex-shrink: 0;
+      }
+
+      .kicker-tag {
+        font-family: var(--font-mono);
+        font-size: 7.3pt;
+        font-weight: 700;
+        padding: 1.5px 7px;
+        border-radius: 999px;
+        border: 1px solid rgba(56, 189, 248, 0.34);
+        background: rgba(6, 182, 212, 0.12);
+        color: var(--sky);
+        white-space: nowrap;
+      }
+
+      .kicker-tag.emerald {
+        border-color: rgba(16, 185, 129, 0.4);
+        background: rgba(16, 185, 129, 0.14);
+        color: var(--emerald);
+      }
+
+      .kicker-tag.violet {
+        border-color: rgba(139, 92, 246, 0.4);
+        background: rgba(139, 92, 246, 0.14);
+        color: var(--violet);
+      }
+
+      .kicker-tag.amber {
+        border-color: rgba(245, 158, 11, 0.4);
+        background: rgba(245, 158, 11, 0.14);
+        color: var(--amber);
+      }
+
+      /* BAND 1: TOP MASTHEAD */
+      .masthead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 3mm;
+        padding: 2mm 3.3mm;
+        border-radius: 2.8mm;
+        background: var(--surface-card);
+        border: 1px solid var(--border-panel);
+      }
+
+      .brand-cluster {
+        display: flex;
+        align-items: center;
+        gap: 2.8mm;
+        min-width: 0;
+      }
+
+      .brand-text-top {
+        font-family: var(--font-mono);
+        font-size: 7.8pt;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: var(--cyan);
+        white-space: nowrap;
+      }
+
+      .brand-text-sub {
+        font-size: 8.8pt;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-top: 1px;
+        white-space: nowrap;
+      }
+
+      .meta-pills {
+        display: flex;
+        align-items: center;
+        gap: 1.8mm;
+        flex-shrink: 0;
+      }
+
+      .meta-pill {
+        font-family: var(--font-mono);
+        font-size: 7.4pt;
+        font-weight: 700;
+        padding: 1.1mm 2.3mm;
+        border-radius: 1.8mm;
+        border: 1px solid var(--border-panel);
+        background: var(--surface-inset);
+        color: var(--text-main);
+        white-space: nowrap;
+      }
+
+      .meta-pill.accent {
+        border-color: rgba(34, 211, 238, 0.45);
+        background: rgba(6, 182, 212, 0.14);
+        color: var(--cyan);
+      }
+
+      .meta-pill.emerald {
+        border-color: rgba(16, 185, 129, 0.45);
+        background: rgba(16, 185, 129, 0.14);
+        color: var(--emerald);
+      }
+
+      /* BAND 2: HERO SPLIT */
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 108mm 1fr;
+        gap: 3.2mm;
+        align-items: stretch;
+      }
+
+      .hero-left {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 2.2mm;
+        padding: 3.2mm 3.6mm;
+      }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        align-self: flex-start;
+        padding: 1mm 2.5mm;
+        border-radius: 999px;
+        border: 1px solid rgba(34, 211, 238, 0.35);
+        background: rgba(12, 26, 44, 0.85);
+        font-family: var(--font-mono);
+        font-size: 7.5pt;
+        font-weight: 700;
+        color: var(--sky);
+        white-space: nowrap;
+      }
+
+      html.theme-light .hero-badge {
+        background: #e0f2fe;
+      }
+
+      .hero-acronym {
+        display: flex;
+        align-items: baseline;
+        gap: 2.4mm;
+        margin-top: 1mm;
+      }
+
+      .hero-acronym-word {
+        font-size: 32pt;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        background: linear-gradient(90deg, #22d3ee 0%, #38bdf8 48%, #8b5cf6 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .hero-acronym-sub {
+        font-family: var(--font-mono);
+        font-size: 8.2pt;
+        font-weight: 700;
+        color: var(--text-muted);
+        letter-spacing: 0.04em;
+      }
+
+      .hero-title {
+        font-size: 15.8pt;
+        font-weight: 800;
+        line-height: 1.18;
+        letter-spacing: -0.015em;
+        color: var(--text-main);
+        text-wrap: balance;
+        margin-top: 1mm;
+      }
+
+      .hero-title .grad {
+        background: linear-gradient(90deg, #22d3ee 0%, #38bdf8 55%, #a855f7 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .hero-desc {
+        font-size: 9pt;
+        line-height: 1.42;
+        color: var(--text-body);
+        text-wrap: pretty;
+      }
+
+      .specs-bar {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.8mm;
+      }
+
+      .spec-cell {
+        background: var(--surface-inset);
+        border: 1px solid var(--border-subtle);
+        border-radius: 2mm;
+        padding: 1.6mm 2.3mm;
+      }
+
+      .spec-dt {
+        font-family: var(--font-mono);
+        font-size: 7pt;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+      }
+
+      .spec-dd {
+        font-family: var(--font-mono);
+        font-size: 9.4pt;
+        font-weight: 800;
+        margin-top: 1px;
+        color: var(--cyan);
+      }
+
+      .spec-dd.emerald {
+        color: var(--emerald);
+      }
+      .spec-dd.violet {
+        color: var(--violet);
+      }
+      .spec-dd.amber {
+        color: var(--amber);
+      }
+
+      /* Hero Right: Live App Stage */
+      .hero-stage {
+        display: flex;
+        flex-direction: column;
+        padding: 2.3mm 2.8mm;
+      }
+
+      .stage-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        font-family: var(--font-mono);
+        font-size: 7.5pt;
+        font-weight: 700;
+        color: var(--sky);
+        padding-bottom: 1.3mm;
+        margin-bottom: 1.6mm;
+        border-bottom: 1px solid var(--border-subtle);
+        white-space: nowrap;
+      }
+
+      .stage-canvas-frame {
+        flex: 1;
+        border-radius: 2.2mm;
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        background: #040811;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .stage-caption {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        margin-top: 1.4mm;
+        font-family: var(--font-mono);
+        font-size: 7.3pt;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+
+      /* BAND 3: 3-COLUMN ENGINEERING SHOWCASE */
+      .band-3col {
+        display: grid;
+        grid-template-columns: 82mm 110mm 1fr;
+        gap: 3.2mm;
+        align-items: stretch;
+      }
+
+      .sub-heading {
+        font-size: 9.2pt;
+        font-weight: 800;
+        color: var(--text-main);
+        margin-bottom: 1.2mm;
+        text-wrap: balance;
+      }
+
+      .body-p {
+        font-size: 8.2pt;
+        line-height: 1.38;
+        color: var(--text-body);
+        text-wrap: pretty;
+      }
+
+      .mode-box {
+        background: var(--surface-inset);
+        border: 1px solid var(--border-subtle);
+        border-left: 3px solid var(--cyan);
+        border-radius: 1.8mm;
+        padding: 1.4mm 2.1mm;
+      }
+
+      .mode-box + .mode-box {
+        margin-top: 1.4mm;
+      }
+
+      .mode-box.violet {
+        border-left-color: var(--violet);
+      }
+
+      .mode-title {
+        font-family: var(--font-mono);
+        font-size: 7.7pt;
+        font-weight: 800;
+        color: var(--sky);
+        margin-bottom: 1px;
+      }
+
+      .mode-box.violet .mode-title {
+        color: var(--purple);
+      }
+
+      .support-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25mm;
+        margin-top: 1.4mm;
+      }
+
+      .support-row {
+        display: grid;
+        grid-template-columns: 19mm 1fr;
+        align-items: center;
+        gap: 2mm;
+        background: var(--surface-inset);
+        border: 1px solid var(--border-subtle);
+        border-radius: 1.7mm;
+        padding: 1.1mm 1.9mm;
+      }
+
+      .support-name {
+        font-size: 8.1pt;
+        font-weight: 700;
+        color: var(--text-main);
+      }
+
+      .support-sub {
+        font-family: var(--font-mono);
+        font-size: 7.1pt;
+        color: var(--text-muted);
+      }
+
+      /* Column 2: Dual Section Showcase */
+      .section-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2.1mm;
+      }
+
+      .section-card {
+        background: var(--surface-inset);
+        border: 1px solid var(--border-subtle);
+        border-radius: 2mm;
+        padding: 1.8mm;
+        display: flex;
+        flex-direction: column;
+        gap: 1.4mm;
+      }
+
+      .section-card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .section-card-title {
+        font-size: 8.4pt;
+        font-weight: 800;
+        color: var(--sky);
+      }
+
+      .section-card-title.emerald {
+        color: var(--emerald);
+      }
+
+      .dcr-pill {
+        font-family: var(--font-mono);
+        font-size: 7.2pt;
+        font-weight: 800;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: rgba(16, 185, 129, 0.16);
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        color: var(--emerald);
+        white-space: nowrap;
+      }
+
+      .svg-well {
+        background: #060b14;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 1.7mm;
+        padding: 1.2mm;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .metric-kv {
+        font-family: var(--font-mono);
+        font-size: 7.4pt;
+        line-height: 1.42;
+        color: var(--text-body);
+      }
+
+      .metric-kv strong {
+        color: var(--text-main);
+      }
+
+      .rebar-wire-strip {
+        margin-top: 1.6mm;
+        background: var(--surface-inset);
+        border: 1px solid rgba(245, 158, 11, 0.28);
+        border-radius: 1.9mm;
+        padding: 1.5mm 2.1mm;
+        display: grid;
+        grid-template-columns: 36mm 1fr;
+        gap: 2.2mm;
+        align-items: center;
+      }
+
+      /* Column 3: 4 Diagrams */
+      .diagrams-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5mm;
+      }
+
+      .diag-card {
+        background: var(--surface-inset);
+        border: 1px solid var(--border-subtle);
+        border-radius: 1.9mm;
+        padding: 1.3mm 1.9mm;
+      }
+
+      .diag-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: var(--font-mono);
+        font-size: 7.5pt;
+        font-weight: 700;
+        margin-bottom: 0.8mm;
+      }
+
+      .diag-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.6mm;
+      }
+
+      .mode-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.2mm;
+        margin-top: 1.2mm;
+      }
+
+      .mini-chip {
+        font-family: var(--font-mono);
+        font-size: 7.3pt;
+        font-weight: 700;
+        padding: 1mm 2mm;
+        border-radius: 1.4mm;
+        background: var(--surface-elevated);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-body);
+      }
+
+      /* BAND 4: FORMULAS + MULTIMODAL AI ARCHITECTURE */
+      .band-2col {
+        display: grid;
+        grid-template-columns: 148mm 1fr;
+        gap: 3.2mm;
+        align-items: stretch;
+      }
+
+      .formula-group {
+        background: var(--surface-inset);
+        border: 1px solid var(--border-subtle);
+        border-radius: 1.9mm;
+        padding: 1.8mm 2.3mm;
+      }
+
+      .formula-group + .formula-group {
+        margin-top: 1.7mm;
+      }
+
+      .fg-title {
+        font-family: var(--font-mono);
+        font-size: 7.8pt;
+        font-weight: 800;
+        color: var(--sky);
+        margin-bottom: 1.1mm;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+
+      .fg-title.emerald {
+        color: var(--emerald);
+      }
+      .fg-title.violet {
+        color: var(--violet);
+      }
+
+      .eq-grid {
+        display: grid;
+        grid-template-columns: 36mm 1fr;
+        gap: 1.1mm 2.2mm;
+        align-items: baseline;
+      }
+
+      .eq-label {
+        font-size: 7.9pt;
+        font-weight: 600;
+        color: var(--text-muted);
+      }
+
+      .eq-math {
+        font-family: var(--font-mono);
+        font-size: 8.1pt;
+        font-weight: 600;
+        color: var(--text-main);
+        line-height: 1.34;
+      }
+
+      .eq-math .hl-c {
+        color: var(--cyan);
+      }
+      .eq-math .hl-e {
+        color: var(--emerald);
+      }
+      .eq-math .hl-a {
+        color: var(--amber);
+      }
+      .eq-math .hl-v {
+        color: var(--purple);
+      }
+
+      /* Right Col: Stack & Multimodal */
+      .arch-block {
+        background: var(--surface-inset);
+        border: 1px solid var(--border-subtle);
+        border-radius: 1.9mm;
+        padding: 1.8mm 2.3mm;
+      }
+
+      .arch-block + .arch-block {
+        margin-top: 1.7mm;
+      }
+
+      .pipe-flow {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr auto 1fr;
+        align-items: center;
+        gap: 1.4mm;
+        margin-top: 1mm;
+      }
+
+      .pipe-node {
+        background: var(--surface-elevated);
+        border: 1px solid var(--border-subtle);
+        border-radius: 1.5mm;
+        padding: 1.3mm 1.5mm;
+        text-align: center;
+      }
+
+      .pipe-node-title {
+        font-family: var(--font-mono);
+        font-size: 7.4pt;
+        font-weight: 800;
+        color: var(--cyan);
+      }
+
+      .pipe-node-sub {
+        font-size: 7.1pt;
+        color: var(--text-body);
+        margin-top: 1px;
+      }
+
+      .pipe-arrow {
+        font-family: var(--font-mono);
+        font-size: 10pt;
+        font-weight: 800;
+        color: var(--sky);
+      }
+
+      .gesture-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1.2mm;
+        margin-top: 1.3mm;
+      }
+
+      .gesture-pill {
+        background: var(--surface-elevated);
+        border: 1px solid var(--border-subtle);
+        border-radius: 1.5mm;
+        padding: 1.2mm 0.8mm;
+        text-align: center;
+      }
+
+      .gesture-sym {
+        font-size: 12.5pt;
+        font-weight: 800;
+        line-height: 1.08;
+      }
+
+      .gesture-lbl {
+        font-family: var(--font-mono);
+        font-size: 6.8pt;
+        font-weight: 700;
+        color: var(--text-body);
+        margin-top: 2px;
+      }
+
+      .ai-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.3mm;
+        margin-top: 1mm;
+      }
+
+      .ai-chip {
+        font-family: var(--font-mono);
+        font-size: 7.3pt;
+        font-weight: 600;
+        padding: 1mm 2mm;
+        border-radius: 1.4mm;
+        background: var(--surface-elevated);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-main);
+      }
+
+      .pwa-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.7mm;
+        margin-top: 1.7mm;
+      }
+
+      .pwa-box {
+        background: var(--surface-elevated);
+        border: 1px solid var(--border-subtle);
+        border-radius: 1.6mm;
+        padding: 1.4mm 1.9mm;
+      }
+
+      .pwa-box-title {
+        font-family: var(--font-mono);
+        font-size: 7.6pt;
+        font-weight: 800;
+        color: var(--cyan);
+        margin-bottom: 1.5px;
+      }
+
+      /* BAND 5: WORKFLOW + 9 EXPORTERS + FOOTER */
+      .band-bottom {
+        display: flex;
+        flex-direction: column;
+        gap: 2.4mm;
+      }
+
+      .workflow-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2.2mm;
+      }
+
+      .wf-step {
+        background: var(--surface-inset);
+        border: 1px solid var(--border-subtle);
+        border-top: 2px solid var(--cyan);
+        border-radius: 1.8mm;
+        padding: 1.5mm 2.1mm;
+      }
+
+      .wf-step:nth-child(2) {
+        border-top-color: var(--sky);
+      }
+      .wf-step:nth-child(3) {
+        border-top-color: var(--emerald);
+      }
+      .wf-step:nth-child(4) {
+        border-top-color: var(--violet);
+      }
+
+      .wf-num {
+        font-family: var(--font-mono);
+        font-size: 7.3pt;
+        font-weight: 800;
+        color: var(--cyan);
+      }
+
+      .wf-step:nth-child(2) .wf-num {
+        color: var(--sky);
+      }
+      .wf-step:nth-child(3) .wf-num {
+        color: var(--emerald);
+      }
+      .wf-step:nth-child(4) .wf-num {
+        color: var(--violet);
+      }
+
+      .wf-title {
+        font-size: 8.4pt;
+        font-weight: 800;
+        color: var(--text-main);
+        margin-top: 1px;
+      }
+
+      .wf-desc {
+        font-size: 7.6pt;
+        line-height: 1.3;
+        color: var(--text-muted);
+        margin-top: 1.5px;
+      }
+
+      .export-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 1fr);
+        gap: 1.5mm;
+        margin-top: 2mm;
+      }
+
+      .export-chip {
+        background: var(--surface-inset);
+        border: 1px solid var(--border-subtle);
+        border-radius: 1.7mm;
+        padding: 1.3mm 1.2mm;
+        text-align: center;
+      }
+
+      .export-ext {
+        font-family: var(--font-mono);
+        font-size: 8.4pt;
+        font-weight: 800;
+        color: var(--cyan);
+      }
+
+      .export-cat {
+        font-family: var(--font-mono);
+        font-size: 6.4pt;
+        font-weight: 700;
+        color: var(--violet);
+        margin-top: 1px;
+      }
+
+      .export-sw {
+        font-size: 7pt;
+        line-height: 1.24;
+        color: var(--text-body);
+        margin-top: 2px;
+      }
+
+      .sheet-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 3mm;
+        padding: 1.9mm 3.2mm;
+        border-radius: 2.2mm;
+        background: var(--surface-card);
+        border: 1px solid var(--border-panel);
+        font-size: 7.8pt;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+
+      .sheet-footer strong {
+        color: var(--text-main);
+      }
+
+      .footer-url {
+        font-family: var(--font-mono);
+        font-weight: 700;
+        color: var(--cyan);
+      }
+    </style>
+  </head>
+  <body class="fit-screen">
+    <!-- Screen-only sticky control bar above the sheet (never overlaps A3 layout) -->
+    <div class="no-print-bar" role="region" aria-label="Kontrol Cetak A3">
+      <span class="toolbar-hint">Pratinjau Lembar Eksekutif A3 (297 &times; 420 mm)</span>
+      <button type="button" class="toolbar-btn primary" onclick="window.print()">
+        Print / Simpan PDF (A3)
+      </button>
+      <button type="button" class="toolbar-btn" id="themeBtn" onclick="toggleTheme()">
+        Mode: Dark Void (IBDS)
+      </button>
+      <button type="button" class="toolbar-btn" id="zoomBtn" onclick="toggleZoom()">
+        Skala: Fit Layar
+      </button>
+    </div>
+
+    <main class="preview-stage">
+      <article class="a3-sheet" aria-label="Lembar Eksekutif IBDS A3">
+        <!-- BAND 1: TOP IDENTITY MASTHEAD -->
+        <header class="masthead">
+          <div class="brand-cluster">
+            <svg width="36" height="36" viewBox="0 0 512 512" role="img" aria-label="Logo IBDS">
+              <defs>
+                <linearGradient id="logoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#0A0A0A" />
+                  <stop offset="55%" stop-color="#0F172A" />
+                  <stop offset="100%" stop-color="#020617" />
+                </linearGradient>
+                <linearGradient id="logoIwf" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#06B6D4" />
+                  <stop offset="50%" stop-color="#3B82F6" />
+                  <stop offset="100%" stop-color="#8B5CF6" />
+                </linearGradient>
+                <linearGradient id="logoCurve" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#F59E0B" />
+                  <stop offset="100%" stop-color="#EF4444" />
+                </linearGradient>
+              </defs>
+              <rect
+                width="512"
+                height="512"
+                rx="108"
+                fill="url(#logoBg)"
+                stroke="#38BDF8"
+                stroke-opacity="0.45"
+                stroke-width="10"
+              />
+              <g stroke="#334155" stroke-opacity="0.4" stroke-width="4">
+                <line x1="112" y1="96" x2="112" y2="416" />
+                <line x1="256" y1="96" x2="256" y2="416" />
+                <line x1="400" y1="96" x2="400" y2="416" />
+                <line x1="96" y1="256" x2="416" y2="256" />
+              </g>
+              <g fill="url(#logoIwf)">
+                <rect x="136" y="132" width="240" height="38" rx="8" />
+                <rect x="237" y="170" width="38" height="162" rx="4" />
+                <rect x="136" y="332" width="240" height="38" rx="8" />
+              </g>
+              <path
+                d="M 80 256 Q 256 322 432 256"
+                fill="none"
+                stroke="url(#logoCurve)"
+                stroke-width="12"
+                stroke-dasharray="16 10"
+                stroke-linecap="round"
+              />
+              <polygon points="80,256 60,294 100,294" fill="#10B981" />
+              <circle cx="432" cy="274" r="18" fill="#3B82F6" />
+            </svg>
+            <div>
+              <div class="brand-text-top">
+                LEMBAR EKSEKUTIF &bull; APLIKASI KOMPUTER TEKNIK SIPIL
+              </div>
+              <div class="brand-text-sub">
+                UNIVERSITAS TIDAR &bull; FAKULTAS TEKNIK &bull; S1 TEKNIK SIPIL
+              </div>
+            </div>
+          </div>
+
+          <div class="meta-pills">
+            <span class="meta-pill accent">v0.6.19 &bull; WASM v0.5.0</span>
+            <span class="meta-pill emerald">SNI 2847:2019 &amp; 1729:2020</span>
+            <span class="meta-pill">erzysh-ibds.vercel.app</span>
+          </div>
+        </header>
+
+        <!-- BAND 2: HERO NARRATIVE + LIVE APP VIEWPORT VISUALIZATION -->
+        <section class="hero-grid">
+          <div class="cad-panel hero-left">
+            <div>
+              <div class="hero-badge">
+                <span class="kicker-dot"></span>
+                <span>NEXT.JS 16 &bull; BUN v1.4.4 &bull; RUST WASM &bull; PWA</span>
+              </div>
+
+              <div class="hero-acronym">
+                <span class="hero-acronym-word">IBDS</span>
+                <span class="hero-acronym-sub">STRUCTURAL WORKSTATION</span>
+              </div>
+
+              <h1 class="hero-title">
+                Simulasi Defleksi Balok &amp; Desain Struktur
+                <span class="grad">3D Interaktif</span>
+              </h1>
+            </div>
+
+            <p class="hero-desc">
+              Simulator struktur berbasis web untuk analisis lendutan Euler-Bernoulli, diagram gaya
+              dalam 2D (<strong>SFD, BMD, NFD, TFD</strong>), serta optimasi penampang
+              <strong>Beton (SNI 2847)</strong> &amp;
+              <strong>Baja IWF/BOX (SNI 1729)</strong> secara <em>real-time</em>.
+            </p>
+
+            <dl class="specs-bar">
+              <div class="spec-cell">
+                <dt class="spec-dt">MESIN SOLVER</dt>
+                <dd class="spec-dd">Rust WASM (M=256)</dd>
+              </div>
+              <div class="spec-cell">
+                <dt class="spec-dt">KATALOG BAJA</dt>
+                <dd class="spec-dd violet">90 IWF &bull; 23 BOX</dd>
+              </div>
+              <div class="spec-cell">
+                <dt class="spec-dt">STANDAR DESAIN</dt>
+                <dd class="spec-dd emerald">SNI 2847 &amp; 1729</dd>
+              </div>
+              <div class="spec-cell">
+                <dt class="spec-dt">UNIT &amp; RUST TEST</dt>
+                <dd class="spec-dd amber">362 TS + 5 Rust OK</dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- AUTHENTIC IBDS DESKTOP 3D WORKSTATION VISUALIZATION -->
+          <div class="cad-panel hero-stage">
+            <div class="stage-topbar">
+              <span>FEA_WORKSTATION // WF 400&times;200&times;56.6 (BJ 37)</span>
+              <span>L = 6.00 m &bull; SENDI&ndash;ROL &bull; Z-UP</span>
+            </div>
+
+            <div class="stage-canvas-frame">
+              <svg
+                viewBox="0 0 680 264"
+                width="100%"
+                role="img"
+                aria-label="Visualisasi Viewport 3D Balok Baja IWF Terdefleksi dengan Kontur SAP2000, Colorbar, Tumpuan Sendi-Rol, BMD, dan Axis Gizmo"
+              >
+                <defs>
+                  <linearGradient id="sapBeamContour" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#3B82F6" />
+                    <stop offset="22%" stop-color="#06B6D4" />
+                    <stop offset="38%" stop-color="#10B981" />
+                    <stop offset="50%" stop-color="#EF4444" />
+                    <stop offset="62%" stop-color="#10B981" />
+                    <stop offset="78%" stop-color="#06B6D4" />
+                    <stop offset="100%" stop-color="#3B82F6" />
+                  </linearGradient>
+
+                  <linearGradient id="sapFlangeShade" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#60A5FA" />
+                    <stop offset="24%" stop-color="#22D3EE" />
+                    <stop offset="50%" stop-color="#F59E0B" />
+                    <stop offset="76%" stop-color="#22D3EE" />
+                    <stop offset="100%" stop-color="#60A5FA" />
+                  </linearGradient>
+
+                  <linearGradient id="sapColorbar" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#3B82F6" />
+                    <stop offset="25%" stop-color="#06B6D4" />
+                    <stop offset="50%" stop-color="#10B981" />
+                    <stop offset="75%" stop-color="#EAB308" />
+                    <stop offset="100%" stop-color="#EF4444" />
+                  </linearGradient>
+
+                  <linearGradient id="bmdOverlayFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.34" />
+                    <stop offset="100%" stop-color="#06B6D4" stop-opacity="0.04" />
+                  </linearGradient>
+
+                  <linearGradient id="suppGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#334155" />
+                    <stop offset="100%" stop-color="#1E293B" />
+                  </linearGradient>
+                </defs>
+
+                <!-- Blueprint background grid -->
+                <g stroke="#112136" stroke-width="0.75">
+                  <line x1="76" y1="10" x2="76" y2="254" stroke-dasharray="3 3" />
+                  <line
+                    x1="291"
+                    y1="10"
+                    x2="291"
+                    y2="254"
+                    stroke-dasharray="3 3"
+                    stroke="#22D3EE"
+                    stroke-opacity="0.32"
+                  />
+                  <line x1="506" y1="10" x2="506" y2="254" stroke-dasharray="3 3" />
+                  <line x1="36" y1="84" x2="544" y2="84" stroke-dasharray="4 4" stroke="#1E3A5F" />
+                  <line x1="36" y1="142" x2="544" y2="142" />
+                  <line x1="36" y1="192" x2="544" y2="192" />
+                </g>
+
+                <!-- Distributed Load q1 = 15 kN/m -->
+                <g stroke="#10B981" stroke-width="1.2" opacity="0.82">
+                  <line x1="76" y1="28" x2="506" y2="28" />
+                  <path
+                    d="M76,28 V58 M119,28 V58 M162,28 V58 M205,28 V58 M248,28 V58 M334,28 V58 M377,28 V58 M420,28 V58 M463,28 V58 M506,28 V58"
+                  />
+                  <path
+                    d="M73,53 L76,59 L79,53 M116,53 L119,59 L122,53 M159,53 L162,59 L165,53 M202,53 L205,59 L208,53 M245,53 L248,59 L251,53 M331,53 L334,59 L337,53 M374,53 L377,59 L380,53 M417,53 L420,59 L423,53 M460,53 L463,59 L466,53 M503,53 L506,59 L509,53"
+                    fill="none"
+                  />
+                </g>
+                <rect
+                  x="380"
+                  y="9"
+                  width="96"
+                  height="15"
+                  rx="4"
+                  fill="#06221B"
+                  stroke="#10B981"
+                  stroke-opacity="0.7"
+                />
+                <text
+                  x="428"
+                  y="19.5"
+                  text-anchor="middle"
+                  fill="#34D399"
+                  font-family="monospace"
+                  font-size="8.8"
+                  font-weight="700"
+                >
+                  q₁ = 15 kN/m
+                </text>
+
+                <!-- Point Load P1 = 50 kN at x = 3.00 m -->
+                <line x1="291" y1="24" x2="291" y2="79" stroke="#22D3EE" stroke-width="2.5" />
+                <polygon points="285,73 297,73 291,83" fill="#22D3EE" />
+                <rect
+                  x="230"
+                  y="6"
+                  width="122"
+                  height="17"
+                  rx="4"
+                  fill="#081C2E"
+                  stroke="#22D3EE"
+                  stroke-width="1"
+                />
+                <text
+                  x="291"
+                  y="17.5"
+                  text-anchor="middle"
+                  fill="#67E8F9"
+                  font-family="monospace"
+                  font-size="9.2"
+                  font-weight="800"
+                >
+                  P₁ = 50 kN (x=3.0m)
+                </text>
+
+                <!-- 3D Extruded Steel IWF Beam -->
+                <path
+                  d="M 76 72 Q 291 116 506 72 L 526 60 Q 311 104 96 60 Z"
+                  fill="url(#sapFlangeShade)"
+                  fill-opacity="0.92"
+                  stroke="#BAE6FD"
+                  stroke-opacity="0.55"
+                  stroke-width="0.9"
+                />
+                <path
+                  d="M 86 76 Q 301 120 516 76 L 516 96 Q 301 140 86 96 Z"
+                  fill="url(#sapBeamContour)"
+                  fill-opacity="0.88"
+                  stroke="#7DD3FC"
+                  stroke-opacity="0.35"
+                  stroke-width="0.8"
+                />
+                <path
+                  d="M 76 95 Q 291 139 506 95 L 506 101 Q 291 145 76 101 Z"
+                  fill="url(#sapBeamContour)"
+                  stroke="#E0F2FE"
+                  stroke-opacity="0.6"
+                  stroke-width="0.9"
+                />
+                <path
+                  d="M 76 72 Q 291 116 506 72 L 506 77 Q 291 121 76 77 Z"
+                  fill="url(#sapBeamContour)"
+                  stroke="#E0F2FE"
+                  stroke-opacity="0.65"
+                  stroke-width="0.9"
+                />
+                <polygon
+                  points="506,72 526,60 526,65 518,70 518,88 526,83 526,89 506,101 506,95 514,90 514,72 506,77"
+                  fill="#3B82F6"
+                  stroke="#BAE6FD"
+                  stroke-width="1"
+                />
+                <path
+                  d="M 76 86 Q 291 130 506 86"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-opacity="0.72"
+                  stroke-width="1.1"
+                  stroke-dasharray="5 3"
+                />
+                <circle
+                  cx="291"
+                  cy="108"
+                  r="4.4"
+                  fill="#EF4444"
+                  stroke="#FFFFFF"
+                  stroke-width="1.3"
+                />
+                <rect
+                  x="239"
+                  y="121"
+                  width="104"
+                  height="13"
+                  rx="3"
+                  fill="#0B131E"
+                  fill-opacity="0.85"
+                />
+                <text
+                  x="291"
+                  y="130.5"
+                  text-anchor="middle"
+                  fill="#FCA5A5"
+                  font-family="monospace"
+                  font-size="8.2"
+                  font-weight="800"
+                >
+                  Δ_max = -12.18 mm
+                </text>
+
+                <!-- 2D Support Symbols -->
+                <g>
+                  <polygon
+                    points="76,103 64,123 88,123"
+                    fill="url(#suppGrad)"
+                    stroke="#94A3B8"
+                    stroke-width="2"
+                  />
+                  <circle cx="76" cy="107" r="2.1" fill="#94A3B8" />
+                  <line
+                    x1="60"
+                    y1="127"
+                    x2="92"
+                    y2="127"
+                    stroke="#94A3B8"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="76"
+                    y1="127"
+                    x2="76"
+                    y2="142"
+                    stroke="#6D7C90"
+                    stroke-width="1.2"
+                    stroke-dasharray="3 2"
+                  />
+                </g>
+                <g>
+                  <polygon
+                    points="506,103 494,120 518,120"
+                    fill="url(#suppGrad)"
+                    stroke="#94A3B8"
+                    stroke-width="2"
+                  />
+                  <line x1="492" y1="122" x2="520" y2="122" stroke="#94A3B8" stroke-width="1.7" />
+                  <circle
+                    cx="499"
+                    cy="126.5"
+                    r="2.8"
+                    fill="#1E293B"
+                    stroke="#94A3B8"
+                    stroke-width="1.5"
+                  />
+                  <circle
+                    cx="513"
+                    cy="126.5"
+                    r="2.8"
+                    fill="#1E293B"
+                    stroke="#94A3B8"
+                    stroke-width="1.5"
+                  />
+                  <line
+                    x1="490"
+                    y1="131"
+                    x2="522"
+                    y2="131"
+                    stroke="#94A3B8"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="506"
+                    y1="131"
+                    x2="506"
+                    y2="142"
+                    stroke="#6D7C90"
+                    stroke-width="1.2"
+                    stroke-dasharray="3 2"
+                  />
+                </g>
+
+                <!-- Synchronized In-Place BMD Diagram -->
+                <rect
+                  x="64"
+                  y="142"
+                  width="454"
+                  height="53"
+                  rx="5"
+                  fill="#07101E"
+                  fill-opacity="0.78"
+                  stroke="#1E3A5F"
+                  stroke-width="0.9"
+                />
+                <text
+                  x="74"
+                  y="155"
+                  fill="#38BDF8"
+                  font-family="monospace"
+                  font-size="8.2"
+                  font-weight="700"
+                >
+                  BMD (Bidang Momen Mux)
+                </text>
+                <text
+                  x="508"
+                  y="155"
+                  text-anchor="end"
+                  fill="#94A3B8"
+                  font-family="monospace"
+                  font-size="8"
+                  font-weight="700"
+                >
+                  Max: +142.2 kNm | Min: 0.0 kNm
+                </text>
+                <line
+                  x1="76"
+                  y1="189"
+                  x2="506"
+                  y2="189"
+                  stroke="#334155"
+                  stroke-width="1"
+                  stroke-dasharray="3 3"
+                />
+                <path
+                  d="M 76,189 L 103,183 L 130,178 L 157,172 L 184,167 L 210,163 L 237,160 L 264,157 L 291,154 L 318,157 L 345,160 L 372,163 L 398,167 L 425,172 L 452,178 L 479,183 L 506,189 Z"
+                  fill="url(#bmdOverlayFill)"
+                />
+                <path
+                  d="M 76,189 L 103,183 L 130,178 L 157,172 L 184,167 L 210,163 L 237,160 L 264,157 L 291,154 L 318,157 L 345,160 L 372,163 L 398,167 L 425,172 L 452,178 L 479,183 L 506,189"
+                  fill="none"
+                  stroke="#06B6D4"
+                  stroke-width="2"
+                />
+
+                <!-- BOTTOM-LEFT HUD CARD -->
+                <g transform="translate(14, 200)">
+                  <rect
+                    width="236"
+                    height="58"
+                    rx="6"
+                    fill="#0B131E"
+                    stroke="#334155"
+                    stroke-width="1"
+                  />
+                  <text
+                    x="10"
+                    y="14"
+                    fill="#94A3B8"
+                    font-family="sans-serif"
+                    font-size="7.8"
+                    font-weight="800"
+                    letter-spacing="0.4"
+                  >
+                    LENDUTAN MAKSIMUM
+                  </text>
+                  <rect
+                    x="164"
+                    y="5"
+                    width="62"
+                    height="13.5"
+                    rx="6.5"
+                    fill="#064E3B"
+                    stroke="#10B981"
+                    stroke-width="0.9"
+                  />
+                  <text
+                    x="195"
+                    y="14.5"
+                    text-anchor="middle"
+                    fill="#34D399"
+                    font-family="sans-serif"
+                    font-size="7.2"
+                    font-weight="800"
+                  >
+                    AMAN (OK)
+                  </text>
+                  <text
+                    x="10"
+                    y="34"
+                    fill="#F8FAFC"
+                    font-family="monospace"
+                    font-size="15.5"
+                    font-weight="800"
+                  >
+                    -12.18
+                  </text>
+                  <text
+                    x="74"
+                    y="34"
+                    fill="#94A3B8"
+                    font-family="sans-serif"
+                    font-size="8.8"
+                    font-weight="600"
+                  >
+                    mm
+                  </text>
+                  <text
+                    x="226"
+                    y="34"
+                    text-anchor="end"
+                    fill="#94A3B8"
+                    font-family="sans-serif"
+                    font-size="8"
+                  >
+                    di x = 3.00 m
+                  </text>
+                  <line x1="10" y1="40" x2="226" y2="40" stroke="#1E293B" stroke-width="1" />
+                  <text x="10" y="52" fill="#94A3B8" font-family="sans-serif" font-size="7.8">
+                    Batas Izin (L/360):
+                  </text>
+                  <text
+                    x="104"
+                    y="52"
+                    fill="#F8FAFC"
+                    font-family="monospace"
+                    font-size="8"
+                    font-weight="700"
+                  >
+                    -16.67 mm (73.1%)
+                  </text>
+                </g>
+
+                <!-- BOTTOM-CENTER TELEMETRY -->
+                <g transform="translate(262, 205)">
+                  <rect
+                    width="276"
+                    height="48"
+                    rx="6"
+                    fill="#0B131E"
+                    stroke="#1E3A5F"
+                    stroke-width="1"
+                  />
+                  <text
+                    x="10"
+                    y="15"
+                    fill="#38BDF8"
+                    font-family="monospace"
+                    font-size="7.8"
+                    font-weight="700"
+                  >
+                    PROFIL: WF 400 x 200 x 56.6 (Auto)
+                  </text>
+                  <text x="10" y="29" fill="#CBD5E1" font-family="monospace" font-size="7.6">
+                    Ix = 19.633 cm⁴ &bull; φMnx = 160.85 kNm &bull; 55.7 kg/m
+                  </text>
+                  <text
+                    x="10"
+                    y="42"
+                    fill="#34D399"
+                    font-family="monospace"
+                    font-size="7.6"
+                    font-weight="700"
+                  >
+                    DCR = 88.6% &bull; Kompak &bull; LTB Zona 2
+                  </text>
+                </g>
+
+                <!-- RIGHT-EDGE VERTICAL COLORBAR -->
+                <g transform="translate(556, 10)">
+                  <rect
+                    width="110"
+                    height="150"
+                    rx="6"
+                    fill="#0B131E"
+                    stroke="#334155"
+                    stroke-width="1"
+                  />
+                  <text
+                    x="55"
+                    y="15"
+                    text-anchor="middle"
+                    fill="#94A3B8"
+                    font-family="sans-serif"
+                    font-size="8"
+                    font-weight="800"
+                  >
+                    LENDUTAN (mm)
+                  </text>
+                  <rect x="16" y="23" width="12" height="116" rx="6" fill="url(#sapColorbar)" />
+                  <g font-family="monospace" font-size="8.4" font-weight="700" fill="#E2E8F0">
+                    <text x="36" y="31">0.00</text>
+                    <text x="36" y="58">-3.04</text>
+                    <text x="36" y="85">-6.09</text>
+                    <text x="36" y="112">-9.13</text>
+                    <text x="36" y="139" fill="#F87171">-12.18</text>
+                  </g>
+                </g>
+
+                <!-- BOTTOM-RIGHT 3D AXIS GIZMO -->
+                <g transform="translate(556, 169)">
+                  <rect
+                    width="110"
+                    height="89"
+                    rx="6"
+                    fill="#0B131E"
+                    stroke="#334155"
+                    stroke-width="1"
+                  />
+                  <g transform="translate(31, 4)">
+                    <circle cx="24" cy="24" r="3" fill="#64748B" />
+                    <line
+                      x1="24"
+                      y1="24"
+                      x2="43"
+                      y2="24"
+                      stroke="#EF4444"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                    />
+                    <text
+                      x="46"
+                      y="27"
+                      fill="#EF4444"
+                      font-family="sans-serif"
+                      font-size="9"
+                      font-weight="800"
+                    >
+                      X
+                    </text>
+                    <line
+                      x1="24"
+                      y1="24"
+                      x2="24"
+                      y2="6"
+                      stroke="#3B82F6"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                    />
+                    <text
+                      x="21"
+                      y="4"
+                      fill="#3B82F6"
+                      font-family="sans-serif"
+                      font-size="9"
+                      font-weight="800"
+                    >
+                      Z
+                    </text>
+                    <line
+                      x1="24"
+                      y1="24"
+                      x2="10"
+                      y2="37"
+                      stroke="#10B981"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                    <text
+                      x="3"
+                      y="43"
+                      fill="#10B981"
+                      font-family="sans-serif"
+                      font-size="9"
+                      font-weight="800"
+                    >
+                      Y
+                    </text>
+                  </g>
+                  <rect
+                    x="10"
+                    y="60"
+                    width="42"
+                    height="19"
+                    rx="4"
+                    fill="#082F49"
+                    stroke="#06B6D4"
+                    stroke-width="1"
+                  />
+                  <text
+                    x="31"
+                    y="72.5"
+                    text-anchor="middle"
+                    fill="#67E8F9"
+                    font-family="monospace"
+                    font-size="8"
+                    font-weight="800"
+                  >
+                    Z-Up
+                  </text>
+                  <rect
+                    x="58"
+                    y="60"
+                    width="42"
+                    height="19"
+                    rx="4"
+                    fill="#0F172A"
+                    stroke="#334155"
+                    stroke-width="1"
+                  />
+                  <text
+                    x="79"
+                    y="72.5"
+                    text-anchor="middle"
+                    fill="#94A3B8"
+                    font-family="monospace"
+                    font-size="8"
+                    font-weight="700"
+                  >
+                    Y-Up
+                  </text>
+                </g>
+              </svg>
+            </div>
+
+            <div class="stage-caption">
+              <span>Viewport WebGL2 Native + Rust WASM (kasus bawaan aplikasi)</span>
+              <span>&Delta;_max = -12,18 mm &bull; R<sub>a</sub> = R<sub>b</sub> = 70,0 kN</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- BAND 3: 3-COLUMN VISUAL SHOWCASE -->
+        <section class="band-3col">
+          <!-- COL 1: Dual-Mode Beban & 5 Kategori Tumpuan -->
+          <article class="cad-panel">
+            <div class="section-kicker">
+              <span class="kicker-left"
+                ><span class="kicker-dot"></span>01 // BEBAN &amp; TUMPUAN</span
+              >
+              <span class="kicker-tag">9 ORIENTASI</span>
+            </div>
+
+            <div class="mode-box">
+              <div class="mode-title">MODE A &bull; BEBAN EKSTERNAL (DESKTOP)</div>
+              <p class="body-p">
+                Bentang <strong>L</strong>, beban titik <strong>P</strong>, beban merata
+                <strong>q</strong>, momen, &amp; berat sendiri (&gamma;&middot;A).
+              </p>
+            </div>
+
+            <div class="mode-box violet">
+              <div class="mode-title">MODE B &bull; GAYA DALAM LANGSUNG</div>
+              <p class="body-p">
+                Input terfaktor
+                <strong
+                  >P<sub>u</sub>, M<sub>ux</sub>, M<sub>uy</sub>, T<sub>u</sub>, V<sub
+                    >u</sub
+                  ></strong
+                >
+                (Desktop &amp; Android).
+              </p>
+            </div>
+
+            <h2 class="sub-heading" style="margin-top: 2mm; margin-bottom: 0.8mm">
+              5 Kategori Tumpuan (9 Variasi)
+            </h2>
+            <div class="support-list">
+              <div class="support-row">
+                <svg width="66" height="20" viewBox="0 0 70 22">
+                  <line x1="12" y1="3" x2="12" y2="19" stroke="#94A3B8" stroke-width="2" />
+                  <path
+                    d="M12,5 L6,10 M12,10 L6,15 M12,15 L6,20"
+                    stroke="#94A3B8"
+                    stroke-width="1.2"
+                  />
+                  <line x1="12" y1="11" x2="62" y2="11" stroke="#38BDF8" stroke-width="2.4" />
+                  <circle cx="62" cy="11" r="2.2" fill="#F59E0B" />
+                </svg>
+                <div>
+                  <div class="support-name">1. Kantilever</div>
+                  <div class="support-sub">Jepit&ndash;Bebas (&times;2)</div>
+                </div>
+              </div>
+              <div class="support-row">
+                <svg width="66" height="20" viewBox="0 0 70 22">
+                  <line x1="12" y1="8" x2="58" y2="8" stroke="#38BDF8" stroke-width="2.4" />
+                  <polygon
+                    points="12,9 7,17 17,17"
+                    fill="#334155"
+                    stroke="#94A3B8"
+                    stroke-width="1.2"
+                  />
+                  <polygon
+                    points="58,9 53,16 63,16"
+                    fill="#334155"
+                    stroke="#94A3B8"
+                    stroke-width="1.2"
+                  />
+                  <circle cx="55.5" cy="18.5" r="1.5" fill="#94A3B8" />
+                  <circle cx="60.5" cy="18.5" r="1.5" fill="#94A3B8" />
+                </svg>
+                <div>
+                  <div class="support-name">2. Sendi&ndash;Rol</div>
+                  <div class="support-sub">Sendi&ndash;Rol (&times;2)</div>
+                </div>
+              </div>
+              <div class="support-row">
+                <svg width="66" height="20" viewBox="0 0 70 22">
+                  <line x1="12" y1="3" x2="12" y2="19" stroke="#94A3B8" stroke-width="2" />
+                  <line x1="58" y1="3" x2="58" y2="19" stroke="#94A3B8" stroke-width="2" />
+                  <path
+                    d="M12,5 L7,9 M12,11 L7,15 M58,5 L63,9 M58,11 L63,15"
+                    stroke="#94A3B8"
+                    stroke-width="1.2"
+                  />
+                  <line x1="12" y1="11" x2="58" y2="11" stroke="#38BDF8" stroke-width="2.4" />
+                </svg>
+                <div>
+                  <div class="support-name">3. Jepit&ndash;Jepit</div>
+                  <div class="support-sub">Fixed&ndash;Fixed</div>
+                </div>
+              </div>
+              <div class="support-row">
+                <svg width="66" height="20" viewBox="0 0 70 22">
+                  <line x1="12" y1="3" x2="12" y2="19" stroke="#94A3B8" stroke-width="2" />
+                  <path d="M12,5 L7,9 M12,11 L7,15" stroke="#94A3B8" stroke-width="1.2" />
+                  <line x1="12" y1="9" x2="58" y2="9" stroke="#38BDF8" stroke-width="2.4" />
+                  <polygon
+                    points="58,10 53,16 63,16"
+                    fill="#334155"
+                    stroke="#94A3B8"
+                    stroke-width="1.2"
+                  />
+                  <circle cx="55.5" cy="18.5" r="1.5" fill="#94A3B8" />
+                  <circle cx="60.5" cy="18.5" r="1.5" fill="#94A3B8" />
+                </svg>
+                <div>
+                  <div class="support-name">4. Jepit&ndash;Rol</div>
+                  <div class="support-sub">Jepit&ndash;Rol (&times;2)</div>
+                </div>
+              </div>
+              <div class="support-row">
+                <svg width="66" height="20" viewBox="0 0 70 22">
+                  <line x1="12" y1="3" x2="12" y2="19" stroke="#94A3B8" stroke-width="2" />
+                  <path d="M12,5 L7,9 M12,11 L7,15" stroke="#94A3B8" stroke-width="1.2" />
+                  <line x1="12" y1="9" x2="58" y2="9" stroke="#38BDF8" stroke-width="2.4" />
+                  <polygon
+                    points="58,10 53,18 63,18"
+                    fill="#334155"
+                    stroke="#94A3B8"
+                    stroke-width="1.2"
+                  />
+                </svg>
+                <div>
+                  <div class="support-name">5. Jepit&ndash;Sendi</div>
+                  <div class="support-sub">Jepit&ndash;Sendi (&times;2)</div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- COL 2: Real Cross-Section & Rebar Cage Visualizations -->
+          <article class="cad-panel">
+            <div class="section-kicker">
+              <span class="kicker-left"><span class="kicker-dot"></span>02 // PENAMPANG SNI</span>
+              <span class="kicker-tag emerald">BAJA &amp; BETON</span>
+            </div>
+
+            <div class="section-pair">
+              <!-- Steel IWF Cross Section -->
+              <div class="section-card">
+                <div class="section-card-head">
+                  <span class="section-card-title">Baja (SNI 1729)</span>
+                  <span class="dcr-pill">DCR 88.6%</span>
+                </div>
+                <div class="svg-well">
+                  <svg
+                    width="112"
+                    height="106"
+                    viewBox="0 0 156 146"
+                    role="img"
+                    aria-label="Potongan 2D Profil Baja WF 400x200x56.6"
+                  >
+                    <rect
+                      x="40"
+                      y="14"
+                      width="60"
+                      height="8"
+                      fill="#38BDF8"
+                      fill-opacity="0.28"
+                      stroke="#38BDF8"
+                      stroke-width="1.8"
+                    />
+                    <rect
+                      x="67"
+                      y="22"
+                      width="6"
+                      height="84"
+                      fill="#38BDF8"
+                      fill-opacity="0.28"
+                      stroke="#38BDF8"
+                      stroke-width="1.6"
+                    />
+                    <rect
+                      x="40"
+                      y="106"
+                      width="60"
+                      height="8"
+                      fill="#38BDF8"
+                      fill-opacity="0.28"
+                      stroke="#38BDF8"
+                      stroke-width="1.8"
+                    />
+                    <line
+                      x1="32"
+                      y1="64"
+                      x2="108"
+                      y2="64"
+                      stroke="#64748B"
+                      stroke-width="0.9"
+                      stroke-dasharray="3 3"
+                    />
+                    <line x1="108" y1="14" x2="108" y2="114" stroke="#94A3B8" stroke-width="1" />
+                    <line x1="40" y1="124" x2="100" y2="124" stroke="#94A3B8" stroke-width="1" />
+                    <text
+                      x="35"
+                      y="21"
+                      text-anchor="end"
+                      fill="#7DD3FC"
+                      font-family="monospace"
+                      font-size="9.5"
+                    >
+                      tf=11
+                    </text>
+                    <text x="77" y="59" fill="#38BDF8" font-family="monospace" font-size="9.5">
+                      tw=7
+                    </text>
+                    <text x="112" y="67" fill="#E2E8F0" font-family="monospace" font-size="9.5">
+                      H=396
+                    </text>
+                    <text
+                      x="70"
+                      y="138"
+                      text-anchor="middle"
+                      fill="#E2E8F0"
+                      font-family="monospace"
+                      font-size="9.5"
+                    >
+                      B = 199 mm
+                    </text>
+                  </svg>
+                </div>
+                <div class="metric-kv">
+                  <strong>WF 400&times;200&times;56.6</strong> (BJ 37)<br />
+                  &bull; 90 IWF &bull; 23 BOX &bull; Custom BOX<br />
+                  &bull; Mutu <strong>BJ 34 &ndash; BJ 55</strong><br />
+                  &bull; Search <strong>O(log N)</strong> Bun Macro
+                </div>
+              </div>
+
+              <!-- Concrete Cross Section -->
+              <div class="section-card">
+                <div class="section-card-head">
+                  <span class="section-card-title emerald">Beton (SNI 2847)</span>
+                  <span class="dcr-pill">DCR 99.1%</span>
+                </div>
+                <div class="svg-well">
+                  <svg
+                    width="112"
+                    height="106"
+                    viewBox="0 0 156 146"
+                    role="img"
+                    aria-label="Potongan 2D Balok Beton Bertulang 300x500 mm"
+                  >
+                    <rect
+                      x="40"
+                      y="12"
+                      width="58"
+                      height="100"
+                      fill="#334155"
+                      fill-opacity="0.28"
+                      stroke="#94A3B8"
+                      stroke-width="1.8"
+                    />
+                    <rect
+                      x="48"
+                      y="20"
+                      width="42"
+                      height="84"
+                      rx="4"
+                      fill="none"
+                      stroke="#F59E0B"
+                      stroke-width="2.2"
+                    />
+                    <circle
+                      cx="54"
+                      cy="26"
+                      r="3.3"
+                      fill="#F59E0B"
+                      stroke="#0F172A"
+                      stroke-width="1"
+                    />
+                    <circle
+                      cx="84"
+                      cy="26"
+                      r="3.3"
+                      fill="#F59E0B"
+                      stroke="#0F172A"
+                      stroke-width="1"
+                    />
+                    <circle
+                      cx="55"
+                      cy="97"
+                      r="4.5"
+                      fill="#EF4444"
+                      stroke="#0F172A"
+                      stroke-width="1"
+                    />
+                    <circle
+                      cx="83"
+                      cy="97"
+                      r="4.5"
+                      fill="#EF4444"
+                      stroke="#0F172A"
+                      stroke-width="1"
+                    />
+                    <line x1="106" y1="12" x2="106" y2="112" stroke="#94A3B8" stroke-width="1" />
+                    <line x1="40" y1="123" x2="98" y2="123" stroke="#94A3B8" stroke-width="1" />
+                    <text x="110" y="65" fill="#E2E8F0" font-family="monospace" font-size="9.5">
+                      h=500
+                    </text>
+                    <text
+                      x="69"
+                      y="137"
+                      text-anchor="middle"
+                      fill="#E2E8F0"
+                      font-family="monospace"
+                      font-size="9.5"
+                    >
+                      bw=300 mm
+                    </text>
+                  </svg>
+                </div>
+                <div class="metric-kv">
+                  <strong>300 &times; 500 mm</strong> (f'c 25 MPa)<br />
+                  &bull; Tarik: <strong>2 D25</strong> (&rho; = 0,75%)<br />
+                  &bull; Sengkang: <strong>2 D8-200</strong><br />
+                  &bull; &Delta;<sub>max</sub> = <strong>-6,51 mm</strong> (39,1%)
+                </div>
+              </div>
+            </div>
+
+            <!-- Concrete 3D Sub-Mode Inset -->
+            <div class="rebar-wire-strip">
+              <svg
+                width="100%"
+                height="52"
+                viewBox="0 0 150 64"
+                role="img"
+                aria-label="Mode Wireframe Tulangan 3D Beton Bertulang"
+              >
+                <polygon
+                  points="10,20 120,10 140,20 30,30"
+                  fill="#64748B"
+                  fill-opacity="0.18"
+                  stroke="#64748B"
+                  stroke-width="1"
+                />
+                <polygon
+                  points="10,20 30,30 30,54 10,44"
+                  fill="#64748B"
+                  fill-opacity="0.16"
+                  stroke="#64748B"
+                  stroke-width="1"
+                />
+                <polygon
+                  points="30,30 140,20 140,44 30,54"
+                  fill="#64748B"
+                  fill-opacity="0.14"
+                  stroke="#64748B"
+                  stroke-width="1"
+                />
+                <path d="M16,24 Q75,30 132,20" fill="none" stroke="#F59E0B" stroke-width="1.4" />
+                <path d="M26,28 Q85,34 138,24" fill="none" stroke="#F59E0B" stroke-width="1.4" />
+                <path d="M16,42 Q75,49 132,38" fill="none" stroke="#EF4444" stroke-width="1.8" />
+                <path d="M26,46 Q85,53 138,42" fill="none" stroke="#EF4444" stroke-width="1.8" />
+                <g fill="none" stroke="#F59E0B" stroke-width="1.15">
+                  <polygon points="22,25 28,27 28,47 22,45" />
+                  <polygon points="44,26 50,28 50,48 44,46" />
+                  <polygon points="66,27 72,29 72,49 66,47" />
+                  <polygon points="88,26 94,28 94,48 88,46" />
+                  <polygon points="110,24 116,26 116,46 110,44" />
+                  <polygon points="128,21 134,23 134,43 128,41" />
+                </g>
+              </svg>
+              <div>
+                <div class="mode-title" style="color: var(--amber)">2 SUB-MODE BETON 3D</div>
+                <p class="body-p">
+                  <strong>Solid + Potongan Ujung</strong> &amp;
+                  <strong>Wireframe Tulangan</strong> (selubung transparan <em>opacity 0.18</em>).
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <!-- COL 3: 4 Internal Force Diagrams (SFD, BMD, NFD, TFD) -->
+          <article class="cad-panel">
+            <div class="section-kicker">
+              <span class="kicker-left"><span class="kicker-dot"></span>03 // DIAGRAM 2D</span>
+              <span class="kicker-tag violet">4 GAYA DALAM</span>
+            </div>
+
+            <div class="diagrams-stack">
+              <div class="diag-card">
+                <div class="diag-head">
+                  <span style="color: #10b981">SFD &mdash; Gaya Geser (V<sub>u</sub>)</span>
+                  <span style="color: var(--text-muted)">+70,0 / -70,0 kN</span>
+                </div>
+                <svg
+                  width="100%"
+                  height="46"
+                  viewBox="0 0 240 46"
+                  role="img"
+                  aria-label="Diagram Gaya Geser SFD"
+                >
+                  <line
+                    x1="8"
+                    y1="23"
+                    x2="232"
+                    y2="23"
+                    stroke="#334155"
+                    stroke-width="1"
+                    stroke-dasharray="3 3"
+                  />
+                  <polygon points="8,23 8,4 120,16 120,23" fill="rgba(16,185,129,0.25)" />
+                  <polyline
+                    points="8,23 8,4 120,16 120,23"
+                    fill="none"
+                    stroke="#10B981"
+                    stroke-width="1.8"
+                  />
+                  <polygon points="120,23 120,30 232,42 232,23" fill="rgba(249,115,22,0.25)" />
+                  <polyline
+                    points="120,23 120,30 232,42 232,23"
+                    fill="none"
+                    stroke="#F97316"
+                    stroke-width="1.8"
+                  />
+                  <text
+                    x="12"
+                    y="12"
+                    fill="#34D399"
+                    font-family="monospace"
+                    font-size="8"
+                    font-weight="700"
+                  >
+                    +70.0
+                  </text>
+                  <text
+                    x="228"
+                    y="40"
+                    text-anchor="end"
+                    fill="#FB923C"
+                    font-family="monospace"
+                    font-size="8"
+                    font-weight="700"
+                  >
+                    -70.0
+                  </text>
+                </svg>
+              </div>
+
+              <div class="diag-card">
+                <div class="diag-head">
+                  <span style="color: #06b6d4">BMD &mdash; Momen (M<sub>ux</sub>)</span>
+                  <span style="color: var(--text-muted)">Max: +142,2 kNm</span>
+                </div>
+                <svg
+                  width="100%"
+                  height="46"
+                  viewBox="0 0 240 46"
+                  role="img"
+                  aria-label="Diagram Momen Lentur BMD"
+                >
+                  <line
+                    x1="8"
+                    y1="39"
+                    x2="232"
+                    y2="39"
+                    stroke="#334155"
+                    stroke-width="1"
+                    stroke-dasharray="3 3"
+                  />
+                  <polygon
+                    points="8,39 36,31 64,23 92,15 120,7 148,15 176,23 204,31 232,39"
+                    fill="rgba(6,182,212,0.24)"
+                  />
+                  <polyline
+                    points="8,39 36,31 64,23 92,15 120,7 148,15 176,23 204,31 232,39"
+                    fill="none"
+                    stroke="#06B6D4"
+                    stroke-width="2"
+                  />
+                  <circle cx="120" cy="7" r="2.5" fill="#22D3EE" />
+                  <text
+                    x="120"
+                    y="22"
+                    text-anchor="middle"
+                    fill="#67E8F9"
+                    font-family="monospace"
+                    font-size="8"
+                    font-weight="700"
+                  >
+                    +142.2 kNm
+                  </text>
+                </svg>
+              </div>
+
+              <div class="diag-pair">
+                <div class="diag-card">
+                  <div class="diag-head">
+                    <span style="color: #a855f7">NFD (P<sub>u</sub>)</span>
+                    <span style="color: var(--text-muted)">kN</span>
+                  </div>
+                  <svg
+                    width="100%"
+                    height="32"
+                    viewBox="0 0 110 32"
+                    role="img"
+                    aria-label="Diagram Gaya Aksial NFD"
+                  >
+                    <line
+                      x1="4"
+                      y1="17"
+                      x2="106"
+                      y2="17"
+                      stroke="#334155"
+                      stroke-width="1"
+                      stroke-dasharray="2 2"
+                    />
+                    <rect
+                      x="6"
+                      y="6"
+                      width="98"
+                      height="11"
+                      fill="rgba(168,85,247,0.24)"
+                      stroke="#A855F7"
+                      stroke-width="1.5"
+                    />
+                    <text
+                      x="55"
+                      y="29"
+                      text-anchor="middle"
+                      fill="#C084FC"
+                      font-family="monospace"
+                      font-size="7.2"
+                    >
+                      +T / -C
+                    </text>
+                  </svg>
+                </div>
+                <div class="diag-card">
+                  <div class="diag-head">
+                    <span style="color: #f59e0b">TFD (T<sub>u</sub>)</span>
+                    <span style="color: var(--text-muted)">kNm</span>
+                  </div>
+                  <svg
+                    width="100%"
+                    height="32"
+                    viewBox="0 0 110 32"
+                    role="img"
+                    aria-label="Diagram Momen Torsi TFD"
+                  >
+                    <line
+                      x1="4"
+                      y1="17"
+                      x2="106"
+                      y2="17"
+                      stroke="#334155"
+                      stroke-width="1"
+                      stroke-dasharray="2 2"
+                    />
+                    <rect
+                      x="6"
+                      y="7"
+                      width="98"
+                      height="10"
+                      fill="rgba(245,158,11,0.24)"
+                      stroke="#F59E0B"
+                      stroke-width="1.5"
+                    />
+                    <text
+                      x="55"
+                      y="29"
+                      text-anchor="middle"
+                      fill="#FBBF24"
+                      font-family="monospace"
+                      font-size="7.2"
+                    >
+                      H3 Torsi
+                    </text>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <h3 class="sub-heading" style="margin-top: 1.8mm; margin-bottom: 0.7mm">
+              3 Mode Tata Letak Diagram
+            </h3>
+            <div class="mode-chips">
+              <span class="mini-chip">1. In-Place Axis</span>
+              <span class="mini-chip">2. Stacked Vertical</span>
+              <span class="mini-chip">3. Floating Window</span>
+            </div>
+          </article>
+        </section>
+
+        <!-- BAND 4: CONCISE EQUATIONS + VISUAL ARCHITECTURE / MULTIMODAL -->
+        <section class="band-2col">
+          <!-- LEFT: Concise Formula Matrix -->
+          <article class="cad-panel">
+            <div class="section-kicker">
+              <span class="kicker-left"
+                ><span class="kicker-dot"></span>04 // PERSAMAAN INTI MEKANIKA &amp; SNI</span
+              >
+              <span class="kicker-tag">RUST WASM + SNI</span>
+            </div>
+
+            <div class="formula-group">
+              <div class="fg-title">
+                <span>EULER-BERNOULLI &amp; MACAULAY (crates/mechanics-3d-wasm)</span>
+                <span>M = 256</span>
+              </div>
+              <div class="eq-grid">
+                <div class="eq-label">Kurvatur &amp; Defleksi</div>
+                <div class="eq-math">
+                  <span class="hl-c">d&sup2;v/ds&sup2; = +M(s)/(E&middot;I)</span> &bull; Simpson 2
+                  sub-panel (<span class="hl-a">&Delta; &lt; 0</span>)
+                </div>
+
+                <div class="eq-label">Statis Tak Tentu</div>
+                <div class="eq-math">
+                  Kurung Macaulay &lang;s&minus;a&rang;&#8304;, &lang;s&minus;a&rang;&sup1; &amp;
+                  Integral Mohr (&Phi;<sub>A</sub>, &Phi;<sub>B</sub>)
+                </div>
+
+                <div class="eq-label">Mode B &amp; Batas Layan</div>
+                <div class="eq-math">
+                  q<sub>eq</sub> =
+                  <span class="hl-c">{8, 12, 2}|M<sub>ux</sub>|/L&sup2;</span> &bull; &Delta;<sub
+                    >izin</sub
+                  >
+                  = L<sub>eff</sub>/{180, 240, 360, 480}
+                </div>
+              </div>
+            </div>
+
+            <div class="formula-group">
+              <div class="fg-title emerald">
+                <span>BETON BERTULANG (SNI 2847:2019)</span>
+                <span>&phi;<sub>lentur</sub> = 0,90 &bull; &phi;<sub>geser</sub> = 0,75</span>
+              </div>
+              <div class="eq-grid">
+                <div class="eq-label">Konstitutif Material</div>
+                <div class="eq-math">
+                  f'<sub>c</sub> = 0,083&middot;K (&ge;17 MPa) &bull;
+                  <span class="hl-e">E<sub>c</sub> = 4700&radic;f'<sub>c</sub></span> &bull;
+                  &beta;<sub>1</sub> &isin; [0,65 ; 0,85]
+                </div>
+
+                <div class="eq-label">Lentur Whitney</div>
+                <div class="eq-math">
+                  A<sub>s,min</sub> = max(0,25&radic;f'<sub>c</sub>&middot;b<sub>w</sub>d/f<sub
+                    >y</sub
+                  >
+                  ; 1,4&middot;b<sub>w</sub>d/f<sub>y</sub>) &bull; &epsilon;<sub>t</sub> &ge; 0,005
+                </div>
+
+                <div class="eq-label">Geser Sengkang</div>
+                <div class="eq-math">
+                  V<sub>c</sub> =
+                  <span class="hl-e">0,17&lambda;&radic;f'<sub>c</sub>&middot;b<sub>w</sub>d</span>
+                  &bull; V<sub>s,max</sub> = 0,66&radic;f'<sub>c</sub>&middot;b<sub>w</sub>d
+                </div>
+              </div>
+            </div>
+
+            <div class="formula-group">
+              <div class="fg-title violet">
+                <span>BAJA PROFIL IWF &amp; BOX (SNI 1729:2020)</span>
+                <span>TARGET 0,90 &le; DCR &le; 1,00</span>
+              </div>
+              <div class="eq-grid">
+                <div class="eq-label">Geometri &amp; Macro</div>
+                <div class="eq-math">
+                  Spandrel Fillet (a<sub>f</sub>, c, I<sub>f0</sub>) via
+                  <span class="hl-v">Bun Macro</span> &bull; Cari O(log N)
+                </div>
+
+                <div class="eq-label">Kompak &amp; LTB</div>
+                <div class="eq-math">
+                  Tabel B4.1b &bull; Bab F: L<sub>b</sub> vs L<sub>p</sub>, L<sub>r</sub> (Zona
+                  1&ndash;3)
+                </div>
+
+                <div class="eq-label">Interaksi &amp; Torsi</div>
+                <div class="eq-math">
+                  <span class="hl-v">Eq. H1-1a/b</span> &bull; V<sub>n</sub> =
+                  0,6F<sub>y</sub>A<sub>w</sub>C<sub>v</sub> &bull; T<sub>n</sub> =
+                  F<sub>cr</sub>&middot;C (Eq. H3-6)
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- RIGHT: Visual Architecture & Multimodal -->
+          <article class="cad-panel">
+            <div class="section-kicker">
+              <span class="kicker-left"
+                ><span class="kicker-dot"></span>05 // ARSITEKTUR &amp; INTERAKSI MULTIMODAL</span
+              >
+              <span class="kicker-tag amber">ZERO-COPY + AI</span>
+            </div>
+
+            <div class="arch-block">
+              <div class="fg-title">
+                <span>ARSITEKTUR ZERO-COPY HYBRID</span>
+                <span>0 HEAP ALLOC</span>
+              </div>
+              <div class="pipe-flow">
+                <div class="pipe-node">
+                  <div class="pipe-node-title">Next.js 16 + Bun</div>
+                  <div class="pipe-node-sub">6 Floating Windows</div>
+                </div>
+                <div class="pipe-arrow">&harr;</div>
+                <div class="pipe-node">
+                  <div class="pipe-node-title" style="color: var(--amber)">Rust WASM</div>
+                  <div class="pipe-node-sub">TypedArray 256 st.</div>
+                </div>
+                <div class="pipe-arrow">&rarr;</div>
+                <div class="pipe-node">
+                  <div class="pipe-node-title" style="color: var(--emerald)">WebGL2 Native</div>
+                  <div class="pipe-node-sub">Tanpa Three.js</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="arch-block">
+              <div class="fg-title violet">
+                <span>MEDIAPIPE HAND TRACKING (21 LANDMARK)</span>
+                <span>15&ndash;16 FPS ECO</span>
+              </div>
+              <p class="body-p">
+                <strong>Knuckle-Anchor</strong> (MCP #5 &amp; #9) cegah <em>pinch-dip</em> untuk 5
+                gestur tanpa sentuh:
+              </p>
+              <div class="gesture-grid">
+                <div class="gesture-pill">
+                  <div class="gesture-sym" style="color: #38bdf8">&#9678;</div>
+                  <div class="gesture-lbl">Pointer</div>
+                </div>
+                <div class="gesture-pill">
+                  <div class="gesture-sym" style="color: #10b981">&#8982;</div>
+                  <div class="gesture-lbl">Pinch Klik</div>
+                </div>
+                <div class="gesture-pill">
+                  <div class="gesture-sym" style="color: #f97316">&#9660;</div>
+                  <div class="gesture-lbl">Fist Beban</div>
+                </div>
+                <div class="gesture-pill">
+                  <div class="gesture-sym" style="color: #eab308">&#9656;</div>
+                  <div class="gesture-lbl">Point Titik</div>
+                </div>
+                <div class="gesture-pill">
+                  <div class="gesture-sym" style="color: #a855f7">&#9635;</div>
+                  <div class="gesture-lbl">Geser Win</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="arch-block">
+              <div class="fg-title emerald">
+                <span>VOICE, DOUBLE CLAP &amp; ASISTEN AI "UCUY"</span>
+                <span>MULTI-KEY FAILOVER</span>
+              </div>
+              <div class="ai-pills">
+                <span class="ai-chip">Wake Word: "halo ucuy" / "ucuy"</span>
+                <span class="ai-chip">Double Clap (150&ndash;850 ms)</span>
+                <span class="ai-chip">Gemini <code>gemini-2.5-flash</code></span>
+                <span class="ai-chip">Live Audio 24 kHz PCM (Aoede)</span>
+                <span class="ai-chip">Fallback Heuristik Offline</span>
+              </div>
+            </div>
+
+            <div class="pwa-split">
+              <div class="pwa-box">
+                <div class="pwa-box-title">DESKTOP WORKSTATION</div>
+                <p class="body-p" style="font-size: 7.7pt">
+                  WebGL2 3D &bull; Mode A &amp; B &bull; 6 Windows &bull; Hand Tracking &bull;
+                  Ekspor CAD
+                </p>
+              </div>
+              <div class="pwa-box">
+                <div class="pwa-box-title" style="color: var(--emerald)">
+                  ANDROID PWA (&le;768px)
+                </div>
+                <p class="body-p" style="font-size: 7.7pt">
+                  Mode B Lapangan &bull; SNI Optimizer &bull; AI Ucuy &bull; Nota PDF
+                </p>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- BAND 5: CONCISE WORKFLOW + 9 EXPORTERS + FOOTER -->
+        <section class="band-bottom">
+          <article class="cad-panel">
+            <div class="section-kicker">
+              <span class="kicker-left"
+                ><span class="kicker-dot"></span>06 // ALUR KERJA &amp; 9 FORMAT EKSPOR CAD / BIM /
+                CAE</span
+              >
+              <span class="kicker-tag">9 MISI TUTORIAL QUEST</span>
+            </div>
+
+            <div class="workflow-row">
+              <div class="wf-step">
+                <div class="wf-num">TAHAP 01</div>
+                <div class="wf-title">Material &amp; Mode</div>
+                <div class="wf-desc">Pilih Baja / Beton &amp; Mode A / B.</div>
+              </div>
+              <div class="wf-step">
+                <div class="wf-num">TAHAP 02</div>
+                <div class="wf-title">Bentang &amp; Beban</div>
+                <div class="wf-desc">Atur L, 5 tumpuan, P/q, &amp; batas L/n.</div>
+              </div>
+              <div class="wf-step">
+                <div class="wf-num">TAHAP 03</div>
+                <div class="wf-title">Solver &amp; SNI</div>
+                <div class="wf-desc">256 stasiun WASM &amp; ranking profil.</div>
+              </div>
+              <div class="wf-step">
+                <div class="wf-num">TAHAP 04</div>
+                <div class="wf-title">3D &amp; Ekspor</div>
+                <div class="wf-desc">Kontur 3D, AI Ucuy, &amp; unduh model.</div>
+              </div>
+            </div>
+
+            <div class="export-grid">
+              <div class="export-chip">
+                <div class="export-ext">.dxf</div>
+                <div class="export-cat">CAD</div>
+                <div class="export-sw">AutoCAD / Civil 3D</div>
+              </div>
+              <div class="export-chip">
+                <div class="export-ext">.lsp</div>
+                <div class="export-cat">CAD</div>
+                <div class="export-sw">AutoLISP Script</div>
+              </div>
+              <div class="export-chip">
+                <div class="export-ext">.s2k</div>
+                <div class="export-cat">CAE</div>
+                <div class="export-sw">SAP2000 &amp; ETABS</div>
+              </div>
+              <div class="export-chip">
+                <div class="export-ext">.ifc</div>
+                <div class="export-cat">BIM</div>
+                <div class="export-sw">IFC4 Revit / Tekla</div>
+              </div>
+              <div class="export-chip">
+                <div class="export-ext">.txt</div>
+                <div class="export-cat">BIM</div>
+                <div class="export-sw">Revit Type Catalog</div>
+              </div>
+              <div class="export-chip">
+                <div class="export-ext">.iom.xml</div>
+                <div class="export-cat">CAE</div>
+                <div class="export-sw">IDEA StatiCa</div>
+              </div>
+              <div class="export-chip">
+                <div class="export-ext">.step</div>
+                <div class="export-cat">3D SOLID</div>
+                <div class="export-sw">SolidWorks / Fusion</div>
+              </div>
+              <div class="export-chip">
+                <div class="export-ext">.stl</div>
+                <div class="export-cat">3D MESH</div>
+                <div class="export-sw">3D Deflected Mesh</div>
+              </div>
+              <div class="export-chip">
+                <div class="export-ext">.html</div>
+                <div class="export-cat">REPORT</div>
+                <div class="export-sw">Nota SNI A4/PDF</div>
+              </div>
+            </div>
+          </article>
+
+          <footer class="sheet-footer">
+            <div>
+              <strong>&copy; 2026 Rizqi Lasheva (@Rilaptra)</strong> &bull; S1 Teknik Sipil UNTIDAR
+              &bull; MIT
+            </div>
+            <div class="footer-url">erzysh-ibds.vercel.app &bull; v0.6.19 A3</div>
+          </footer>
+        </section>
+      </article>
+    </main>
+
+    <script>
+      function toggleTheme() {
+        const root = document.documentElement;
+        const btn = document.getElementById("themeBtn");
+        const isLight = root.classList.toggle("theme-light");
+        if (btn) {
+          btn.textContent = isLight ? "Mode: Blueprint Light" : "Mode: Dark Void (IBDS)";
+        }
+      }
+
+      function toggleZoom() {
+        const isFit = document.body.classList.toggle("fit-screen");
+        const btn = document.getElementById("zoomBtn");
+        if (btn) {
+          btn.textContent = isFit ? "Skala: Fit Layar" : "Skala: 100% (A3)";
+        }
+      }
+    </script>
+  </body>
+</html>

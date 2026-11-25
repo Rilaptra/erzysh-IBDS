@@ -1,0 +1,59 @@
+name: Laporan Bug
+description: Laporkan error, bug tampilan, atau perilaku tidak terduga pada erzysh-IBDS.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih telah membantu meningkatkan **erzysh-IBDS**. Isi rincian di bawah agar tim dapat mereproduksi masalah dengan cepat.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Ringkasan Masalah
+      description: Jelaskan secara singkat apa yang terjadi.
+      placeholder: "Contoh: Diagram BMD tidak memperbarui kurva saat tumpuan diganti ke Jepit-Rol."
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: Modul Terdampak
+      options:
+        - Solver Rust WASM & Mekanika
+        - Viewport 3D WebGL2 & Overlay 2D
+        - Desain Baja SNI 1729:2020
+        - Desain Beton SNI 2847:2019 (Beta)
+        - Exporter CAD / BIM / CAE
+        - Asisten AI Ucuy & Perintah Suara
+        - Pelacakan Gestur Tangan (MediaPipe)
+        - Halaman Presentasi (/presentation)
+        - Lainnya
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah Reproduksi
+      description: Urutan klik atau input parameter untuk memicu bug.
+      placeholder: |
+        1. Buka /simulator?mode=MODE_A_EXTERNAL_LOADS
+        2. Pilih tumpuan ...
+        3. Masukkan beban ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected_vs_actual
+    attributes:
+      label: Perilaku Diharapkan vs Aktual
+      placeholder: |
+        Diharapkan: ...
+        Aktual: ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Info Perangkat & Browser
+      description: Versi aplikasi, OS, browser, dan screenshot bila ada (tempel langsung dengan Ctrl+V).
+      placeholder: "App v0.6.21 · Windows 11 · Chrome 131 · Desktop Workstation"

@@ -51,7 +51,17 @@ export function ConcreteOptimizationResultCard({
       <Card size="sm" className="border-border/50 bg-card/95 min-w-0">
         <CardContent className="flex items-start justify-between gap-2 p-2.5">
           <div className="min-w-0 flex-1">
-            <span className="text-muted-foreground text-[10px] font-medium">DIMENSI PENAMPANG</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground text-[10px] font-medium">
+                DIMENSI PENAMPANG
+              </span>
+              <Badge
+                variant="outline"
+                className="h-4 border-amber-500/40 bg-amber-500/15 px-1.5 py-0 text-[9px] font-semibold tracking-wider text-amber-300 uppercase"
+              >
+                Beta
+              </Badge>
+            </div>
             <div className="text-sm font-bold text-sky-400">
               {Number(section.bw)} × {Number(section.h)} mm
             </div>

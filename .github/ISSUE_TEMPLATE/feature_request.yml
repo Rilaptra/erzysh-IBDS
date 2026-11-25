@@ -1,0 +1,42 @@
+name: Saran Fitur & Peningkatan UX
+description: Usulkan fitur teknik sipil baru, format ekspor tambahan, atau perbaikan UI/UX.
+title: "[Fitur]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Punya ide fitur baru untuk **erzysh-IBDS**? Ceritakan kebutuhan rekayasa atau pengalaman pengguna yang ingin ditingkatkan.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Masalah yang Ingin Diselesaikan
+      description: Kendala apa yang dihadapi saat memakai simulator atau menyiapkan desain balok?
+      placeholder: "Contoh: Saat memeriksa balok menerus 2 bentang, saya perlu ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Usulan Fitur / Solusi
+      description: Jelaskan fitur atau perilaku baru yang Anda harapkan.
+    validations:
+      required: true
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Target Pengguna Terdampak
+      options:
+        - Mahasiswa Teknik Sipil
+        - Dosen & Praktisi Akademik
+        - Structural Engineer
+        - BIM / CAD Drafter
+        - Peneliti & Developer
+        - Semua Pengguna
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Contoh Kasus Rekayasa / Referensi UX
+      description: Opsional — cantumkan pasal SNI, referensi software, atau tangkapan layar.

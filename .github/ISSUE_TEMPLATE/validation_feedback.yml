@@ -1,0 +1,49 @@
+name: Koreksi Hitungan & Validasi (SAP2000 / Excel)
+description: Laporkan selisih angka hasil erzysh-IBDS dibanding SAP2000, Excel Manual, atau SNI.
+title: "[Validasi]: "
+labels: ["validation", "engineering"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gunakan formulir ini untuk melaporkan selisih hasil mekanika struktur, SNI 1729:2020, atau SNI 2847:2019 terhadap **SAP2000** atau **Perhitungan Excel Manual**.
+  - type: dropdown
+    id: standard
+    attributes:
+      label: Domain / Standar Acuan
+      options:
+        - Mekanika Balok & Lendutan (Euler-Bernoulli)
+        - Diagram Gaya Dalam (SFD / BMD / NFD / TFD)
+        - Geometri Profil Baja (JIS G 3192 / JIS G 3466)
+        - Desain Baja SNI 1729:2020
+        - Desain Beton SNI 2847:2019 (Beta)
+    validations:
+      required: true
+  - type: textarea
+    id: inputs
+    attributes:
+      label: Parameter Input Struktur Lengkap
+      placeholder: |
+        - Mode: Mode A / Mode B
+        - Bentang L: 6.0 m
+        - Tumpuan: PINNED_ROLLER
+        - Profil / Dimensi: WF 300x150x36.7 (BJ 37)
+        - Beban: q = 10 kN/m (self-weight off)
+    validations:
+      required: true
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Perbandingan Hasil (IBDS vs SAP2000 / Excel Manual)
+      placeholder: |
+        - Parameter: Lendutan Maksimum (mm)
+        - Hasil IBDS: -8.4375 mm
+        - Hasil SAP2000 / Excel: -8.4400 mm
+        - Selisih (%): 0.03%
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Bukti Pendukung (Screenshot / File .s2k / Sheet Excel)
+      description: Tempel tangkapan layar langsung di sini (Ctrl+V) atau lampirkan berkas .s2k / ringkasan rumus Excel.

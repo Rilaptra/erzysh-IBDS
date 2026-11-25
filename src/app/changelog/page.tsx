@@ -48,6 +48,11 @@ export default function ChangelogPage(): ReactElement {
                 <span>Beranda</span>
               </Link>
             </Button>
+            <Button asChild variant="ghost" size="sm" className="text-[11px] text-slate-300">
+              <Link href="/presentation" prefetch={false}>
+                Presentasi
+              </Link>
+            </Button>
             <Button
               asChild
               size="sm"
@@ -159,6 +164,16 @@ export default function ChangelogPage(): ReactElement {
               className="text-slate-400 transition-colors hover:text-cyan-400"
             >
               Beranda
+            </Link>
+            <span className="text-slate-700" aria-hidden="true">
+              ·
+            </span>
+            <Link
+              href="/presentation"
+              prefetch={false}
+              className="text-slate-400 transition-colors hover:text-cyan-400"
+            >
+              Presentasi
             </Link>
             <span className="text-slate-700" aria-hidden="true">
               ·

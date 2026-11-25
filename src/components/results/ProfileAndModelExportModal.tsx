@@ -57,6 +57,7 @@ interface ExportFormatItem {
   readonly targetSoftware: string;
   readonly description: string;
   readonly category: "CAD" | "BIM" | "CAE" | "3D_SOLID" | "REPORT";
+  readonly isBeta?: boolean;
 }
 
 const REBAR_GRADE_FY_MAP: Record<string, number> = {
@@ -106,6 +107,7 @@ const EXPORT_FORMATS: ExportFormatItem[] = [
     targetSoftware: "Autodesk Revit",
     description: "Katalog parameter dimensi penampang balok Revit.",
     category: "BIM",
+    isBeta: true,
   },
   {
     id: "iom",
@@ -114,6 +116,7 @@ const EXPORT_FORMATS: ExportFormatItem[] = [
     targetSoftware: "IDEA StatiCa Connection & Detail",
     description: "Model analisis sambungan dan gaya dalam terfaktor.",
     category: "CAE",
+    isBeta: true,
   },
   {
     id: "step",
@@ -122,6 +125,7 @@ const EXPORT_FORMATS: ExportFormatItem[] = [
     targetSoftware: "SolidWorks, Inventor, Fusion 360",
     description: "Model 3D solid b-rep geometri balok presisi.",
     category: "3D_SOLID",
+    isBeta: true,
   },
   {
     id: "stl",
@@ -130,6 +134,7 @@ const EXPORT_FORMATS: ExportFormatItem[] = [
     targetSoftware: "3D Printing & CFD / FEA Meshers",
     description: "Mesh segitiga 3D balok melendut.",
     category: "3D_SOLID",
+    isBeta: true,
   },
   {
     id: "calculation-sheet",
@@ -363,9 +368,19 @@ export function ProfileAndModelExportModal({
           <DialogTitle className="text-foreground text-base font-bold">
             Ekspor Model Struktur & Gambar CAD/BIM
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-xs">
-            Material Aktif: <strong className="text-foreground">{materialKind}</strong> | Sistem
-            Sumbu: <strong className="text-foreground">{coordinateMode}</strong>
+          <DialogDescription className="text-muted-foreground flex flex-wrap items-center gap-1 text-xs">
+            <span>Material Aktif:</span>
+            <strong className="text-foreground">{materialKind}</strong>
+            {materialKind === "CONCRETE" ? (
+              <Badge
+                variant="outline"
+                className="h-4 border-amber-500/40 bg-amber-500/15 px-1.5 py-0 text-[9px] font-semibold tracking-wider text-amber-300 uppercase"
+              >
+                Beta
+              </Badge>
+            ) : null}
+            <span>| Sistem Sumbu:</span>
+            <strong className="text-foreground">{coordinateMode}</strong>
           </DialogDescription>
         </DialogHeader>
 
@@ -395,9 +410,19 @@ export function ProfileAndModelExportModal({
                   >
                     {item.extension}
                   </span>
-                  <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px]">
-                    {item.category}
-                  </Badge>
+                  <div className="flex items-center gap-1">
+                    {item.isBeta ? (
+                      <Badge
+                        variant="outline"
+                        className="h-4 border-amber-500/40 bg-amber-500/15 px-1.5 py-0 text-[9px] font-semibold tracking-wider text-amber-300 uppercase"
+                      >
+                        Beta
+                      </Badge>
+                    ) : null}
+                    <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px]">
+                      {item.category}
+                    </Badge>
+                  </div>
                 </div>
                 <div className="text-foreground line-clamp-1 text-xs font-semibold">
                   {item.name}

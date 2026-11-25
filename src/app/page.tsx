@@ -88,12 +88,17 @@ const FEATURES = [
   },
 ] as const;
 
-const SPECS = [
+const SPECS: ReadonlyArray<{
+  readonly label: string;
+  readonly value: string;
+  readonly color: string;
+  readonly isBeta?: boolean;
+}> = [
   { label: "APP", value: `v${APP_VERSION}`, color: "text-cyan-300" },
   { label: "WASM ENGINE", value: `v${WASM_VERSION}`, color: "text-sky-300" },
-  { label: "BETON", value: "SNI 2847:2019", color: "text-emerald-300" },
+  { label: "BETON", value: "SNI 2847:2019", color: "text-emerald-300", isBeta: true },
   { label: "BAJA", value: "SNI 1729:2020", color: "text-violet-300" },
-] as const;
+];
 
 export default function LandingPage() {
   const allReleases = getAllChangelogReleases();
@@ -119,6 +124,11 @@ export default function LandingPage() {
           <div className="flex items-center gap-1">
             <Button asChild variant="ghost" size="sm" className="hidden text-[11px] sm:inline-flex">
               <a href="#fitur">Fitur</a>
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="hidden text-[11px] sm:inline-flex">
+              <Link href="/presentation" prefetch={false}>
+                Presentasi
+              </Link>
             </Button>
             <Button asChild variant="ghost" size="sm" className="hidden text-[11px] sm:inline-flex">
               <Link href="/simulator?tutorial=1" prefetch={false}>
@@ -326,8 +336,16 @@ export default function LandingPage() {
             >
               {SPECS.map((spec) => (
                 <div key={spec.label} className="erzysh-specs-item text-center">
-                  <dt className="text-[10px] font-bold tracking-wider text-slate-400">
-                    {spec.label}
+                  <dt className="flex items-center justify-center gap-1.5 text-[10px] font-bold tracking-wider text-slate-400">
+                    <span>{spec.label}</span>
+                    {spec.isBeta ? (
+                      <Badge
+                        variant="outline"
+                        className="h-4 border-amber-500/40 bg-amber-500/15 px-1.5 py-0 text-[9px] font-semibold tracking-wider text-amber-300 uppercase"
+                      >
+                        Beta
+                      </Badge>
+                    ) : null}
                   </dt>
                   <dd className={cn("mt-0.5 font-mono text-xs sm:text-sm", spec.color)}>
                     {spec.value}
@@ -475,6 +493,16 @@ export default function LandingPage() {
             </span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/presentation"
+              prefetch={false}
+              className="text-slate-400 transition-colors hover:text-cyan-400"
+            >
+              Presentasi
+            </Link>
+            <span className="text-slate-700" aria-hidden>
+              ·
+            </span>
             <Link
               href="/changelog"
               prefetch={false}
